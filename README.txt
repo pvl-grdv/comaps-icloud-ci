@@ -116,3 +116,7 @@ of the unpatched upstream revision. The guard starts when the snapshot enters
 core, not during earlier Swift staging. Incoming parse or install failure keeps
 local data and the existing warning-only policy; a later outgoing update can
 still replace cloud data. Live multi-device behavior remains unverified.
+The existing upstream XML parser can accept truncated or unrelated XML as an
+empty collection. This series retains that parser behavior: preservation on
+parse failure does not guarantee detection of every corrupt input. The failure
+regression uses a mismatched tag and verifies the loader actually rejects it.

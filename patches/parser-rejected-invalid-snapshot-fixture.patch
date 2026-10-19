@@ -1,0 +1,21 @@
+diff --git a/libs/map/map_tests/bookmarks_test.cpp b/libs/map/map_tests/bookmarks_test.cpp
+--- a/libs/map/map_tests/bookmarks_test.cpp
++++ b/libs/map/map_tests/bookmarks_test.cpp
+@@ -2703,9 +2703,16 @@
+ {
+   IncomingBookmarkFixture fixture;
+   auto const snapshot = fixture.Snapshot("B");
+-  { FileWriter writer(snapshot); writer.Write("<broken", 7); }
++  std::string originalContents;
++  FileReader(fixture.FilePath()).ReadAsString(originalContents);
++  std::string const invalidKml = "<kml><Document></kml>";
++  { FileWriter writer(snapshot); writer.Write(invalidKml.data(), invalidKml.size()); }
++  TEST(!LoadKmlData(FileReader(snapshot), KmlFileType::Text), ());
+   fixture.Begin(snapshot); fixture.Finish(false);
+   fixture.CheckVersion("Original");
++  std::string currentContents;
++  FileReader(fixture.FilePath()).ReadAsString(currentContents);
++  TEST_EQUAL(currentContents, originalContents, ());
+ }
+ 
+ UNIT_CLASS_TEST(Runner, Bookmarks_IncomingInstallFailurePreservesCurrentVersion)

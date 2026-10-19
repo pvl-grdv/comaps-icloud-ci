@@ -24,3 +24,4 @@ incoming-bookmark-ordered-commit.patch
 incoming-category-staging.patch
 cancellation-test-explicit-catch.patch
 explicit-fixture-callbacks.patch
+parser-rejected-invalid-snapshot-fixture.patch
