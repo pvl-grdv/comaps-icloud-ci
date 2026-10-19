@@ -28,6 +28,7 @@ jobs:
     steps:
       - uses: actions/checkout@v6
       - name: Exercise original and candidate file pipelines
+        shell: bash
         run: sh verify.sh | tee pipeline-results.txt
       - name: Report scope and results
         if: always()
