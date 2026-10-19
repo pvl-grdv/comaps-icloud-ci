@@ -56,10 +56,10 @@
  @testable import CoMaps__Debug_
  
  final class SynchronizationtateManagerTests: XCTestCase {
-@@ -572,3 +574,90 @@
+@@ -571,3 +573,90 @@
+     }
    }
  }
- 
 +
 +final class SynchronizationFileWriterInitialConflictTests: XCTestCase {
 +  private let fileManager = FileManager.default

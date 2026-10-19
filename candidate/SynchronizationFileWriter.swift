@@ -287,4 +287,3 @@ private extension URL {
     try url.setResourceValues(resource)
   }
 }
-
