@@ -4,7 +4,8 @@ Independent, AI-assisted diagnostic repository. Not an official CoMaps
 repository, upstream submission, or complete synchronization fix.
 
 The candidate skips the initial-conflict backup for byte-identical local and
-cloud files. It does not merge existing duplicates, compare semantic KML
+cloud files. It compares the actual metadata URL and preserves the local
+copy when the comparison cannot be coordinated. It does not merge existing duplicates, compare semantic KML
 contents, fix NSFileVersion conflicts, or prove safe concurrent iCloud edits.
 An explicit metadata-only difference case documents a remaining limitation.
 
@@ -19,7 +20,7 @@ License: Apache-2.0; retain LICENSE and NOTICE.
 GitHub Actions first runs the standalone Foundation file-pipeline scenarios,
 then downloads the pinned CoMaps checkout on an ephemeral Mac, configures its
 documented dependencies, applies patches/initial-conflict.patch, and runs the
-three new CoMapsTests regression cases in an iOS simulator. A Release archive
+five new CoMapsTests regression cases in an iOS simulator. A Release archive
 build follows. CI logs and the job summary are the result; no large artifacts
 or DerivedData caches are uploaded. See the actual Actions run for status.
 

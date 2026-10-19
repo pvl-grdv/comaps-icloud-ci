@@ -5,48 +5,81 @@
  final class SynchronizationFileWriter {
    private let fileManager: FileManager
    private let backgroundQueue = DispatchQueue(label: "iCloud.app.comaps.backgroundQueue", qos: .background)
-@@ -221,18 +222,29 @@
+@@ -30,7 +31,7 @@
+       case .updateCloudItem(let localMetadataItem): self.updateInCloudContainer(localMetadataItem, completion: resultCompletion)
+       case .removeCloudItem(let cloudMetadataItem): self.removeFromCloudContainer(cloudMetadataItem, completion: resultCompletion)
+       case .resolveVersionsConflict(let cloudMetadataItem): self.resolveVersionsConflict(cloudMetadataItem, completion: resultCompletion)
+-      case .resolveInitialSynchronizationConflict(let localMetadataItem): self.resolveInitialSynchronizationConflict(localMetadataItem, completion: resultCompletion)
++      case .resolveInitialSynchronizationConflict(let localMetadataItem, let cloudMetadataItem): self.resolveInitialSynchronizationConflict(localMetadataItem, cloudMetadataItem: cloudMetadataItem, completion: resultCompletion)
+       case .didFinishInitialSynchronization: resultCompletion(.success)
+       case .didReceiveError(let error): resultCompletion(.failure(error))
+       }
+@@ -220,16 +221,33 @@
+     }
    }
  
-   private func resolveInitialSynchronizationConflict(_ localMetadataItem: LocalMetadataItem, completion: @escaping WritingResultCompletionHandler) {
+-  private func resolveInitialSynchronizationConflict(_ localMetadataItem: LocalMetadataItem, completion: @escaping WritingResultCompletionHandler) {
 -    LOG(.info, "Start resolving initial sync conflict for file \(localMetadataItem.fileName) by copying with a new name...")
--    do {
--      let newFileUrl = generateNewFileUrl(for: localMetadataItem.fileUrl, addDeviceName: true)
--      if !fileManager.fileExists(atPath: newFileUrl.path) {
--        try fileManager.copyItem(at: localMetadataItem.fileUrl, to: newFileUrl)
--      } else {
--        try fileManager.replaceFileSafe(at: newFileUrl, with: localMetadataItem.fileUrl)
--      }
--      LOG(.info, "File \(localMetadataItem.fileName) was successfully resolved.")
--      completion(.reloadCategoriesAtURLs([newFileUrl]))
--    } catch {
--      completion(.failure(error))
-+    let cloudFileUrl = localMetadataItem.relatedCloudItemUrl(to: cloudDirectoryUrl)
++  private func resolveInitialSynchronizationConflict(_ localMetadataItem: LocalMetadataItem, cloudMetadataItem: CloudMetadataItem, completion: @escaping WritingResultCompletionHandler) {
 +    var coordinationError: NSError?
-+    fileCoordinator.coordinate(readingItemAt: cloudFileUrl,
++    fileCoordinator.coordinate(readingItemAt: cloudMetadataItem.fileUrl,
 +                               writingItemAt: localMetadataItem.fileUrl,
 +                               error: &coordinationError) { cloudFileUrl, localFileUrl in
 +      if fileManager.contentsEqual(atPath: localFileUrl.path, andPath: cloudFileUrl.path) {
 +        completion(.success)
 +        return
 +      }
-+      do {
-+        let newFileUrl = generateNewFileUrl(for: localFileUrl, addDeviceName: true)
-+        if !fileManager.fileExists(atPath: newFileUrl.path) {
-+          try fileManager.copyItem(at: localFileUrl, to: newFileUrl)
-+        } else {
-+          try fileManager.replaceFileSafe(at: newFileUrl, with: localFileUrl)
-+        }
-+        completion(.reloadCategoriesAtURLs([newFileUrl]))
-+      } catch {
-+        completion(.failure(error))
-+      }
++      preserveLocalInitialConflict(at: localFileUrl, completion: completion)
 +    }
 +    if let coordinationError {
-+      completion(.failure(coordinationError))
-     }
-   }
++      LOG(.warning, coordinationError.localizedDescription)
++      preserveLocalInitialConflict(at: localMetadataItem.fileUrl, completion: completion)
++    }
++  }
++
++  private func preserveLocalInitialConflict(at localFileUrl: URL, completion: @escaping WritingResultCompletionHandler) {
++    LOG(.info, "Start resolving initial sync conflict for file \(localFileUrl.lastPathComponent) by copying with a new name...")
+     do {
+-      let newFileUrl = generateNewFileUrl(for: localMetadataItem.fileUrl, addDeviceName: true)
++      let newFileUrl = generateNewFileUrl(for: localFileUrl, addDeviceName: true)
+       if !fileManager.fileExists(atPath: newFileUrl.path) {
+-        try fileManager.copyItem(at: localMetadataItem.fileUrl, to: newFileUrl)
++        try fileManager.copyItem(at: localFileUrl, to: newFileUrl)
+       } else {
+-        try fileManager.replaceFileSafe(at: newFileUrl, with: localMetadataItem.fileUrl)
+-      }
+-      LOG(.info, "File \(localMetadataItem.fileName) was successfully resolved.")
++        try fileManager.replaceFileSafe(at: newFileUrl, with: localFileUrl)
++      }
++      LOG(.info, "File \(localFileUrl.lastPathComponent) was successfully resolved.")
+       completion(.reloadCategoriesAtURLs([newFileUrl]))
+     } catch {
+       completion(.failure(error))
+--- a/iphone/Maps/Core/iCloud/SynchronizationStateResolver.swift
++++ b/iphone/Maps/Core/iCloud/SynchronizationStateResolver.swift
+@@ -1,3 +1,4 @@
++// Modified with AI assistance for an independent CI experiment on 2026-10-19.
+ typealias LocalContents = [LocalMetadataItem]
+ typealias CloudContents = [CloudMetadataItem]
+ typealias LocalContentsUpdate = ContentsUpdate<LocalMetadataItem>
+@@ -35,7 +36,7 @@
  
+   case didReceiveError(SynchronizationError)
+   case resolveVersionsConflict(CloudMetadataItem)
+-  case resolveInitialSynchronizationConflict(LocalMetadataItem)
++  case resolveInitialSynchronizationConflict(LocalMetadataItem, CloudMetadataItem)
+   case didFinishInitialSynchronization
+ }
+ 
+@@ -112,7 +113,7 @@
+         localContents.forEach { localItem in
+           if let cloudItem = cloudContents.downloaded.firstByName(localItem), localItem.lastModificationDate != cloudItem.lastModificationDate {
+             if cloudItem.isDownloaded {
+-              events.append(.resolveInitialSynchronizationConflict(localItem))
++              events.append(.resolveInitialSynchronizationConflict(localItem, cloudItem))
+               events.append(.updateLocalItem(with: cloudItem))
+             } else {
+               events.append(.startDownloading(cloudItem))
 --- a/iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift
 +++ b/iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift
 @@ -1,4 +1,6 @@
@@ -56,7 +89,43 @@
  @testable import CoMaps__Debug_
  
  final class SynchronizationtateManagerTests: XCTestCase {
-@@ -571,3 +573,90 @@
+@@ -33,7 +35,7 @@
+     outgoingEvents.append(contentsOf: syncStateManager.resolveEvent(.didFinishGatheringCloudContents(cloudItems)))
+ 
+     XCTAssertTrue(outgoingEvents.contains { event in
+-      if case .resolveInitialSynchronizationConflict(let item) = event, item == localItem1 {
++      if case .resolveInitialSynchronizationConflict(let item, _) = event, item == localItem1 {
+         return true
+       }
+       return false
+@@ -70,7 +72,7 @@
+     outgoingEvents.append(contentsOf: syncStateManager.resolveEvent(.didFinishGatheringLocalContents([localItem])))
+     outgoingEvents.append(contentsOf: syncStateManager.resolveEvent(.didFinishGatheringCloudContents([cloudItem])))
+ 
+-    XCTAssertTrue(outgoingEvents.contains { if case .resolveInitialSynchronizationConflict(_) = $0 { return true } else { return false } }, "Expected conflict resolution for a newer cloud item")
++    XCTAssertTrue(outgoingEvents.contains { if case .resolveInitialSynchronizationConflict(_, _) = $0 { return true } else { return false } }, "Expected conflict resolution for a newer cloud item")
+   }
+ 
+   func testInitialSynchronizationWithNewerLocalItem() {
+@@ -82,7 +84,7 @@
+     outgoingEvents.append(contentsOf: syncStateManager.resolveEvent(.didFinishGatheringLocalContents([localItem])))
+     outgoingEvents.append(contentsOf: syncStateManager.resolveEvent(.didFinishGatheringCloudContents([cloudItem])))
+ 
+-    XCTAssertTrue(outgoingEvents.contains { if case .resolveInitialSynchronizationConflict(_) = $0 { return true } else { return false } }, "Expected conflict resolution for a newer local item")
++    XCTAssertTrue(outgoingEvents.contains { if case .resolveInitialSynchronizationConflict(_, _) = $0 { return true } else { return false } }, "Expected conflict resolution for a newer local item")
+   }
+ 
+   func testInitialSynchronizationWithNonConflictingItems() {
+@@ -116,7 +118,7 @@
+ 
+     outgoingEvents.forEach { event in
+       switch event {
+-      case .resolveInitialSynchronizationConflict(let item):
++      case .resolveInitialSynchronizationConflict(let item, _):
+         // copy local file with a new name and replace the original with the cloud file
+         XCTAssertEqual(item, localItem1)
+       case .updateLocalItem(let item):
+@@ -571,3 +573,117 @@
      }
    }
  }
@@ -122,9 +191,32 @@
 +      .filter { $0.lastPathComponent != "Collection.kml" && $0.pathExtension == "kml" }
 +  }
 +
-+  private func synchronize() throws {
++  func testMetadataURLSelectsTheFileThatWillActuallyBeTransferred() throws {
++    try prepareFiles(cloudData: localData)
++    let movedDirectory = cloudDirectory.appendingPathComponent("moved", isDirectory: true)
++    try fileManager.createDirectory(at: movedDirectory, withIntermediateDirectories: true)
++    let movedFile = movedDirectory.appendingPathComponent("Collection.kml")
++    try changedData.write(to: movedFile)
++    try synchronize(cloudFileURL: movedFile)
++    let copies = try conflictCopies()
++    XCTAssertEqual(copies.count, 1)
++    XCTAssertEqual(try Data(contentsOf: XCTUnwrap(copies.first)), localData)
++    XCTAssertEqual(try Data(contentsOf: localURL), changedData)
++  }
++
++  func testUnavailableCloudComparisonStillPreservesLocalData() throws {
++    try prepareFiles(cloudData: changedData)
++    try fileManager.removeItem(at: cloudURL)
++    try synchronize(afterInitialConflict: { try self.changedData.write(to: self.cloudURL) })
++    let copies = try conflictCopies()
++    XCTAssertEqual(copies.count, 1)
++    XCTAssertEqual(try Data(contentsOf: XCTUnwrap(copies.first)), localData)
++    XCTAssertEqual(try Data(contentsOf: localURL), changedData)
++  }
++
++  private func synchronize(cloudFileURL: URL? = nil, afterInitialConflict: (() throws -> Void)? = nil) throws {
 +    let local = try LocalMetadataItem(fileUrl: localURL)
-+    let cloud = CloudMetadataItem(fileName: "Collection.kml", fileUrl: cloudURL,
++    let cloud = CloudMetadataItem(fileName: "Collection.kml", fileUrl: cloudFileURL ?? cloudURL,
 +                                  isDownloaded: true, percentDownloaded: 100,
 +                                  lastModificationDate: 100, downloadingError: nil,
 +                                  uploadingError: nil, hasUnresolvedConflicts: false)
@@ -137,7 +229,11 @@
 +    completed.assertForOverFulfill = true
 +    let writer = SynchronizationFileWriter(localDirectoryUrl: localDirectory, cloudDirectoryUrl: cloudDirectory)
 +    for event in events {
++      let isInitialConflict: Bool = { if case .resolveInitialSynchronizationConflict = event { return true }; return false }()
 +      writer.processEvent(event) { result in
++        if isInitialConflict {
++          do { try afterInitialConflict?() } catch { XCTFail(String(describing: error)) }
++        }
 +        XCTAssertTrue(Thread.isMainThread)
 +        if case .failure(let error) = result { XCTFail(String(describing: error)) }
 +        completed.fulfill()

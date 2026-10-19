@@ -3,9 +3,11 @@ set -eu
 artifact_dir=$(cd "$(dirname "$0")" && pwd)
 run_dir=$(mktemp -d "${TMPDIR:-/tmp}/comaps-icloud-regression.XXXXXX")
 for mode in baseline candidate; do
+  resolver="$artifact_dir/tests/SynchronizationStateResolver.swift"
+  if [ "$mode" = candidate ]; then resolver="$artifact_dir/candidate/SynchronizationStateResolver.swift"; fi
   cat "$artifact_dir/tests/Support.swift" \
       "$artifact_dir/tests/MetadataItem.swift" \
-      "$artifact_dir/tests/SynchronizationStateResolver.swift" \
+      "$resolver" \
       "$artifact_dir/$mode/SynchronizationFileWriter.swift" \
       "$artifact_dir/tests/main.swift" > "$run_dir/$mode.swift"
   swiftc -module-cache-path "$run_dir/module-cache" "$run_dir/$mode.swift" -o "$run_dir/$mode"

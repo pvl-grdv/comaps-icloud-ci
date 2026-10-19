@@ -6,7 +6,7 @@ try FileManager.default.createDirectory(at: root, withIntermediateDirectories: t
 let same = Data("<kml><Document><name>Collection A</name></Document></kml>".utf8)
 let other = Data("<kml><Document><name>Collection B</name></Document></kml>".utf8)
 
-func runCase(_ caseName: String, localData: Data, cloudData: Data, preexistingCopy: Data? = nil) throws -> [String: Any] {
+func runCase(_ caseName: String, localData: Data, cloudData: Data, preexistingCopy: Data? = nil, alternateCloudLocation: Bool = false, restoreCloudAfterConflict: Bool = false) throws -> [String: Any] {
   let caseRoot = root.appendingPathComponent(caseName, isDirectory: true)
   let localDir = caseRoot.appendingPathComponent("local", isDirectory: true)
   let cloudDir = caseRoot.appendingPathComponent("cloud", isDirectory: true)
@@ -17,21 +17,34 @@ func runCase(_ caseName: String, localData: Data, cloudData: Data, preexistingCo
   let backupURL = localDir.appendingPathComponent("Collection_1_SyntheticDevice.kml")
   try localData.write(to: localURL)
   try cloudData.write(to: cloudURL)
+  var metadataCloudURL = cloudURL
+  if alternateCloudLocation {
+    let moved = cloudDir.appendingPathComponent("moved", isDirectory: true)
+    try FileManager.default.createDirectory(at: moved, withIntermediateDirectories: true)
+    metadataCloudURL = moved.appendingPathComponent("Collection.kml")
+    try cloudData.write(to: metadataCloudURL)
+    try localData.write(to: cloudURL)
+  }
   try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 200)], ofItemAtPath: localURL.path)
   try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 100)], ofItemAtPath: cloudURL.path)
   if let preexistingCopy { try preexistingCopy.write(to: backupURL) }
   let localItem = try LocalMetadataItem(fileUrl: localURL)
-  let cloudItem = CloudMetadataItem(fileName: "Collection.kml", fileUrl: cloudURL,
+  let cloudItem = CloudMetadataItem(fileName: "Collection.kml", fileUrl: metadataCloudURL,
     isDownloaded: true, percentDownloaded: 100, lastModificationDate: 100,
     downloadingError: nil, uploadingError: nil, hasUnresolvedConflicts: false)
   let resolver = iCloudSynchronizationStateResolver(isInitialSynchronization: true)
   _ = resolver.resolveEvent(.didFinishGatheringLocalContents([localItem]))
   let events = resolver.resolveEvent(.didFinishGatheringCloudContents([cloudItem]))
+  if restoreCloudAfterConflict { try FileManager.default.removeItem(at: metadataCloudURL) }
   let writer = SynchronizationFileWriter(localDirectoryUrl: localDir, cloudDirectoryUrl: cloudDir)
   var completed = 0
   var failures: [String] = []
   for event in events {
+    let isInitialConflict: Bool = { if case .resolveInitialSynchronizationConflict = event { return true }; return false }()
     writer.processEvent(event) { result in
+      if isInitialConflict && restoreCloudAfterConflict {
+        do { try cloudData.write(to: metadataCloudURL) } catch { failures.append(String(describing: error)) }
+      }
       if case .failure(let error) = result { failures.append(String(describing: error)) }
       completed += 1
     }
@@ -69,6 +82,8 @@ results.append(try runCase("equal-bytes-existing-copy", localData: same, cloudDa
 let datedA = Data("<kml><Document><name>A</name><ExtendedData><lastModified>2026-10-01</lastModified></ExtendedData></Document></kml>".utf8)
 let datedB = Data("<kml><Document><name>A</name><ExtendedData><lastModified>2026-10-02</lastModified></ExtendedData></Document></kml>".utf8)
 results.append(try runCase("metadata-only-difference-known-limitation", localData: datedA, cloudData: datedB))
+results.append(try runCase("metadata-url-must-match-transferred-file", localData: same, cloudData: other, alternateCloudLocation: true))
+results.append(try runCase("unavailable-comparison-preserves-local-data", localData: same, cloudData: other, restoreCloudAfterConflict: true))
 let result: [String: Any] = ["mode": mode, "cases": results, "all_passed": true, "complete_duplicate_fix": false]
 let encoded = try JSONSerialization.data(withJSONObject: result, options: [.prettyPrinted, .sortedKeys])
 FileHandle.standardOutput.write(encoded)

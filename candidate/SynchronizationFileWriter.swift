@@ -31,7 +31,7 @@ final class SynchronizationFileWriter {
       case .updateCloudItem(let localMetadataItem): self.updateInCloudContainer(localMetadataItem, completion: resultCompletion)
       case .removeCloudItem(let cloudMetadataItem): self.removeFromCloudContainer(cloudMetadataItem, completion: resultCompletion)
       case .resolveVersionsConflict(let cloudMetadataItem): self.resolveVersionsConflict(cloudMetadataItem, completion: resultCompletion)
-      case .resolveInitialSynchronizationConflict(let localMetadataItem): self.resolveInitialSynchronizationConflict(localMetadataItem, completion: resultCompletion)
+      case .resolveInitialSynchronizationConflict(let localMetadataItem, let cloudMetadataItem): self.resolveInitialSynchronizationConflict(localMetadataItem, cloudMetadataItem: cloudMetadataItem, completion: resultCompletion)
       case .didFinishInitialSynchronization: resultCompletion(.success)
       case .didReceiveError(let error): resultCompletion(.failure(error))
       }
@@ -221,30 +221,36 @@ final class SynchronizationFileWriter {
     }
   }
 
-  private func resolveInitialSynchronizationConflict(_ localMetadataItem: LocalMetadataItem, completion: @escaping WritingResultCompletionHandler) {
-    let cloudFileUrl = localMetadataItem.relatedCloudItemUrl(to: cloudDirectoryUrl)
+  private func resolveInitialSynchronizationConflict(_ localMetadataItem: LocalMetadataItem, cloudMetadataItem: CloudMetadataItem, completion: @escaping WritingResultCompletionHandler) {
     var coordinationError: NSError?
-    fileCoordinator.coordinate(readingItemAt: cloudFileUrl,
+    fileCoordinator.coordinate(readingItemAt: cloudMetadataItem.fileUrl,
                                writingItemAt: localMetadataItem.fileUrl,
                                error: &coordinationError) { cloudFileUrl, localFileUrl in
       if fileManager.contentsEqual(atPath: localFileUrl.path, andPath: cloudFileUrl.path) {
         completion(.success)
         return
       }
-      do {
-        let newFileUrl = generateNewFileUrl(for: localFileUrl, addDeviceName: true)
-        if !fileManager.fileExists(atPath: newFileUrl.path) {
-          try fileManager.copyItem(at: localFileUrl, to: newFileUrl)
-        } else {
-          try fileManager.replaceFileSafe(at: newFileUrl, with: localFileUrl)
-        }
-        completion(.reloadCategoriesAtURLs([newFileUrl]))
-      } catch {
-        completion(.failure(error))
-      }
+      preserveLocalInitialConflict(at: localFileUrl, completion: completion)
     }
     if let coordinationError {
-      completion(.failure(coordinationError))
+      LOG(.warning, coordinationError.localizedDescription)
+      preserveLocalInitialConflict(at: localMetadataItem.fileUrl, completion: completion)
+    }
+  }
+
+  private func preserveLocalInitialConflict(at localFileUrl: URL, completion: @escaping WritingResultCompletionHandler) {
+    LOG(.info, "Start resolving initial sync conflict for file \(localFileUrl.lastPathComponent) by copying with a new name...")
+    do {
+      let newFileUrl = generateNewFileUrl(for: localFileUrl, addDeviceName: true)
+      if !fileManager.fileExists(atPath: newFileUrl.path) {
+        try fileManager.copyItem(at: localFileUrl, to: newFileUrl)
+      } else {
+        try fileManager.replaceFileSafe(at: newFileUrl, with: localFileUrl)
+      }
+      LOG(.info, "File \(localFileUrl.lastPathComponent) was successfully resolved.")
+      completion(.reloadCategoriesAtURLs([newFileUrl]))
+    } catch {
+      completion(.failure(error))
     }
   }
 
