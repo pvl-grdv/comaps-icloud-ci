@@ -8,5 +8,6 @@
   "bookmarks_processor_tests.cpp::SavedItemsIndexTest_InvalidSnapshotRetainsPreviousIndex",
   "bookmarks_processor_tests.cpp::SavedItemsIndexTest_CancelledSearch",
   "bookmarks_processor_tests.cpp::SavedItemsProcessorTest_CancelledBeforeProcessingCompletesTypedCallback",
-  "bookmarks_processor_tests.cpp::SavedItemsProcessorTest_CancelledLegacyRequestStillCompletes"
+  "bookmarks_processor_tests.cpp::SavedItemsProcessorTest_CancelledLegacyRequestStillCompletes",
+  "bookmarks_processor_tests.cpp::SavedItemsIndexTest_OriginalAndCustomNamesSurviveUpdates"
 ]

@@ -105,7 +105,8 @@
     "incoming-category-staging.patch": "Swift cloud read coordinator stages same-volume snapshot and closes accessor before core call. Existing serial writer queue waits for idempotent acknowledgement; cleanup on payload release. Four async writer and one actual bridge XCTest; existing five file-writer fixtures retain original assertions.",
     "cancellation-test-explicit-catch.patch": "Test-only compile fix: catch the exact search::CancelException explicitly; no exception fails and unexpected exceptions propagate. Common TEST_THROW macro unchanged.",
     "explicit-fixture-callbacks.patch": "Test-only explicit BookmarkManager::Callbacks prvalues at two make_unique calls; callback values and constructor unchanged.",
-    "parser-rejected-invalid-snapshot-fixture.patch": "Test-only mismatched XML fixture with actual loader rejection precondition; false completion, Original memory and full original destination bytes must be preserved."
+    "parser-rejected-invalid-snapshot-fixture.patch": "Test-only mismatched XML fixture with actual loader rejection precondition; false completion, Original memory and full original destination bytes must be preserved.",
+    "bookmark-original-name-search-alias.patch": "Retain preferred localized original bookmark name alongside custom/display and type aliases; one typed-index test covers both names and alias changes. Existing tokenizer/ranker and legacy Smoke assertions unchanged."
   },
   "patch_sha256": {
     "initial-conflict.patch": "baebd78a4a6779fb07ea7a92173169d805cd2460dae0b0bb8b8375a28c0ca19e",
@@ -134,7 +135,8 @@
     "incoming-category-staging.patch": "37e957e8aa8a58185dd2a3ecb5cf35f555295248a77d4f6ec8ef7b2299b7ff1c",
     "cancellation-test-explicit-catch.patch": "b47320fe3bde4a762f88a07d2ed20a63bf711ea43a5cbb6bc960bb53c3095a79",
     "explicit-fixture-callbacks.patch": "13b351f3d3acf757e7d70f40eff25e170a7c058a20d0ad4673457087d62cd9ca",
-    "parser-rejected-invalid-snapshot-fixture.patch": "f4ae752454076d5c6e2532d59dfe178b101c3c6a1f28e8b6f674f252043525cb"
+    "parser-rejected-invalid-snapshot-fixture.patch": "f4ae752454076d5c6e2532d59dfe178b101c3c6a1f28e8b6f674f252043525cb",
+    "bookmark-original-name-search-alias.patch": "872319ee04be424ec9b3ad3691b021b8ffc133f4d485ec856e7d2fc32bd9d8a8"
   },
   "ci_findings": [
     {
@@ -178,6 +180,12 @@
       "fix": "Use mismatched tags, assert actual LoadKmlData rejects the fixture, retain failure/version assertions and add complete destination-byte preservation. Product parser unchanged.",
       "partial_native_results": "All33 selected native core cases executed:32 passed,1 fixture failure. Control/search/XCTest/archive not reached.",
       "remaining_limitation": "Existing parser does not finalize XML at EOF and may accept truncated/unrelated XML. This series protects actual parser/I/O failure, not arbitrary corruption."
+    },
+    {
+      "run": 39288352570,
+      "error": "Legacy Smoke expects original-name matching with customName set, while the pinned extractor indexes only preferred custom/display name plus type. This unchanged baseline behavior omitted the original alias.",
+      "fix": "Add preferred original localized name to existing owned names vector. Existing trim/dedup/normalization and all old Smoke assertions stay. Add one typed-index names-only alias/update regression, search plan10to11.",
+      "partial_native_results": "All33 native core tests passed; native previous-boundary control confirmed normal assertion failure and restored binary. Search10executed9passed1legacySmoke failure; iOS/archive not reached."
     }
   ],
   "upstream_deletion_source": "https://github.com/organicmaps/organicmaps/commit/01e8b634df68750ce15b86aec19ceed4362eb24e",

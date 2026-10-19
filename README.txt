@@ -72,7 +72,7 @@ The ios-saved-items branch extends all-folder search to both bookmarks and
 tracks using explicit typed identities and the existing tokenizer/ranker.
 It adds manual item ordering with separate Points and Tracks sections, KML
 rank properties, and a KML sort-mode property. The full candidate test plan
-requires 33 native map regressions, 10 native search tests, 1 legacy automatic
+requires 33 native map regressions, 11 native search tests, 1 legacy automatic
 sort test, and 71 simulator XCTest cases. New API tests cannot compile on
 the original revision, so this branch does not run that negative control.
 Native builds and test outcomes are pending until the Actions run reports
@@ -120,3 +120,8 @@ The existing upstream XML parser can accept truncated or unrelated XML as an
 empty collection. This series retains that parser behavior: preservation on
 parse failure does not guarantee detection of every corrupt input. The failure
 regression uses a mismatched tag and verifies the loader actually rejects it.
+
+Bookmark search keeps the original localized name as an additional alias to
+the custom/display name and feature type. This repairs a missing alias already
+present in the pinned baseline; the old smoke-test expectations stay intact.
+A typed-index case checks both names and removal of stale aliases on updates.

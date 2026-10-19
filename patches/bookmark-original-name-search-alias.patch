@@ -1,0 +1,41 @@
+diff --git a/libs/search/bookmarks/data.hpp b/libs/search/bookmarks/data.hpp
+--- a/libs/search/bookmarks/data.hpp
++++ b/libs/search/bookmarks/data.hpp
+@@ -71,6 +71,7 @@
+ 
+     // Same as GetPreferredBookmarkName from the map library. Duplicated here to avoid dependency.
+     names.emplace_back(kml::GetPreferredBookmarkNameForKml(bookmarkData));
++    names.emplace_back(kml::GetPreferredBookmarkStrForKml(bookmarkData.m_name, localisation::GetMapLanguageIndexes()));
+ 
+     // todo(@m) Platform's API does not allow to use |locale| here.
+     names.emplace_back(kml::GetLocalizedFeatureType(bookmarkData.m_featureTypes));
+diff --git a/libs/search/search_tests/bookmarks_processor_tests.cpp b/libs/search/search_tests/bookmarks_processor_tests.cpp
+--- a/libs/search/search_tests/bookmarks_processor_tests.cpp
++++ b/libs/search/search_tests/bookmarks_processor_tests.cpp
+@@ -271,6 +271,26 @@
+   TEST_EQUAL(Search("сосн"), expected, ());
+ }
+ 
++UNIT_CLASS_TEST(SavedItemsIndexTest, OriginalAndCustomNamesSurviveUpdates)
++{
++  auto data = MakeBookmarkData("Double R Diner", "2R Diner", "", {});
++  auto const expected = ItemResults{{{ItemKind::Bookmark, 7}, 10}};
++  TEST(Replace({{{ItemKind::Bookmark, 7}, 10, Data(data)}}), ());
++  TEST_EQUAL(Search("double"), expected, ());
++  TEST_EQUAL(Search("2r"), expected, ());
++
++  kml::SetDefaultStr(data.m_customName, "Renamed Label");
++  TEST(Replace({{{ItemKind::Bookmark, 7}, 10, Data(data)}}), ());
++  TEST_EQUAL(Search("double"), expected, ());
++  TEST_EQUAL(Search("renamed"), expected, ());
++
++  kml::SetDefaultStr(data.m_name, "Glacier Cabin");
++  TEST(Replace({{{ItemKind::Bookmark, 7}, 10, Data(data)}}), ());
++  TEST(Search("double").empty(), ());
++  TEST_EQUAL(Search("glacier"), expected, ());
++  TEST_EQUAL(Search("renamed"), expected, ());
++}
++
+ UNIT_CLASS_TEST(SavedItemsIndexTest, SnapshotRenameMoveDeleteReload)
+ {
+   TEST(Replace({TrackDocument(7, 10, "Sequoia")}), ());
