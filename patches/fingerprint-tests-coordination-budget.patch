@@ -1,0 +1,93 @@
+diff --git a/iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift b/iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift
+--- a/iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift
++++ b/iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift
+@@ -12,11 +12,14 @@
+     provider = FileContentFingerprintProvider(failedReadRetryInterval: 0.05)
+   }
+ 
+-  override func tearDown() {
+-    provider = nil
+-    try? FileManager.default.removeItem(at: directoryUrl)
+-    directoryUrl = nil
+-    super.tearDown()
++  override func tearDown() async throws {
++    await MainActor.run {
++      provider.reset()
++      provider = nil
++      try? FileManager.default.removeItem(at: directoryUrl)
++      directoryUrl = nil
++    }
++    try await super.tearDown()
+   }
+ 
+   @MainActor
+@@ -27,7 +30,7 @@
+     provider.onContentsMayBeKnown = { reported.fulfill() }
+ 
+     XCTAssertNil(provider.fingerprint(of: item), "Reading and hashing a file is too slow for the main queue")
+-    await fulfillment(of: [reported], timeout: 1)
++    await fulfillment(of: [reported], timeout: 5)
+     XCTAssertEqual(provider.fingerprint(of: item), Fingerprint(hashing: Data(content.utf8)))
+   }
+ 
+@@ -37,7 +40,7 @@
+     let firstRead = expectation(description: "The first account's content is known")
+     provider.onContentsMayBeKnown = { firstRead.fulfill() }
+     XCTAssertNil(provider.fingerprint(of: item))
+-    await fulfillment(of: [firstRead], timeout: 1)
++    await fulfillment(of: [firstRead], timeout: 5)
+ 
+     // Account containers can reuse the path and cheap metadata of a file with different contents.
+     try Data("B".utf8).write(to: item.fileUrl)
+@@ -46,19 +49,33 @@
+     provider.onContentsMayBeKnown = { secondRead.fulfill() }
+ 
+     XCTAssertNil(provider.fingerprint(of: item))
+-    await fulfillment(of: [secondRead], timeout: 1)
++    await fulfillment(of: [secondRead], timeout: 5)
+     XCTAssertEqual(provider.fingerprint(of: item), Fingerprint(hashing: Data("B".utf8)))
+   }
+ 
+   @MainActor
+-  func testResetCancelsReportsFromAnEarlierReadSession() async {
++  func testResetCancelsReportsFromAnEarlierReadSession() async throws {
+     let obsoleteReport = expectation(description: "The previous session cannot report content or a retry")
+     obsoleteReport.isInverted = true
+-    provider.onContentsMayBeKnown = { obsoleteReport.fulfill() }
+     XCTAssertNil(provider.fingerprint(of: item(named: "missing.kml")))
+ 
+     provider.reset()
++    let currentItem = try file(named: "current.kml", content: "current session")
++    let currentFingerprint = Fingerprint(hashing: Data("current session".utf8))
++    let currentReport = expectation(description: "The current read finishes after the previous queue item")
++    var currentReadReported = false
++    provider.onContentsMayBeKnown = {
++      if currentReadReported {
++        obsoleteReport.fulfill()
++        return
++      }
++      XCTAssertEqual(self.provider.fingerprint(of: currentItem), currentFingerprint)
++      currentReadReported = true
++      currentReport.fulfill()
++    }
++    XCTAssertNil(provider.fingerprint(of: currentItem))
+ 
++    await fulfillment(of: [currentReport], timeout: 5)
+     await fulfillment(of: [obsoleteReport], timeout: 0.2)
+   }
+ 
+@@ -71,12 +88,12 @@
+     let firstReport = expectation(description: "The file may be worth reading again")
+     provider.onContentsMayBeKnown = { firstReport.fulfill() }
+     XCTAssertNil(provider.fingerprint(of: item))
+-    await fulfillment(of: [firstReport], timeout: 1)
++    await fulfillment(of: [firstReport], timeout: 5)
+ 
+     let secondReport = expectation(description: "The file may be worth reading again")
+     provider.onContentsMayBeKnown = { secondReport.fulfill() }
+     XCTAssertNil(provider.fingerprint(of: item), "The file still cannot be read")
+-    await fulfillment(of: [secondReport], timeout: 1)
++    await fulfillment(of: [secondReport], timeout: 5)
+   }
+ 
+   // MARK: - Helpers

@@ -97,7 +97,9 @@
     "bookmark-original-name-search-alias.patch": "Retain preferred localized original bookmark name alongside custom/display and type aliases; one typed-index test covers both names and alias changes. Existing tokenizer/ranker and legacy Smoke assertions unchanged.",
     "declare-fill-empty-names.patch": "Declare existing external FillEmptyNames in bookmark_helpers.hpp so standalone Xcode C++ compilation sees it; no implementation or destination basename change.",
     "icloud-content-reconciliation.patch": "Atomic full OM13232 production/tests/core port with persisted-save guard, lifecycle fix and CoMaps integration; exact source provenance and coverage mapping in companion manifests.",
-    "explicit-search-service-capture.patch": "Current Xcode compiler fix: explicit self.manager in six nested compactMap references; no search behavior or test-count change."
+    "explicit-search-service-capture.patch": "Current Xcode compiler fix: explicit self.manager in six nested compactMap references; no search behavior or test-count change.",
+    "fingerprint-tests-coordination-budget.patch": "Test-only: allow5s for positive coordinated IO callbacks, reset provider before removing temp fixtures, and ensure old read has passed serialqueue using a current-session sentinel before checking no stale report. Hash/retry expectations retained;4cases unchanged. Async teardown clears provider state and removes fixtures on MainActor; positive hash/retry assertions and method count unchanged.",
+    "hosted-ui-window-lifecycle.patch": "Test-only: use connected phone application scene and its existing root-bearing host window despite XCTest activation transition; restore root/key/hidden state. Preserve all original13assertions and3screens, add realwindow attachment assertion."
   },
   "patch_sha256": {
     "initial-conflict.patch": "baebd78a4a6779fb07ea7a92173169d805cd2460dae0b0bb8b8375a28c0ca19e",
@@ -130,7 +132,9 @@
     "bookmark-original-name-search-alias.patch": "872319ee04be424ec9b3ad3691b021b8ffc133f4d485ec856e7d2fc32bd9d8a8",
     "declare-fill-empty-names.patch": "dd9413724c4688eecf99ceadec5db43f5a053f72afa19d8ad17c3b4afe1b5c88",
     "icloud-content-reconciliation.patch": "6f868535e44b8e65fc43ffeb438dcf186bcc644eb9445481471133e35c519a4b",
-    "explicit-search-service-capture.patch": "42db39c552b39ef881464b459a868f73a9a0725489053485a0d7c34e61e67da9"
+    "explicit-search-service-capture.patch": "42db39c552b39ef881464b459a868f73a9a0725489053485a0d7c34e61e67da9",
+    "fingerprint-tests-coordination-budget.patch": "c091322ec750ae1c5ae02f30f84aec2fff9bb3a54e4dba4f411936c6e3b37b0c",
+    "hosted-ui-window-lifecycle.patch": "a700a5df359bbbc03af8c4a76fc72057e15b432db57dd79d5d67984c06ce2439"
   },
   "ci_findings": [
     {
@@ -192,6 +196,34 @@
       "error": "Nested compactMap closure in BMCSavedItemsSearchService needs explicit self.manager at six references.",
       "fix": "Qualify only those references; existing self retention and search algorithm unchanged. Included with full port.",
       "partial_native_results": "Application Swift compilation failed before XCTest; full-port results pending."
+    },
+    {
+      "run": 39303294841,
+      "commit": "35710d992a91e250da7095553a250bcef63f20ea",
+      "app_build": "success; actual162XCTest ran",
+      "native_results": "48core+specificnormalassertioncontrol+11search+1automatic-sort passed; exact final logs parsed",
+      "XCTest": {
+        "total": 162,
+        "passed": 159,
+        "failed_cases": 3,
+        "assertion_failures": 4,
+        "skipped": 0
+      },
+      "causes": [
+        "Two positive fingerprint expectation timeouts1s; real IO read logs occur after timeout and fixture teardown. Exact remote scheduling cause uncertain.",
+        "UIfixture wronglyrequiresforegroundActive; log proves connectedphonewindow with appWillDeactivate immediatelybeforetests."
+      ],
+      "fixes": [
+        "fingerprint-tests-coordination-budget.patch",
+        "hosted-ui-window-lifecycle.patch"
+      ],
+      "local_failure_proofs": [
+        "Actual Foundation NSFileCoordinator holding syntheticfile1.25s makes prior1s testfail and current5s pass withsamehashassertions",
+        "All4currentfingerprint test bodies pass withactualproduction+Foundation assertion shim",
+        "Removing actualprovider generationguard makes strengthened cancellation test fail normally (unexpectedoldreport), not pass merelybecauseworkdidnotstart",
+        "Final async MainActor teardown variant reran all4actual Foundation bodies and both delay/generation negative controls successfully. Not native XCTest."
+      ],
+      "native_status": "Fresh unchanged162case CI rerun required; Release/images not yet verified"
     }
   ],
   "upstream_deletion_source": "https://github.com/organicmaps/organicmaps/commit/01e8b634df68750ce15b86aec19ceed4362eb24e",

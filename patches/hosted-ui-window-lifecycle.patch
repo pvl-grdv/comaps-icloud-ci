@@ -1,0 +1,43 @@
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift
+--- a/iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift
++++ b/iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift
+@@ -48,26 +48,33 @@
+     }
+ 
+     let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+-      .first { $0.activationState == .foregroundActive })
++      .first { $0.session.role == .windowApplication })
++    let window = try XCTUnwrap(scene.windows.first { $0.isKeyWindow && $0.rootViewController != nil }
++      ?? scene.windows.first { $0.rootViewController != nil })
+     let previousWindow = scene.windows.first { $0.isKeyWindow }
++    let previousRoot = try XCTUnwrap(window.rootViewController)
++    let windowWasHidden = window.isHidden
+     let controller = BMCViewController(coordinator: nil)
+     controller.title = "Bookmarks and tracks"
+-    let window = UIWindow(windowScene: scene)
+-    window.frame = scene.coordinateSpace.bounds
+     window.rootViewController = UINavigationController(rootViewController: controller)
+     window.makeKeyAndVisible()
+     defer {
+       controller.setEditing(false, animated: false)
+       controller.navigationItem.searchController?.isActive = false
+-      window.isHidden = true
+-      window.rootViewController = nil
+-      previousWindow?.makeKeyAndVisible()
++      window.rootViewController = previousRoot
++      window.isHidden = windowWasHidden
++      if let previousWindow {
++        previousWindow.makeKey()
++      } else {
++        window.resignKey()
++      }
+     }
+     let animationsWereEnabled = UIView.areAnimationsEnabled
+     UIView.setAnimationsEnabled(false)
+     defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
+     controller.loadViewIfNeeded()
+     window.layoutIfNeeded()
++    XCTAssertTrue(controller.view.window === window)
+     let table = try XCTUnwrap(descendants(of: controller.view).compactMap { $0 as? UITableView }.first)
+     XCTAssertEqual(table.numberOfRows(inSection: 0), manager.sortedUserCategories().count)
+     XCTAssertGreaterThan(table.visibleCells.count, 0)
