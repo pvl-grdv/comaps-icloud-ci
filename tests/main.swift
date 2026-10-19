@@ -45,6 +45,17 @@ func runCase(_ caseName: String, localData: Data, cloudData: Data, preexistingCo
       if isInitialConflict && restoreCloudAfterConflict {
         do { try cloudData.write(to: metadataCloudURL) } catch { failures.append(String(describing: error)) }
       }
+#if INCOMING_CATEGORY_SNAPSHOT
+      if case .applyIncomingCategory(let snapshot) = result {
+        // File-pipeline harness only: native map_tests exercise the actual core entrypoint.
+        // Acknowledge only after installing the staged bytes, preserving event ordering.
+        defer { snapshot.finish() }
+        let renamed = snapshot.fileURL.path.withCString { source in
+          snapshot.targetURL.path.withCString { destination in Darwin.rename(source, destination) }
+        }
+        if renamed != 0 { failures.append("Synthetic incoming installation failed: \(errno)") }
+      }
+#endif
       if case .failure(let error) = result { failures.append(String(describing: error)) }
       completed += 1
     }

@@ -1,4 +1,45 @@
 // Modified with AI assistance for an independent CI experiment on 2026-10-19.
+final class IncomingCategorySnapshot {
+  let fileURL: URL
+  let targetURL: URL
+  private let directoryURL: URL
+  private let fileManager: FileManager
+  private let completed = DispatchSemaphore(value: 0)
+  private let completionLock = NSLock()
+  private var isFinished = false
+
+  init(sourceURL: URL, targetURL: URL, localDirectoryURL: URL, fileManager: FileManager) throws {
+    let directory = try fileManager.url(for: .itemReplacementDirectory, in: .userDomainMask,
+                                        appropriateFor: localDirectoryURL, create: true)
+    let snapshot = directory.appendingPathComponent(targetURL.lastPathComponent)
+    do {
+      try fileManager.copyItem(at: sourceURL, to: snapshot)
+    } catch {
+      try? fileManager.removeItem(at: directory)
+      throw error
+    }
+    self.fileURL = snapshot
+    self.targetURL = targetURL
+    self.directoryURL = directory
+    self.fileManager = fileManager
+  }
+
+  func finish() {
+    completionLock.lock()
+    guard !isFinished else {
+      completionLock.unlock()
+      return
+    }
+    isFinished = true
+    completionLock.unlock()
+    completed.signal()
+  }
+
+  fileprivate func waitUntilFinished() { completed.wait() }
+
+  deinit { try? fileManager.removeItem(at: directoryURL) }
+}
+
 final class SynchronizationFileWriter {
   private let fileManager: FileManager
   private let backgroundQueue = DispatchQueue(label: "iCloud.app.comaps.backgroundQueue", qos: .background)
@@ -21,7 +62,10 @@ final class SynchronizationFileWriter {
       DispatchQueue.main.sync { completion(result) }
     }
     backgroundQueue.async { [weak self] in
-      guard let self else { return }
+      guard let self else {
+        resultCompletion(.success)
+        return
+      }
       switch event {
       case .createLocalItem(let cloudMetadataItem): self.createInLocalContainer(cloudMetadataItem, completion: resultCompletion)
       case .updateLocalItem(let cloudMetadataItem): self.updateInLocalContainer(cloudMetadataItem, completion: resultCompletion)
@@ -71,27 +115,36 @@ final class SynchronizationFileWriter {
     LOG(.info, "Write file \(cloudMetadataItem.fileName) to the local directory")
     var coordinationError: NSError?
     let targetLocalFileUrl = cloudMetadataItem.relatedLocalItemUrl(to: localDirectoryUrl)
-    fileCoordinator.coordinate(readingItemAt: cloudMetadataItem.fileUrl, writingItemAt: targetLocalFileUrl, error: &coordinationError) { readingUrl, writingUrl in
+    var snapshot: IncomingCategorySnapshot?
+    var stagingError: Error?
+    fileCoordinator.coordinate(readingItemAt: cloudMetadataItem.fileUrl, options: [], error: &coordinationError) { readingURL in
       do {
         /* During the synchronization process, when the file in trashed by iCloud,
          the notification still can contain the already deleted file in the `updated` list instead of `deleted`.
          In this case, the file replacement should be skipped. */
-        guard fileManager.fileExists(atPath: readingUrl.path) else {
-          LOG(.error, "iCloud file \(readingUrl.lastPathComponent) doesn't exist.")
-          completion(.failure(SynchronizationError.fileUnavailable))
-          return
+        guard fileManager.fileExists(atPath: readingURL.path) else {
+          throw SynchronizationError.fileUnavailable
         }
-        try fileManager.replaceFileSafe(at: writingUrl, with: readingUrl)
-        LOG(.debug, "File \(cloudMetadataItem.fileName) is copied to local directory successfully. Start reloading bookmarks...")
-        completion(.reloadCategoriesAtURLs([writingUrl]))
+        snapshot = try IncomingCategorySnapshot(sourceURL: readingURL, targetURL: targetLocalFileUrl,
+                                                 localDirectoryURL: localDirectoryUrl, fileManager: fileManager)
       } catch {
-        completion(.failure(error))
+        stagingError = error
       }
-      return
     }
     if let coordinationError {
       completion(.failure(coordinationError))
+      return
     }
+    if let stagingError {
+      completion(.failure(stagingError))
+      return
+    }
+    guard let snapshot else {
+      completion(.failure(SynchronizationError.fileUnavailable))
+      return
+    }
+    completion(.applyIncomingCategory(snapshot))
+    snapshot.waitUntilFinished()
   }
 
   private func removeFromLocalContainer(_ localMetadataItem: LocalMetadataItem, completion: @escaping WritingResultCompletionHandler) {

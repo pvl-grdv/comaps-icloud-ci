@@ -73,6 +73,9 @@ jobs:
         env:
           CORE_CHECK_BASELINE: ${{ github.ref_name == 'ios-saved-items' && '0' || '1' }}
         run: bash ci/test-core.sh
+      - name: Reproduce the previous incoming-file race with a native control
+        if: github.ref_name == 'ios-saved-items'
+        run: bash ci/test-incoming-control.sh
       - name: Build and execute saved-item search compatibility tests
         if: github.ref_name == 'ios-saved-items'
         run: bash ci/test-search.sh

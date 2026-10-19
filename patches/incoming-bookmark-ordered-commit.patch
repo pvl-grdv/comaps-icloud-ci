@@ -1,0 +1,797 @@
+diff --git a/libs/map/bookmark.hpp b/libs/map/bookmark.hpp
+--- a/libs/map/bookmark.hpp
++++ b/libs/map/bookmark.hpp
+@@ -148,6 +148,7 @@
+     std::mutex m_mutex;
+     std::atomic<size_t> m_pendingCount = 0;
+     bool m_cancelled = false;
++    uint64_t m_localEditRevision = 0;
+   };
+   std::shared_ptr<FileSaveState> m_fileSaveState = std::make_shared<FileSaveState>();
+   // Stores file name from which bookmarks were loaded.
+diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
+--- a/libs/map/bookmark_manager.cpp
++++ b/libs/map/bookmark_manager.cpp
+@@ -38,6 +38,7 @@
+ #include <charconv>
+ #include <limits>
+ #include <sstream>
++#include <utility>
+ 
+ #include "3party/ankerl/unordered_dense.h"
+ 
+@@ -579,14 +580,30 @@
+ {
+   ASSERT_GREATER(m_openedEditSessionsCount, 0, ());
+   if (--m_openedEditSessionsCount == 0)
++  {
+     NotifyChanges(true /* saveChangesOnDisk */);
+-}
+-
+-void BookmarkManager::NotifyChanges(bool saveChangesOnDisk)
++    if (m_openedEditSessionsCount == 0)
++    {
++      auto incoming = std::exchange(m_incomingAfterEditSession, {});
++      if (incoming)
++        incoming();
++    }
++  }
++}
++
++void BookmarkManager::NotifyChanges(bool saveChangesOnDisk, bool localEdit)
+ {
+   CHECK_THREAD_CHECKER(m_threadChecker, ());
+ 
+   m_changesTracker.AcceptDirtyItems();
++  if (localEdit)
++  {
++    for (auto const groupId : m_changesTracker.GetUpdatedGroupIds())
++    {
++      if (auto const it = m_categories.find(groupId); it != m_categories.end())
++        ++it->second->m_fileSaveState->m_localEditRevision;
++    }
++  }
+   if (!m_firstDrapeNotification && !m_changesTracker.HasChanges() && !m_bookmarksChangesTracker.HasChanges() &&
+       !m_drapeChangesTracker.HasChanges())
+   {
+@@ -2103,6 +2120,15 @@
+ void BookmarkManager::Teardown()
+ {
+   m_needTeardown = true;
++  m_incomingLifetime.reset();
++  auto pending = std::move(m_bookmarkLoadingQueue);
++  m_bookmarkLoadingQueue.clear();
++  auto afterEdit = std::exchange(m_incomingAfterEditSession, {});
++  if (afterEdit)
++    afterEdit();
++  for (auto const & item : pending)
++    if (item.m_incoming)
++      item.m_incoming->Complete(false);
+ }
+ 
+ Bookmark * BookmarkManager::AddBookmark(std::unique_ptr<Bookmark> && bookmark)
+@@ -2311,6 +2337,136 @@
+   ReloadBookmarkRoutine(filePath);
+ }
+ 
++void BookmarkManager::ApplyIncomingBookmark(std::string const & filePath, std::string const & snapshotPath,
++                                            std::function<void(bool)> completion)
++{
++  CHECK_THREAD_CHECKER(m_threadChecker, ());
++  CHECK(static_cast<bool>(completion), ());
++  if (m_needTeardown || filePath.empty() || snapshotPath.empty() || filePath == snapshotPath)
++  {
++    completion(false);
++    return;
++  }
++  auto incoming = std::make_shared<IncomingBookmark>();
++  incoming->m_filePath = filePath;
++  incoming->m_snapshotPath = snapshotPath;
++  incoming->m_targetExisted = Platform::IsFileExistsByFullPath(filePath);
++  incoming->m_completion = std::move(completion);
++  auto const groupId = GetCategoryByFileName(filePath);
++  if (groupId != kml::kInvalidMarkGroupId)
++  {
++    incoming->m_saveState = GetBmCategory(groupId)->m_fileSaveState;
++    incoming->m_localEditRevision = incoming->m_saveState->m_localEditRevision;
++  }
++  if (!m_loadBookmarksFinished || m_asyncLoadingInProgress)
++  {
++    m_bookmarkLoadingQueue.emplace_back(filePath, false, false);
++    m_bookmarkLoadingQueue.back().m_incoming = std::move(incoming);
++    return;
++  }
++  NotifyAboutStartAsyncLoading();
++  ApplyIncomingBookmarkRoutine(incoming);
++}
++
++void BookmarkManager::ApplyIncomingBookmarkRoutine(std::shared_ptr<IncomingBookmark> const & incoming)
++{
++  CHECK_THREAD_CHECKER(m_threadChecker, ());
++  if (m_needTeardown)
++  {
++    incoming->Complete(false);
++    return;
++  }
++  auto const groupId = GetCategoryByFileName(incoming->m_filePath);
++  if (!incoming->m_saveState && groupId != kml::kInvalidMarkGroupId)
++  {
++    auto const state = GetBmCategory(groupId)->m_fileSaveState;
++    if (state->m_localEditRevision != 0)
++    {
++      AdvanceBookmarkLoadingQueue();
++      incoming->Complete(true);
++      return;
++    }
++    incoming->m_saveState = state;
++  }
++
++  std::weak_ptr<bool> const lifetime = m_incomingLifetime;
++  GetPlatform().RunTask(Platform::Thread::File, [this, incoming, lifetime]()
++  {
++    auto collection = std::make_shared<KMLDataCollection>();
++    auto const ext = GetLowercaseFileExt(incoming->m_filePath);
++    std::unique_ptr<kml::FileData> data;
++    try
++    {
++      if (ext == kKmlExtension)
++        data = LoadKmlData(FileReader(incoming->m_snapshotPath), KmlFileType::Text);
++      else if (ext == kGpxExtension)
++        data = LoadKmlData(FileReader(incoming->m_snapshotPath), KmlFileType::Gpx);
++      if (data)
++        FillEmptyNames(data, incoming->m_filePath);
++    }
++    catch (std::exception const & e)
++    {
++      LOG(LWARNING, ("Incoming bookmark snapshot loading failed:", e.what()));
++      data.reset();
++    }
++    if (data)
++      collection->emplace_back(incoming->m_filePath, std::move(data));
++
++    GetPlatform().RunTask(Platform::Thread::Gui, [this, incoming, lifetime, collection]()
++    {
++      if (lifetime.expired())
++      {
++        incoming->Complete(false);
++        return;
++      }
++      CommitIncomingBookmark(incoming, collection);
++    });
++  });
++}
++
++
++void BookmarkManager::CommitIncomingBookmark(std::shared_ptr<IncomingBookmark> const & incoming,
++                                              KMLDataCollectionPtr const & collection)
++{
++  CHECK_THREAD_CHECKER(m_threadChecker, ());
++  if (m_openedEditSessionsCount != 0 && !collection->empty())
++  {
++    std::weak_ptr<bool> const lifetime = m_incomingLifetime;
++    m_incomingAfterEditSession = [this, incoming, lifetime, collection]()
++    {
++      if (lifetime.expired())
++        incoming->Complete(false);
++      else
++        CommitIncomingBookmark(incoming, collection);
++    };
++    return;
++  }
++  bool success = false;
++  auto const currentId = GetCategoryByFileName(incoming->m_filePath);
++  auto const state = currentId == kml::kInvalidMarkGroupId
++      ? std::shared_ptr<BookmarkCategory::FileSaveState>{} : GetBmCategory(currentId)->m_fileSaveState;
++  bool const superseded = state != incoming->m_saveState ||
++      (state && (state->m_cancelled || state->m_localEditRevision != incoming->m_localEditRevision)) ||
++      (!state && incoming->m_targetExisted && !Platform::IsFileExistsByFullPath(incoming->m_filePath));
++  if (superseded)
++  {
++    success = true;
++  }
++  else if (!collection->empty())
++  {
++    std::unique_lock<std::mutex> saveLock;
++    if (state)
++      saveLock = std::unique_lock(state->m_mutex);
++    success = base::RenameFileX(incoming->m_snapshotPath, incoming->m_filePath);
++    if (saveLock.owns_lock())
++      saveLock.unlock();
++    if (success)
++      CreateCategories(std::move(*collection), true /* autoSave */);
++  }
++  AdvanceBookmarkLoadingQueue();
++  incoming->Complete(success);
++}
++
+ void BookmarkManager::LoadBookmarkRoutine(std::string const & filePath, bool isTemporaryFile)
+ {
+   GetPlatform().RunTask(Platform::Thread::File, [this, filePath, isTemporaryFile]()
+@@ -2395,9 +2551,12 @@
+   if (m_needTeardown)
+     return;
+ 
+-  GetPlatform().RunTask(Platform::Thread::Gui, [this]()
+-  {
+-    m_asyncLoadingInProgress = true;
++  m_asyncLoadingInProgress = true;
++  std::weak_ptr<bool> const lifetime = m_incomingLifetime;
++  GetPlatform().RunTask(Platform::Thread::Gui, [this, lifetime]()
++  {
++    if (lifetime.expired())
++      return;
+     if (m_asyncLoadingCallbacks.m_onStarted != nullptr)
+       m_asyncLoadingCallbacks.m_onStarted();
+   });
+@@ -2466,23 +2625,30 @@
+       }
+     }
+ 
+-    if (!m_bookmarkLoadingQueue.empty())
+-    {
+-      ASSERT(m_asyncLoadingInProgress, ());
+-      if (m_bookmarkLoadingQueue.front().m_isReloading)
+-        ReloadBookmarkRoutine(m_bookmarkLoadingQueue.front().m_filename);
+-      else
+-        LoadBookmarkRoutine(m_bookmarkLoadingQueue.front().m_filename,
+-                            m_bookmarkLoadingQueue.front().m_isTemporaryFile);
+-      m_bookmarkLoadingQueue.pop_front();
+-    }
++    AdvanceBookmarkLoadingQueue();
++  });
++}
++
++void BookmarkManager::AdvanceBookmarkLoadingQueue()
++{
++  if (!m_bookmarkLoadingQueue.empty())
++  {
++    ASSERT(m_asyncLoadingInProgress, ());
++    auto item = std::move(m_bookmarkLoadingQueue.front());
++    m_bookmarkLoadingQueue.pop_front();
++    if (item.m_incoming)
++      ApplyIncomingBookmarkRoutine(item.m_incoming);
++    else if (item.m_isReloading)
++      ReloadBookmarkRoutine(item.m_filename);
+     else
+-    {
+-      m_asyncLoadingInProgress = false;
+-      if (m_asyncLoadingCallbacks.m_onFinished != nullptr)
+-        m_asyncLoadingCallbacks.m_onFinished();
+-    }
+-  });
++      LoadBookmarkRoutine(item.m_filename, item.m_isTemporaryFile);
++  }
++  else
++  {
++    m_asyncLoadingInProgress = false;
++    if (m_asyncLoadingCallbacks.m_onFinished != nullptr)
++      m_asyncLoadingCallbacks.m_onFinished();
++  }
+ }
+ 
+ void BookmarkManager::NotifyAboutFile(bool success, std::string const & filePath, bool isTemporaryFile)
+@@ -2924,6 +3090,7 @@
+   CHECK_EQUAL(m_categories.count(groupId), 0, ());
+   CHECK_EQUAL(m_compilations.count(groupId), 0, ());
+   m_categories.emplace(groupId, std::make_unique<BookmarkCategory>(std::move(data), autoSave));
++  GetBmCategory(groupId)->m_fileSaveState->m_localEditRevision = 1;
+   UpdateBmGroupIdList();
+   m_changesTracker.OnAddGroup(groupId);
+   return groupId;
+@@ -2935,6 +3102,7 @@
+   auto const groupId = UserMarkIdStorage::Instance().GetNextCategoryId();
+   CHECK_EQUAL(m_categories.count(groupId), 0, ());
+   m_categories[groupId] = std::make_unique<BookmarkCategory>(name, groupId, autoSave);
++  GetBmCategory(groupId)->m_fileSaveState->m_localEditRevision = 1;
+   UpdateBmGroupIdList();
+   m_changesTracker.OnAddGroup(groupId);
+   NotifyBookmarksChanged();
+@@ -3188,7 +3356,10 @@
+       UpdateBookmarkCategory(groupId, std::move(categoryData), false /* autoSave */);
+     }
+     else
++    {
+       groupId = CreateBookmarkCategory(std::move(categoryData), false /* autoSave */);
++      GetBmCategory(groupId)->m_fileSaveState->m_localEditRevision = 0;
++    }
+     loadedGroups.insert(groupId);
+     auto * group = GetBmCategory(groupId);
+     group->SetFileName(fileName);
+@@ -3257,7 +3428,7 @@
+ 
+   // During the updating process the file shouldn't be re-saved on disk because it should be already up to date.
+   // In other case race condition may occur when multiple devices are used.
+-  NotifyChanges(!isUpdating /* saveChangesOnDisk */);
++  NotifyChanges(!isUpdating /* saveChangesOnDisk */, false /* localEdit */);
+ 
+   for (auto const & groupId : loadedGroups)
+     GetBmCategory(groupId)->EnableAutoSave(autoSave);
+diff --git a/libs/map/bookmark_manager.hpp b/libs/map/bookmark_manager.hpp
+--- a/libs/map/bookmark_manager.hpp
++++ b/libs/map/bookmark_manager.hpp
+@@ -39,6 +39,7 @@
+ #include <mutex>
+ #include <optional>
+ #include <string>
++#include <utility>
+ #include <vector>
+ 
+ namespace df
+@@ -349,6 +350,8 @@
+   void LoadBookmarks();
+   void LoadBookmark(std::string const & filePath, bool isTemporaryFile);
+   void ReloadBookmark(std::string const & filePath);
++  void ApplyIncomingBookmark(std::string const & filePath, std::string const & snapshotPath,
++                             std::function<void(bool)> completion);
+ 
+   /// Uses the same file name from which was loaded, or
+   /// creates unique file name on first save and uses it every time.
+@@ -485,6 +488,23 @@
+   void UpdateBookmarkLabels();
+ 
+ private:
++  struct IncomingBookmark
++  {
++    std::string m_filePath;
++    std::string m_snapshotPath;
++    std::shared_ptr<BookmarkCategory::FileSaveState> m_saveState;
++    uint64_t m_localEditRevision = 0;
++    bool m_targetExisted = false;
++    std::function<void(bool)> m_completion;
++
++    void Complete(bool success)
++    {
++      auto completion = std::exchange(m_completion, {});
++      if (completion)
++        completion(success);
++    }
++  };
++
+   class MarksChangesTracker : public df::UserMarksProvider
+   {
+   public:
+@@ -659,7 +679,7 @@
+ 
+   void OnEditSessionOpened();
+   void OnEditSessionClosed();
+-  void NotifyChanges(bool saveChangesOnDisk);
++  void NotifyChanges(bool saveChangesOnDisk, bool localEdit = true);
+ 
+   void SaveState() const;
+   void LoadState();
+@@ -675,6 +695,10 @@
+   void NotifyAboutFile(bool success, std::string const & filePath, bool isTemporaryFile);
+   void LoadBookmarkRoutine(std::string const & filePath, bool isTemporaryFile);
+   void ReloadBookmarkRoutine(std::string const & filePath);
++  void ApplyIncomingBookmarkRoutine(std::shared_ptr<IncomingBookmark> const & incoming);
++  void AdvanceBookmarkLoadingQueue();
++  void CommitIncomingBookmark(std::shared_ptr<IncomingBookmark> const & incoming,
++                              KMLDataCollectionPtr const & collection);
+ 
+   using BookmarksChecker = std::function<bool(kml::FileData const &)>;
+   KMLDataCollectionPtr LoadBookmarks(std::string const & dir, std::string_view ext, KmlFileType fileType,
+@@ -840,11 +864,14 @@
+       , m_isReloading(isReloading)
+     {}
+ 
++    std::shared_ptr<IncomingBookmark> m_incoming;
+     std::string m_filename;
+     bool m_isTemporaryFile = false;
+     bool m_isReloading = false;
+   };
+   std::list<BookmarkLoaderInfo> m_bookmarkLoadingQueue;
++  std::shared_ptr<bool> m_incomingLifetime = std::make_shared<bool>(true);
++  std::function<void()> m_incomingAfterEditSession;
+ 
+   struct RestoringCache
+   {
+diff --git a/libs/map/map_tests/bookmarks_test.cpp b/libs/map/map_tests/bookmarks_test.cpp
+--- a/libs/map/map_tests/bookmarks_test.cpp
++++ b/libs/map/map_tests/bookmarks_test.cpp
+@@ -9,6 +9,7 @@
+ #include "indexer/mwm_set.hpp"
+ 
+ #include "platform/platform.hpp"
++#include "platform/gui_thread.hpp"
+ #include "platform/preferred_languages.hpp"
+ 
+ #include "coding/internal/file_data.hpp"
+@@ -25,6 +26,9 @@
+ #include <algorithm>
+ #include <array>
+ #include <chrono>
++#include <condition_variable>
++#include <deque>
++#include <mutex>
+ #include <cstring>  // strlen
+ #include <ctime>
+ #include <filesystem>
+@@ -2394,6 +2398,388 @@
+   SCOPE_GUARD(trashGuard, [&]() { (void)base::DeleteFileX(trashedPath); });
+ }
+ 
++namespace
++{
++class IncomingTestGuiLoop final : public base::TaskLoop
++{
++public:
++  PushResult Push(Task && task) override
++  {
++    { std::lock_guard lock(m_mutex); m_tasks.push_back(std::move(task)); }
++    m_ready.notify_one();
++    return {true, kNoId};
++  }
++  PushResult Push(Task const & task) override { return Push(Task(task)); }
++  template <typename Predicate> void PumpUntil(Predicate && done)
++  {
++    auto const deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
++    while (!done())
++    {
++      Task task;
++      {
++        std::unique_lock lock(m_mutex);
++        TEST(m_ready.wait_until(lock, deadline, [&]() { return !m_tasks.empty(); }), ("GUI callback timeout"));
++        task = std::move(m_tasks.front());
++        m_tasks.pop_front();
++      }
++      task();
++    }
++  }
++  void Drain()
++  {
++    for (;;)
++    {
++      Task task;
++      {
++        std::lock_guard lock(m_mutex);
++        if (m_tasks.empty()) return;
++        task = std::move(m_tasks.front());
++        m_tasks.pop_front();
++      }
++      task();
++    }
++  }
++private:
++  std::mutex m_mutex;
++  std::condition_variable m_ready;
++  std::deque<Task> m_tasks;
++};
++
++void DrainIncomingFileWorker()
++{
++  auto drained = std::make_shared<std::promise<void>>();
++  auto future = drained->get_future();
++  GetPlatform().RunTask(Platform::Thread::File, [drained]() { drained->set_value(); });
++  TEST(future.wait_for(std::chrono::seconds(10)) == std::future_status::ready, ("File worker timeout"));
++}
++
++class IncomingFileBlocker
++{
++public:
++  IncomingFileBlocker()
++  {
++    auto entered = std::make_shared<std::promise<void>>();
++    auto enteredFuture = entered->get_future();
++    auto releaseFuture = m_release->get_future().share();
++    GetPlatform().RunTask(Platform::Thread::File, [entered, releaseFuture]()
++    { entered->set_value(); releaseFuture.wait(); });
++    TEST(enteredFuture.wait_for(std::chrono::seconds(10)) == std::future_status::ready, ());
++  }
++  ~IncomingFileBlocker() { Release(); }
++  void Release() { if (!m_released) { m_released = true; m_release->set_value(); } }
++private:
++  std::shared_ptr<std::promise<void>> m_release = std::make_shared<std::promise<void>>();
++  bool m_released = false;
++};
++
++class IncomingBookmarkFixture
++{
++public:
++  IncomingBookmarkFixture()
++    : m_oldSettings(GetPlatform().SettingsDir()), m_oldWritable(GetPlatform().WritableDir())
++    , m_root(GetPlatform().TmpPathForFile("incoming-bookmarks-", ".testdir"))
++  {
++    std::filesystem::create_directories(m_root);
++    GetPlatform().SetSettingsDir(m_root);
++    GetPlatform().SetWritableDirForTests(m_root);
++    auto gui = std::make_unique<IncomingTestGuiLoop>();
++    m_gui = gui.get();
++    GetPlatform().SetGuiThread(std::move(gui));
++    m_manager = std::make_unique<BookmarkManager>(BM_CALLBACKS);
++    m_manager->EnableTestMode(true);
++    bool loaded = false;
++    BookmarkManager::AsyncLoadingCallbacks callbacks;
++    callbacks.m_onFinished = [&]() { loaded = true; };
++    m_manager->SetAsyncLoadingCallbacks(std::move(callbacks));
++    m_manager->LoadBookmarks();
++    m_gui->PumpUntil([&]() { return loaded; });
++    m_manager->SetAsyncLoadingCallbacks({});
++    auto const groups = m_manager->GetUnsortedBmGroupsIdList();
++    for (auto const group : groups)
++      TEST(m_manager->GetEditSession().DeleteBmCategory(group, true), ());
++    m_groupId = CreateDeletionSafetyCategory(*m_manager);
++    m_filePath = m_manager->GetCategoryFileName(m_groupId);
++    m_manager->GetEditSession().SetCategoryName(m_groupId, "Original");
++  }
++  ~IncomingBookmarkFixture()
++  {
++    m_manager->Teardown();
++    DrainIncomingFileWorker();
++    m_gui->Drain();
++    m_manager.reset();
++    GetPlatform().SetGuiThread(std::make_unique<platform::GuiThread>());
++    GetPlatform().SetSettingsDir(m_oldSettings);
++    GetPlatform().SetWritableDirForTests(m_oldWritable);
++    std::filesystem::remove_all(m_root);
++  }
++  BookmarkManager & Manager() { return *m_manager; }
++  kml::MarkGroupId GroupId() const { return m_groupId; }
++  std::string const & FilePath() const { return m_filePath; }
++  std::string Snapshot(std::string const & name)
++  {
++    auto data = LoadKmlFile(m_filePath, KmlFileType::Text);
++    TEST(data, ());
++    kml::SetDefaultStr(data->m_categoryData.m_name, name);
++    auto const path = base::JoinPath(m_root, "snapshot-" + std::to_string(++m_snapshotCount) + ".kml");
++    TEST(SaveKmlFileSafe(*data, path, KmlFileType::Text), ());
++    std::filesystem::last_write_time(path, std::filesystem::file_time_type::clock::now() - std::chrono::hours(48));
++    return path;
++  }
++  void Begin(std::string const & snapshot)
++  {
++    m_done = false; m_success = false; m_callbackCount = 0;
++    m_manager->ApplyIncomingBookmark(m_filePath, snapshot, [&](bool success)
++    { m_success = success; ++m_callbackCount; m_done = true; });
++  }
++  void Wait()
++  {
++    m_gui->PumpUntil([&]() { return m_done; });
++    DrainIncomingFileWorker();
++    m_gui->Drain();
++  }
++  void CheckCompletion(bool expectedSuccess) const
++  {
++    TEST_EQUAL(m_callbackCount, 1, ());
++    TEST_EQUAL(m_success, expectedSuccess, ());
++  }
++  void Finish(bool expectedSuccess = true) { Wait(); CheckCompletion(expectedSuccess); }
++  void PumpPending() { m_gui->Drain(); }
++  bool IsDone() const { return m_done; }
++  std::vector<std::string> Names() const
++  {
++    auto const groupId = m_manager->GetCategoryByFileName(m_filePath);
++    auto const data = LoadKmlFile(m_filePath, KmlFileType::Text);
++    TEST(groupId != kml::kInvalidMarkGroupId && data, ());
++    return {m_manager->GetCategoryName(groupId), kml::GetDefaultStr(data->m_categoryData.m_name)};
++  }
++  void CheckVersion(std::string const & name) const
++  { TEST_EQUAL(Names(), (std::vector<std::string>{name, name}), ()); }
++  void StartBeforeInitialLoad(std::string const & snapshot)
++  {
++    m_manager->Teardown(); DrainIncomingFileWorker(); m_gui->Drain();
++    m_manager = std::make_unique<BookmarkManager>(BM_CALLBACKS);
++    m_manager->EnableTestMode(true);
++    Begin(snapshot);
++    m_manager->LoadBookmarks();
++  }
++#ifdef COMAPS_ICLOUD_PREVIOUS_BOUNDARY_CONTROL
++  void PreviousBoundary(std::string const & snapshot)
++  {
++    m_done = false;
++    BookmarkManager::AsyncLoadingCallbacks callbacks;
++    callbacks.m_onFinished = [&]() { m_done = true; };
++    m_manager->SetAsyncLoadingCallbacks(std::move(callbacks));
++    TEST(base::CopyFileX(snapshot, m_filePath), ());
++    m_manager->ReloadBookmark(m_filePath);
++  }
++  void FinishPreviousBoundary()
++  {
++    m_gui->PumpUntil([&]() { return m_done; });
++    DrainIncomingFileWorker(); m_gui->Drain();
++    m_manager->SetAsyncLoadingCallbacks({});
++  }
++#endif
++private:
++  std::string m_oldSettings, m_oldWritable, m_root;
++  IncomingTestGuiLoop * m_gui = nullptr;
++  std::unique_ptr<BookmarkManager> m_manager;
++  kml::MarkGroupId m_groupId = kml::kInvalidMarkGroupId;
++  std::string m_filePath;
++  size_t m_snapshotCount = 0;
++  bool m_done = false, m_success = false;
++  size_t m_callbackCount = 0;
++};
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_IncomingQueuedSaveKeepsIncomingVersion)
++{
++  IncomingBookmarkFixture fixture;
++  auto const snapshot = fixture.Snapshot("B");
++  auto const modified = Platform::GetFileModificationTime(snapshot);
++  auto const originalId = fixture.GroupId();
++  IncomingFileBlocker blocker;
++  fixture.Manager().EnableTestMode(false);
++  fixture.Manager().GetEditSession().SetCategoryName(originalId, "A");
++  TEST(fixture.Manager().IsCategorySaving(originalId), ());
++  fixture.Begin(snapshot);
++  blocker.Release();
++  fixture.Finish();
++  fixture.CheckVersion("B");
++  TEST_EQUAL(fixture.Manager().GetCategoryByFileName(fixture.FilePath()), originalId, ());
++  TEST_EQUAL(Platform::GetFileModificationTime(fixture.FilePath()), modified, ());
++  TEST_EQUAL(fixture.Manager().GetCategoryData(originalId).m_properties.at("comaps:itemSorting"), "Manual", ());
++  TEST_EQUAL(fixture.Manager().GetTrackIds(originalId).size(), 1, ());
++  TEST_EQUAL(fixture.Manager().GetChildrenCollections(originalId).size(), 1, ());
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_IncomingUnnamedCategoryUsesDestinationName)
++{
++  IncomingBookmarkFixture fixture;
++  fixture.Begin(fixture.Snapshot(""));
++  fixture.Finish();
++  fixture.CheckVersion(base::GetNameFromFullPathWithoutExt(fixture.FilePath()));
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_IncomingLaterLocalEditBeforeCommitWins)
++{
++  IncomingBookmarkFixture fixture;
++  fixture.Manager().EnableTestMode(false);
++  fixture.Begin(fixture.Snapshot("B")); DrainIncomingFileWorker();
++  fixture.Manager().GetEditSession().SetCategoryName(fixture.GroupId(), "C");
++  fixture.Finish(); fixture.CheckVersion("C");
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_IncomingLaterLocalEditAfterCommitWins)
++{
++  IncomingBookmarkFixture fixture;
++  fixture.Manager().EnableTestMode(false);
++  fixture.Begin(fixture.Snapshot("B")); fixture.Finish(); fixture.CheckVersion("B");
++  fixture.Manager().GetEditSession().SetCategoryName(fixture.GroupId(), "C");
++  DrainIncomingFileWorker(); fixture.CheckVersion("C");
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_IncomingOpenEditSessionKeepsLocalChange)
++{
++  IncomingBookmarkFixture fixture;
++  fixture.Manager().EnableTestMode(false);
++  fixture.Begin(fixture.Snapshot("B")); DrainIncomingFileWorker();
++  {
++    auto edit = fixture.Manager().GetEditSession();
++    edit.SetCategoryName(fixture.GroupId(), "C");
++    fixture.PumpPending();
++    TEST(!fixture.IsDone(), ());
++  }
++  fixture.Finish();
++  fixture.CheckVersion("C");
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_IncomingOtherCategoryEditDoesNotCancel)
++{
++  IncomingBookmarkFixture fixture;
++  auto const other = fixture.Manager().CreateBookmarkCategory("Other", true);
++  fixture.Manager().EnableTestMode(false);
++  fixture.Begin(fixture.Snapshot("B")); DrainIncomingFileWorker();
++  {
++    auto edit = fixture.Manager().GetEditSession();
++    edit.SetCategoryName(other, "Unrelated C");
++    fixture.PumpPending();
++    TEST(!fixture.IsDone(), ());
++  }
++  fixture.Finish();
++  fixture.CheckVersion("B");
++  TEST_EQUAL(fixture.Manager().GetCategoryName(other), "Unrelated C", ());
++  auto const otherData = LoadKmlFile(fixture.Manager().GetCategoryFileName(other), KmlFileType::Text);
++  TEST(otherData, ());
++  TEST_EQUAL(kml::GetDefaultStr(otherData->m_categoryData.m_name), "Unrelated C", ());
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_IncomingDeletedCategoryIsNotResurrected)
++{
++  IncomingBookmarkFixture fixture;
++  fixture.Begin(fixture.Snapshot("B")); DrainIncomingFileWorker();
++  TEST(fixture.Manager().GetEditSession().DeleteBmCategory(fixture.GroupId(), true), ());
++  fixture.Finish();
++  TEST(!fixture.Manager().HasBmCategory(fixture.GroupId()), ());
++  TEST(!Platform::IsFileExistsByFullPath(fixture.FilePath()), ());
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_IncomingRecreatedPathIsNotReplaced)
++{
++  IncomingBookmarkFixture fixture;
++  auto const snapshot = fixture.Snapshot("B");
++  fixture.Begin(snapshot); DrainIncomingFileWorker();
++  TEST(fixture.Manager().GetEditSession().DeleteBmCategory(fixture.GroupId(), true), ());
++  auto data = LoadKmlFile(snapshot, KmlFileType::Text);
++  TEST(data, ());
++  kml::SetDefaultStr(data->m_categoryData.m_name, "Recreated C");
++  TEST(SaveKmlFileSafe(*data, fixture.FilePath(), KmlFileType::Text), ());
++  BookmarkManager::KMLDataCollection collection;
++  collection.emplace_back(fixture.FilePath(), std::move(data));
++  fixture.Manager().CreateCategories(std::move(collection), true);
++  fixture.Finish(); fixture.CheckVersion("Recreated C");
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_IncomingInvalidSnapshotPreservesCurrentVersion)
++{
++  IncomingBookmarkFixture fixture;
++  auto const snapshot = fixture.Snapshot("B");
++  { FileWriter writer(snapshot); writer.Write("<broken", 7); }
++  fixture.Begin(snapshot); fixture.Finish(false);
++  fixture.CheckVersion("Original");
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_IncomingInstallFailurePreservesCurrentVersion)
++{
++  IncomingBookmarkFixture fixture;
++  auto const snapshot = fixture.Snapshot("B");
++  fixture.Begin(snapshot); DrainIncomingFileWorker();
++  TEST(base::DeleteFileX(snapshot), ());
++  { base::ScopedLogAbortLevelChanger expectedFileError; fixture.Wait(); }
++  fixture.CheckCompletion(false);
++  fixture.CheckVersion("Original");
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_IncomingBeforeInitialLoadApplies)
++{
++  IncomingBookmarkFixture fixture;
++  auto const snapshot = fixture.Snapshot("B");
++  fixture.StartBeforeInitialLoad(snapshot); fixture.Finish();
++  fixture.CheckVersion("B");
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_IncomingTeardownAcknowledgesActiveAndQueued)
++{
++  IncomingBookmarkFixture fixture;
++  auto const first = fixture.Snapshot("B"), second = fixture.Snapshot("D");
++  IncomingFileBlocker blocker;
++  size_t callbacks = 0, failures = 0;
++  auto completion = [&](bool success) { ++callbacks; if (!success) ++failures; };
++  fixture.Manager().ApplyIncomingBookmark(fixture.FilePath(), first, completion);
++  fixture.Manager().ApplyIncomingBookmark(fixture.FilePath(), second, completion);
++  fixture.Manager().Teardown();
++  TEST_EQUAL(callbacks, 1, ()); TEST_EQUAL(failures, 1, ());
++  blocker.Release(); DrainIncomingFileWorker();
++  fixture.Begin(second); fixture.Finish(false);
++  TEST_EQUAL(callbacks, 2, ()); TEST_EQUAL(failures, 2, ());
++  fixture.CheckVersion("Original");
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_IncomingTeardownAcknowledgesDeferredCommitOnce)
++{
++  IncomingBookmarkFixture fixture;
++  auto const other = fixture.Manager().CreateBookmarkCategory("Other", true);
++  fixture.Begin(fixture.Snapshot("B"));
++  DrainIncomingFileWorker();
++  {
++    auto edit = fixture.Manager().GetEditSession();
++    edit.SetCategoryName(other, "Unrelated C");
++    fixture.PumpPending();
++    TEST(!fixture.IsDone(), ());
++    fixture.Manager().Teardown();
++    fixture.CheckCompletion(false);
++  }
++  fixture.Finish(false);
++  fixture.CheckVersion("Original");
++}
++
++#ifdef COMAPS_ICLOUD_PREVIOUS_BOUNDARY_CONTROL
++UNIT_CLASS_TEST(Runner, Bookmarks_IncomingPreviousBoundaryControl)
++{
++  IncomingBookmarkFixture fixture;
++  auto const snapshot = fixture.Snapshot("B");
++  IncomingFileBlocker blocker;
++  fixture.Manager().EnableTestMode(false);
++  fixture.Manager().GetEditSession().SetCategoryName(fixture.GroupId(), "A");
++  TEST(fixture.Manager().IsCategorySaving(fixture.GroupId()), ());
++  fixture.PreviousBoundary(snapshot);
++  blocker.Release(); fixture.FinishPreviousBoundary();
++  auto const names = fixture.Names();
++  if (names == std::vector<std::string>{"A", "A"})
++    LOG(LINFO, ("INCOMING_PREVIOUS_BOUNDARY_OBSERVED_A_ON_DISK_AND_IN_MEMORY"));
++  TEST_EQUAL(names, (std::vector<std::string>{"B", "B"}), ());
++}
++#endif
++
+ UNIT_CLASS_TEST(Runner, Bookmarks_TestSaveRoute)
+ {
+   BookmarkManager bmManager(BM_CALLBACKS);

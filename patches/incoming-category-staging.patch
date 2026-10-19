@@ -1,0 +1,383 @@
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
+@@ -68,6 +68,10 @@
+ - (void)loadBookmarks;
+ - (void)loadBookmarkFile:(NSURL *)url;
+ - (void)reloadCategoryAtFilePath:(NSString *)filePath;
++- (void)applyIncomingCategoryAtFilePath:(NSString *)filePath
++                fromSnapshotAtFilePath:(NSString *)snapshotPath
++                           completion:(void (^)(BOOL success))completion
++    NS_SWIFT_NAME(applyIncomingCategory(atFilePath:fromSnapshotAtFilePath:completion:));
+ - (BOOL)deleteCategoryAtFilePath:(NSString *)filePath;
+ 
+ - (BOOL)areAllCategoriesEmpty;
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+@@ -239,6 +239,14 @@
+ - (void)reloadCategoryAtFilePath:(NSString *)filePath
+ {
+   self.bm.ReloadBookmark(filePath.UTF8String);
++}
++
++- (void)applyIncomingCategoryAtFilePath:(NSString *)filePath
++                fromSnapshotAtFilePath:(NSString *)snapshotPath
++                           completion:(void (^)(BOOL success))completion
++{
++  self.bm.ApplyIncomingBookmark(filePath.UTF8String, snapshotPath.UTF8String,
++                               [completion](bool success) { completion(success); });
+ }
+ 
+ - (BOOL)deleteCategoryAtFilePath:(NSString *)filePath
+diff --git a/iphone/Maps/Core/iCloud/SynchronizaionManager.swift b/iphone/Maps/Core/iCloud/SynchronizaionManager.swift
+--- a/iphone/Maps/Core/iCloud/SynchronizaionManager.swift
++++ b/iphone/Maps/Core/iCloud/SynchronizaionManager.swift
+@@ -8,6 +8,7 @@
+ enum WritingResult {
+   case success
+   case reloadCategoriesAtURLs([URL])
++  case applyIncomingCategory(IncomingCategorySnapshot)
+   case deleteCategoriesAtURLs([URL])
+   case failure(Error)
+ }
+@@ -258,7 +259,10 @@
+ 
+   func writingResultHandler(for event: OutgoingSynchronizationEvent) -> WritingResultCompletionHandler {
+     return { [weak self] result in
+-      guard let self else { return }
++      guard let self else {
++        if case .applyIncomingCategory(let snapshot) = result { snapshot.finish() }
++        return
++      }
+       switch result {
+       case .success:
+         if case .didFinishInitialSynchronization = event {
+@@ -266,6 +270,12 @@
+         }
+       case .reloadCategoriesAtURLs(let urls):
+         urls.forEach { self.bookmarksManager.reloadCategory(atFilePath: $0.path) }
++      case .applyIncomingCategory(let snapshot):
++        self.bookmarksManager.applyIncomingCategory(atFilePath: snapshot.targetURL.path,
++                                                    fromSnapshotAtFilePath: snapshot.fileURL.path) { [weak self, snapshot] success in
++          snapshot.finish()
++          if !success { self?.processError(SynchronizationError.fileUnavailable) }
++        }
+       case .deleteCategoriesAtURLs(let urls):
+         urls.forEach { url in
+           if !self.bookmarksManager.deleteCategory(atFilePath: url.path) {
+diff --git a/iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift b/iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift
+--- a/iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift
++++ b/iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift
+@@ -1,4 +1,45 @@
+ // Modified with AI assistance for an independent CI experiment on 2026-10-19.
++final class IncomingCategorySnapshot {
++  let fileURL: URL
++  let targetURL: URL
++  private let directoryURL: URL
++  private let fileManager: FileManager
++  private let completed = DispatchSemaphore(value: 0)
++  private let completionLock = NSLock()
++  private var isFinished = false
++
++  init(sourceURL: URL, targetURL: URL, localDirectoryURL: URL, fileManager: FileManager) throws {
++    let directory = try fileManager.url(for: .itemReplacementDirectory, in: .userDomainMask,
++                                        appropriateFor: localDirectoryURL, create: true)
++    let snapshot = directory.appendingPathComponent(targetURL.lastPathComponent)
++    do {
++      try fileManager.copyItem(at: sourceURL, to: snapshot)
++    } catch {
++      try? fileManager.removeItem(at: directory)
++      throw error
++    }
++    self.fileURL = snapshot
++    self.targetURL = targetURL
++    self.directoryURL = directory
++    self.fileManager = fileManager
++  }
++
++  func finish() {
++    completionLock.lock()
++    guard !isFinished else {
++      completionLock.unlock()
++      return
++    }
++    isFinished = true
++    completionLock.unlock()
++    completed.signal()
++  }
++
++  fileprivate func waitUntilFinished() { completed.wait() }
++
++  deinit { try? fileManager.removeItem(at: directoryURL) }
++}
++
+ final class SynchronizationFileWriter {
+   private let fileManager: FileManager
+   private let backgroundQueue = DispatchQueue(label: "iCloud.app.comaps.backgroundQueue", qos: .background)
+@@ -21,7 +62,10 @@
+       DispatchQueue.main.sync { completion(result) }
+     }
+     backgroundQueue.async { [weak self] in
+-      guard let self else { return }
++      guard let self else {
++        resultCompletion(.success)
++        return
++      }
+       switch event {
+       case .createLocalItem(let cloudMetadataItem): self.createInLocalContainer(cloudMetadataItem, completion: resultCompletion)
+       case .updateLocalItem(let cloudMetadataItem): self.updateInLocalContainer(cloudMetadataItem, completion: resultCompletion)
+@@ -71,27 +115,36 @@
+     LOG(.info, "Write file \(cloudMetadataItem.fileName) to the local directory")
+     var coordinationError: NSError?
+     let targetLocalFileUrl = cloudMetadataItem.relatedLocalItemUrl(to: localDirectoryUrl)
+-    fileCoordinator.coordinate(readingItemAt: cloudMetadataItem.fileUrl, writingItemAt: targetLocalFileUrl, error: &coordinationError) { readingUrl, writingUrl in
++    var snapshot: IncomingCategorySnapshot?
++    var stagingError: Error?
++    fileCoordinator.coordinate(readingItemAt: cloudMetadataItem.fileUrl, options: [], error: &coordinationError) { readingURL in
+       do {
+         /* During the synchronization process, when the file in trashed by iCloud,
+          the notification still can contain the already deleted file in the `updated` list instead of `deleted`.
+          In this case, the file replacement should be skipped. */
+-        guard fileManager.fileExists(atPath: readingUrl.path) else {
+-          LOG(.error, "iCloud file \(readingUrl.lastPathComponent) doesn't exist.")
+-          completion(.failure(SynchronizationError.fileUnavailable))
+-          return
++        guard fileManager.fileExists(atPath: readingURL.path) else {
++          throw SynchronizationError.fileUnavailable
+         }
+-        try fileManager.replaceFileSafe(at: writingUrl, with: readingUrl)
+-        LOG(.debug, "File \(cloudMetadataItem.fileName) is copied to local directory successfully. Start reloading bookmarks...")
+-        completion(.reloadCategoriesAtURLs([writingUrl]))
++        snapshot = try IncomingCategorySnapshot(sourceURL: readingURL, targetURL: targetLocalFileUrl,
++                                                 localDirectoryURL: localDirectoryUrl, fileManager: fileManager)
+       } catch {
+-        completion(.failure(error))
+-      }
+-      return
++        stagingError = error
++      }
+     }
+     if let coordinationError {
+       completion(.failure(coordinationError))
+-    }
++      return
++    }
++    if let stagingError {
++      completion(.failure(stagingError))
++      return
++    }
++    guard let snapshot else {
++      completion(.failure(SynchronizationError.fileUnavailable))
++      return
++    }
++    completion(.applyIncomingCategory(snapshot))
++    snapshot.waitUntilFinished()
+   }
+ 
+   private func removeFromLocalContainer(_ localMetadataItem: LocalMetadataItem, completion: @escaping WritingResultCompletionHandler) {
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift
+--- a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift
++++ b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift
+@@ -135,4 +135,42 @@
+     XCTAssertTrue(manager.hasCategory(categoryIds[0]))
+   }
+ 
++
++  @MainActor
++  func testIncomingSnapshotBridgeCommitsBeforeCallingCompletion() async throws {
++    XCTAssertTrue(manager.setCategorySortingType(.manual))
++    let groups = manager.sortedUserCategories()
++    let categoryId = categoryIds[0]
++    let index = try XCTUnwrap(groups.firstIndex { $0.categoryId == categoryId })
++    let names = manager.categoryFileNames()
++    guard groups.count == names.count else {
++      XCTFail("Saved category filenames must match sorted categories")
++      return
++    }
++    let target = FileManager.default.bookmarksDirectoryUrl.appendingPathComponent(names[index])
++    XCTAssertTrue(FileManager.default.fileExists(atPath: target.path))
++    let sourceDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
++    try FileManager.default.createDirectory(at: sourceDirectory, withIntermediateDirectories: true)
++    defer { try? FileManager.default.removeItem(at: sourceDirectory) }
++    let source = sourceDirectory.appendingPathComponent("Incoming.kml")
++    let title = "Incoming bridge " + UUID().uuidString
++    let kml = "<kml xmlns=\"http://www.opengis.net/kml/2.2\"><Document><name>\(title)</name><Placemark><name>Point B</name><Point><coordinates>37,55</coordinates></Point></Placemark></Document></kml>"
++    try Data(kml.utf8).write(to: source)
++    let modified = Date(timeIntervalSince1970: 200)
++    try FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: source.path)
++    let snapshot = try IncomingCategorySnapshot(sourceURL: source, targetURL: target,
++                                                localDirectoryURL: target.deletingLastPathComponent(), fileManager: .default)
++    let applied = expectation(description: "incoming bridge commit finished")
++    manager.applyIncomingCategory(atFilePath: target.path, fromSnapshotAtFilePath: snapshot.fileURL.path) { [manager, snapshot] success in
++      defer { snapshot.finish(); applied.fulfill() }
++      XCTAssertTrue(Thread.isMainThread)
++      XCTAssertTrue(success)
++      XCTAssertEqual(manager?.category(withId: categoryId).title, title)
++      XCTAssertEqual(try? Data(contentsOf: target), Data(kml.utf8))
++      let attributes = try? FileManager.default.attributesOfItem(atPath: target.path)
++      XCTAssertEqual(attributes?[.modificationDate] as? Date, modified)
++    }
++    await fulfillment(of: [applied], timeout: 10)
++  }
++
+ }
+diff --git a/iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift b/iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift
+--- a/iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift
++++ b/iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift
+@@ -685,6 +685,17 @@
+           do { try afterInitialConflict?() } catch { XCTFail(String(describing: error)) }
+         }
+         XCTAssertTrue(Thread.isMainThread)
++        if case .applyIncomingCategory(let snapshot) = result {
++          defer { snapshot.finish() }
++          do {
++            if self.fileManager.fileExists(atPath: snapshot.targetURL.path) {
++              try self.fileManager.replaceItem(at: snapshot.targetURL, withItemAt: snapshot.fileURL,
++                                               backupItemName: nil, options: [.usingNewMetadataOnly], resultingItemURL: nil)
++            } else {
++              try self.fileManager.moveItem(at: snapshot.fileURL, to: snapshot.targetURL)
++            }
++          } catch { XCTFail(String(describing: error)) }
++        }
+         if case .failure(let error) = result { XCTFail(String(describing: error)) }
+         completed.fulfill()
+       }
+@@ -693,3 +704,137 @@
+     withExtendedLifetime(writer) {}
+   }
+ }
++
++final class SynchronizationIncomingFileWriterTests: XCTestCase {
++
++
++  private func incomingFixture() throws -> (URL, URL, URL) {
++    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
++    let local = root.appendingPathComponent("local", isDirectory: true)
++    let cloud = root.appendingPathComponent("cloud", isDirectory: true)
++    try FileManager.default.createDirectory(at: local, withIntermediateDirectories: true)
++    try FileManager.default.createDirectory(at: cloud, withIntermediateDirectories: true)
++    return (root, local, cloud)
++  }
++
++  private func incomingMetadata(_ url: URL) -> CloudMetadataItem {
++    CloudMetadataItem(fileName: url.lastPathComponent, fileUrl: url, isDownloaded: true,
++                      percentDownloaded: 100, lastModificationDate: 200,
++                      downloadingError: nil, uploadingError: nil, hasUnresolvedConflicts: false)
++  }
++
++  @MainActor
++  func testIncomingWriterStagesImmutableBytesBeforeTouchingLiveFile() async throws {
++    let (root, local, cloud) = try incomingFixture()
++    defer { try? FileManager.default.removeItem(at: root) }
++    let localURL = local.appendingPathComponent("Incoming.kml")
++    let cloudURL = cloud.appendingPathComponent("Incoming.kml")
++    let old = Data("local A".utf8), incoming = Data("cloud B".utf8)
++    try old.write(to: localURL); try incoming.write(to: cloudURL)
++    let modified = Date(timeIntervalSince1970: 200)
++    try FileManager.default.setAttributes([.modificationDate: modified], ofItemAtPath: cloudURL.path)
++    let staged = expectation(description: "incoming snapshot delivered")
++    let finished = expectation(description: "next writer event completed")
++    let writer = SynchronizationFileWriter(localDirectoryUrl: local, cloudDirectoryUrl: cloud)
++    writer.processEvent(.updateLocalItem(with: incomingMetadata(cloudURL))) { result in
++      guard case .applyIncomingCategory(let snapshot) = result else {
++        XCTFail("Expected staged incoming category, got \(result)"); staged.fulfill(); return
++      }
++      defer { snapshot.finish() }
++      XCTAssertTrue(Thread.isMainThread)
++      XCTAssertEqual(snapshot.targetURL, localURL)
++      XCTAssertNotEqual(snapshot.fileURL, localURL)
++      XCTAssertEqual(try? Data(contentsOf: localURL), old)
++      XCTAssertEqual(try? Data(contentsOf: snapshot.fileURL), incoming)
++      let attributes = try? FileManager.default.attributesOfItem(atPath: snapshot.fileURL.path)
++      XCTAssertEqual(attributes?[.modificationDate] as? Date, modified)
++      let destinationAttributes = try? FileManager.default.attributesOfItem(atPath: local.path)
++      XCTAssertTrue(attributes?[.systemNumber] != nil)
++      XCTAssertEqual(attributes?[.systemNumber] as? NSNumber, destinationAttributes?[.systemNumber] as? NSNumber)
++      try? Data("cloud C".utf8).write(to: cloudURL)
++      XCTAssertEqual(try? Data(contentsOf: snapshot.fileURL), incoming)
++      staged.fulfill()
++    }
++    writer.processEvent(.didFinishInitialSynchronization) { _ in finished.fulfill() }
++    await fulfillment(of: [staged, finished], timeout: 5)
++    XCTAssertEqual(try Data(contentsOf: localURL), old)
++    withExtendedLifetime(writer) {}
++  }
++
++  @MainActor
++  func testIncomingWriterHoldsNextUploadUntilCoreAcknowledges() async throws {
++    let (root, local, cloud) = try incomingFixture()
++    defer { try? FileManager.default.removeItem(at: root) }
++    let localURL = local.appendingPathComponent("Incoming.kml")
++    let cloudURL = cloud.appendingPathComponent("Incoming.kml")
++    let old = Data("local A".utf8), incoming = Data("cloud B".utf8)
++    try old.write(to: localURL); try incoming.write(to: cloudURL)
++    let staged = expectation(description: "incoming snapshot retained")
++    let prematureUpload = expectation(description: "upload remains behind incoming core work")
++    prematureUpload.isInverted = true
++    let uploaded = expectation(description: "upload finished after core acknowledgement")
++    var pending: IncomingCategorySnapshot?
++    var acknowledged = false
++    let writer = SynchronizationFileWriter(localDirectoryUrl: local, cloudDirectoryUrl: cloud)
++    writer.processEvent(.updateLocalItem(with: incomingMetadata(cloudURL))) { result in
++      if case .applyIncomingCategory(let snapshot) = result { pending = snapshot }
++      else { XCTFail("Expected staged incoming category, got \(result)") }
++      staged.fulfill()
++    }
++    await fulfillment(of: [staged], timeout: 5)
++    let snapshot = try XCTUnwrap(pending)
++    defer { snapshot.finish() }
++    writer.processEvent(.updateCloudItem(with: try LocalMetadataItem(fileUrl: localURL))) { result in
++      if !acknowledged { prematureUpload.fulfill() }
++      if case .failure(let error) = result { XCTFail("Upload failed: \(error)") }
++      uploaded.fulfill()
++    }
++    await fulfillment(of: [prematureUpload], timeout: 0.15)
++    XCTAssertEqual(try Data(contentsOf: cloudURL), incoming)
++    try Data(contentsOf: snapshot.fileURL).write(to: snapshot.targetURL, options: .atomic)
++    acknowledged = true
++    snapshot.finish(); snapshot.finish()
++    await fulfillment(of: [uploaded], timeout: 5)
++    XCTAssertEqual(try Data(contentsOf: cloudURL), incoming)
++    pending = nil
++    withExtendedLifetime(writer) {}
++  }
++
++  @MainActor
++  func testUnavailableIncomingFileDoesNotBlockNextWriterEvent() async throws {
++    let (root, local, cloud) = try incomingFixture()
++    defer { try? FileManager.default.removeItem(at: root) }
++    let localURL = local.appendingPathComponent("Missing.kml")
++    let old = Data("local A".utf8)
++    try old.write(to: localURL)
++    let failed = expectation(description: "unavailable source reported")
++    let next = expectation(description: "next writer event remains usable")
++    let writer = SynchronizationFileWriter(localDirectoryUrl: local, cloudDirectoryUrl: cloud)
++    writer.processEvent(.updateLocalItem(with: incomingMetadata(cloud.appendingPathComponent("Missing.kml")))) { result in
++      if case .failure = result {} else { XCTFail("Expected unavailable source failure") }
++      failed.fulfill()
++    }
++    writer.processEvent(.didFinishInitialSynchronization) { _ in next.fulfill() }
++    await fulfillment(of: [failed, next], timeout: 5)
++    XCTAssertEqual(try Data(contentsOf: localURL), old)
++    withExtendedLifetime(writer) {}
++  }
++
++  func testIncomingSnapshotReleaseRemovesStagingDirectoryOnly() throws {
++    let (root, local, cloud) = try incomingFixture()
++    defer { try? FileManager.default.removeItem(at: root) }
++    let localURL = local.appendingPathComponent("Incoming.kml")
++    let cloudURL = cloud.appendingPathComponent("Incoming.kml")
++    try Data("local A".utf8).write(to: localURL)
++    try Data("cloud B".utf8).write(to: cloudURL)
++    var snapshot: IncomingCategorySnapshot? = try IncomingCategorySnapshot(
++      sourceURL: cloudURL, targetURL: localURL, localDirectoryURL: local, fileManager: .default)
++    let directory = try XCTUnwrap(snapshot?.fileURL.deletingLastPathComponent())
++    XCTAssertTrue(FileManager.default.fileExists(atPath: directory.path))
++    snapshot = nil
++    XCTAssertFalse(FileManager.default.fileExists(atPath: directory.path))
++    XCTAssertEqual(try Data(contentsOf: localURL), Data("local A".utf8))
++    XCTAssertEqual(try Data(contentsOf: cloudURL), Data("cloud B".utf8))
++  }
++
++}

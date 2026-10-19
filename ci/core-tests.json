@@ -18,5 +18,18 @@
   "Bookmarks_TrashPreservesQueuedEdits",
   "Bookmarks_FailedDeletionKeepsQueuedSaveActive",
   "Bookmarks_TrashPreservesUncommittedEditSession",
-  "Bookmarks_TrashPreservesMemoryAfterFailedAutosave"
+  "Bookmarks_TrashPreservesMemoryAfterFailedAutosave",
+  "Bookmarks_IncomingQueuedSaveKeepsIncomingVersion",
+  "Bookmarks_IncomingUnnamedCategoryUsesDestinationName",
+  "Bookmarks_IncomingLaterLocalEditBeforeCommitWins",
+  "Bookmarks_IncomingLaterLocalEditAfterCommitWins",
+  "Bookmarks_IncomingOpenEditSessionKeepsLocalChange",
+  "Bookmarks_IncomingOtherCategoryEditDoesNotCancel",
+  "Bookmarks_IncomingDeletedCategoryIsNotResurrected",
+  "Bookmarks_IncomingRecreatedPathIsNotReplaced",
+  "Bookmarks_IncomingInvalidSnapshotPreservesCurrentVersion",
+  "Bookmarks_IncomingInstallFailurePreservesCurrentVersion",
+  "Bookmarks_IncomingBeforeInitialLoadApplies",
+  "Bookmarks_IncomingTeardownAcknowledgesActiveAndQueued",
+  "Bookmarks_IncomingTeardownAcknowledgesDeferredCommitOnce"
 ]

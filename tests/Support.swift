@@ -1,4 +1,5 @@
 import Foundation
+import Darwin
 
 enum TestLogLevel { case info, error, debug, warning }
 func LOG<T>(_ level: TestLogLevel, _ message: T) {}
@@ -11,6 +12,9 @@ struct UIDevice {
 enum WritingResult {
   case success
   case reloadCategoriesAtURLs([URL])
+#if INCOMING_CATEGORY_SNAPSHOT
+  case applyIncomingCategory(IncomingCategorySnapshot)
+#endif
   case deleteCategoriesAtURLs([URL])
   case failure(Error)
 }

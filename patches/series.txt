@@ -20,3 +20,5 @@ search-viewport-test-setup.patch
 folder-order-lifecycle.patch
 stable-category-menu-target.patch
 persist-deletion-fixture.patch
+incoming-bookmark-ordered-commit.patch
+incoming-category-staging.patch

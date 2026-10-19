@@ -70,11 +70,12 @@
   },
   "purpose": "Independent AI-assisted CI experiments. Preserve upstream attribution; these CI bootstrap commits are not for submitting to CoMaps.",
   "pending_at_integration": [
-    "20 native candidate core regressions",
-    "10 native search tests and legacy automatic sorting",
-    "iOS app build and 66 selected XCTest cases",
-    "unsigned Release archive",
-    "real-device iCloud delivery and visual inspection of simulator images"
+    "33 native candidate core regressions",
+    "1 expected native previous-boundary assertion failure control (not an unpatched upstream build)",
+    "10 native search tests and 1 legacy automatic sorting",
+    "iOS app build and 71 selected XCTest cases",
+    "unsigned Release archive and 3 simulator images",
+    "real three-device iCloud delivery remains untested"
   ],
   "not_included": [
     "Organic Maps proposed full reconciliation PR13232",
@@ -99,7 +100,9 @@
     "search-viewport-test-setup.patch": "Test-only ObjC++ setup initializes existing search viewport API because -IsTests disables Drape. Separate test bridging header inherits prior app bridge; 2 existing test setup calls, count unchanged.",
     "folder-order-lifecycle.patch": "Axiom UIKit review fix: end reorder once on background/account cancellation, notify native Edit UI; two coordinator and one UIKit regressions.",
     "stable-category-menu-target.patch": "Axiom UIKit review fix: resolve captured folder ID when menu action runs after remote reorder; retain visibility intent and reject removed target; two model regressions.",
-    "persist-deletion-fixture.patch": "CI fixture fix: explicitly persist initial synthetic deletion category and assert on-disk path/content before exercising deletion failures; production behavior and seven regression scenarios unchanged."
+    "persist-deletion-fixture.patch": "CI fixture fix: explicitly persist initial synthetic deletion category and assert on-disk path/content before exercising deletion failures; production behavior and seven regression scenarios unchanged.",
+    "incoming-bookmark-ordered-commit.patch": "KISS local incoming-file boundary: parse immutable staged bytes on existing File worker, guarded atomic rename and category application in one GUI turn. Per-category transient revision, existing loading queue and one edit-session continuation. 13 native positive regressions; macro-only previous-boundary control.",
+    "incoming-category-staging.patch": "Swift cloud read coordinator stages same-volume snapshot and closes accessor before core call. Existing serial writer queue waits for idempotent acknowledgement; cleanup on payload release. Four async writer and one actual bridge XCTest; existing five file-writer fixtures retain original assertions."
   },
   "patch_sha256": {
     "initial-conflict.patch": "baebd78a4a6779fb07ea7a92173169d805cd2460dae0b0bb8b8375a28c0ca19e",
@@ -123,7 +126,9 @@
     "search-viewport-test-setup.patch": "4a8e1a157c7e231af1fb0645d97e2f64975ea954fa0720de573a892b0ed22b77",
     "folder-order-lifecycle.patch": "319fbe3638997c3132bda01446762418510b47cef6fafe9c595776d9ee5259d1",
     "stable-category-menu-target.patch": "139d68f02e5dc17522bc0c987aada3a0bf1e41a9a3d70eccbccabcdc0a7e8587",
-    "persist-deletion-fixture.patch": "50e124825693e3d503cb7a7bd785e3b2b6430c537d537f0df6f18abf24065ab8"
+    "persist-deletion-fixture.patch": "50e124825693e3d503cb7a7bd785e3b2b6430c537d537f0df6f18abf24065ab8",
+    "incoming-bookmark-ordered-commit.patch": "52fdaebe25eb1203069c0ee385eb0b5c3216d9acbdc242556a3967e6c6a330ec",
+    "incoming-category-staging.patch": "37e957e8aa8a58185dd2a3ecb5cf35f555295248a77d4f6ec8ef7b2299b7ff1c"
   },
   "ci_findings": [
     {
@@ -163,5 +168,22 @@
     "local_foundation_check": "20 original cases pass; 2 new lifecycle cases fail before fix and 22 pass after fix using unchanged test bodies with assertion shim. Not native XCTest/live iCloud.",
     "new_native_cases": 5,
     "native_and_visual_status": "Pending CI; no local iOS SDK."
+  },
+  "incoming_file_boundary": {
+    "reviewed_base": "d3b6403433006f45f12339956d1f2fbb6bf6ac7e",
+    "local_verification": "Six original and six candidate file-pipeline cases passed with staged request adapter. Four actual async writer test bodies passed through Foundation assertion/expectation shim. Not native XCTest.",
+    "native_status": "Pending current CI",
+    "negative_control": {
+      "test": "bookmarks_test.cpp::Runner_Bookmarks_IncomingPreviousBoundaryControl",
+      "macro": "COMAPS_ICLOUD_PREVIOUS_BOUNDARY_CONTROL",
+      "marker": "INCOMING_PREVIOUS_BOUNDARY_OBSERVED_A_ON_DISK_AND_IN_MEMORY",
+      "scope": "Native emulation of previous Swift direct-copy then existing core ReloadBookmark boundary; product sources are current candidate"
+    },
+    "scope": "Local save/install/apply ordering only; existing cloud content-conflict and failure-warning policy retained.",
+    "limits": [
+      "Per-category guard starts when staged input reaches core; earlier Swift staging edits are outside guard.",
+      "On incoming I/O/parse failure, local data is retained, but existing warning-only policy still permits a later queued outgoing update.",
+      "No live multi-device iCloud, semantic deduplication, existing duplicate cleanup or full reconciliation."
+    ]
   }
 }
