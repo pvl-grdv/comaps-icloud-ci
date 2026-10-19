@@ -1,10 +1,6 @@
 {
-  "kind": "diagnostic_not_final",
-  "reason": "Same2fingerprintpositive waits fail at5s on iOS despite localFoundation proof; stage timing needed to locate queue/coordination/main delivery delay. UI smoke fixed and3images visuallychecked.",
-  "remove_before_final_validation": [
-    "provider-timing-diagnostics.patch",
-    "fingerprint-tests-diagnostic-trace.patch"
-  ],
-  "test_counts_unchanged": true,
-  "no_final_success_claim_even_if_trace_run_passes": true
+  "kind": "clean_verification_candidate",
+  "diagnostic_traces_removed": true,
+  "previous_diagnostic_run": 39320779555,
+  "full_verification_pending": true
 }

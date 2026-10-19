@@ -1,0 +1,104 @@
+diff --git a/iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift b/iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift
+--- a/iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift
++++ b/iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift
+@@ -362,6 +362,25 @@
+                       writer.copyUrl(of: fileUrl, holding: fingerprint("A")))
+   }
+ 
++  @MainActor
++  func testIncomingValidationUsesTheFileWorkerBoundary() async throws {
++    let cloudItem = try cloudFile("file.kml", content: "B")
++    let target = localDirectoryUrl.appendingPathComponent("file.kml")
++    let fileManager = IncomingValidationThreadFileManager(targetPath: target.path)
++    writer = SynchronizationFileWriter(fileManager: fileManager,
++                                       localDirectoryUrl: localDirectoryUrl,
++                                       cloudDirectoryUrl: cloudDirectoryUrl)
++
++    let result = try await process(.createLocalItem(with: cloudItem))
++
++    guard case .written(let actualContent) = result else { return XCTFail("Unexpected result: \(result)") }
++    XCTAssertEqual(actualContent, fingerprint("B"))
++    XCTAssertEqual(content(of: target), "B")
++    let checks = fileManager.targetChecksOnMainThread
++    XCTAssertFalse(checks.isEmpty)
++    XCTAssertTrue(checks.allSatisfy { !$0 }, "Incoming validation must not coordinate file access on the main thread")
++  }
++
+   // MARK: - Helpers
+ 
+   /// How a copy of "file.kml" holding "A" is named: the first six bytes of the SHA-256 of the content.
+@@ -381,24 +400,27 @@
+       if case .applyIncomingCategory(let snapshot) = update {
+         incomingPreservedURLs = snapshot.preservedURLs
+         incomingTargetURL = snapshot.targetURL
+-        guard snapshot.destinationMatchesExpected(snapshot.targetURL.path) else {
+-          snapshot.finish(.skipped)
+-          return
+-        }
+-        guard incomingResult == .applied else {
+-          snapshot.finish(incomingResult)
+-          return
+-        }
+-        do {
+-          if FileManager.default.fileExists(atPath: snapshot.targetURL.path) {
+-            try FileManager.default.replaceItem(at: snapshot.targetURL, withItemAt: snapshot.fileURL,
+-                                               backupItemName: nil, options: [.usingNewMetadataOnly], resultingItemURL: nil)
+-          } else {
+-            try FileManager.default.moveItem(at: snapshot.fileURL, to: snapshot.targetURL)
++        let requestedResult = incomingResult
++        DispatchQueue.global(qos: .utility).async {
++          guard snapshot.destinationMatchesExpected(snapshot.targetURL.path) else {
++            snapshot.finish(.skipped)
++            return
+           }
+-          snapshot.finish(.applied)
+-        } catch {
+-          snapshot.finish(.failed)
++          guard requestedResult == .applied else {
++            snapshot.finish(requestedResult)
++            return
++          }
++          do {
++            if FileManager.default.fileExists(atPath: snapshot.targetURL.path) {
++              try FileManager.default.replaceItem(at: snapshot.targetURL, withItemAt: snapshot.fileURL,
++                                                 backupItemName: nil, options: [.usingNewMetadataOnly], resultingItemURL: nil)
++            } else {
++              try FileManager.default.moveItem(at: snapshot.fileURL, to: snapshot.targetURL)
++            }
++            snapshot.finish(.applied)
++          } catch {
++            snapshot.finish(.failed)
++          }
+         }
+         return
+       }
+@@ -503,3 +525,29 @@
+     try removeItem(at: url)
+   }
+ }
++
++private final class IncomingValidationThreadFileManager: FileManager {
++  private let targetPath: String
++  private let lock = NSLock()
++  private var checks = [Bool]()
++
++  init(targetPath: String) {
++    self.targetPath = URL(fileURLWithPath: targetPath).resolvingSymlinksInPath().path
++    super.init()
++  }
++
++  var targetChecksOnMainThread: [Bool] {
++    lock.lock()
++    defer { lock.unlock() }
++    return checks
++  }
++
++  override func fileExists(atPath path: String) -> Bool {
++    if URL(fileURLWithPath: path).resolvingSymlinksInPath().path == targetPath {
++      lock.lock()
++      checks.append(Thread.isMainThread)
++      lock.unlock()
++    }
++    return super.fileExists(atPath: path)
++  }
++}

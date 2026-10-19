@@ -55,7 +55,6 @@ final class FileContentFingerprintProvider: FingerprintProvider {
   }
 
   private let queue = DispatchQueue(label: "iCloud.app.comaps.fingerprints", qos: .utility)
-  private let fileCoordinator = NSFileCoordinator()
   private let failedReadRetryInterval: TimeInterval
   private var cache = [String: (identity: FileIdentity, fingerprint: Fingerprint)]()
   private var requestedPaths = Set<String>()
@@ -115,6 +114,7 @@ final class FileContentFingerprintProvider: FingerprintProvider {
 
   /// The read is coordinated: a file being replaced by iCloud is read whole or not at all.
   private func read(_ fileUrl: URL) -> Fingerprint? {
+    let fileCoordinator = NSFileCoordinator()
     var fingerprint: Fingerprint?
     var coordinationError: NSError?
     fileCoordinator.coordinate(readingItemAt: fileUrl, error: &coordinationError) { url in

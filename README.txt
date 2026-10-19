@@ -3,9 +3,6 @@ CoMaps saved-items and iCloud CI experiments
 Independent, AI-assisted diagnostic repository. Not an official CoMaps release
 or an upstream submission. Current integrated candidate: ios-saved-items.
 Results belong to a specific Actions HEAD; pending tests have not passed.
-Current HEAD is a TEMPORARY diagnostic run for two iOS fingerprint timeouts.
-Timing traces must be removed and clean full CI rerun before final validation;
-passing with diagnostic traces alone is not final verification.
 
 The candidate ports the principal reconciliation mechanism from Organic Maps
 PR #13232 at 5f24813d6fd93f26cb216d823ab4d5996d49d192, including its deletion
@@ -35,6 +32,10 @@ Apple's opaque NSCoding account-token contract. The common-base cache is local
 application state, reset for a different iCloud account. Existing application
 and file queues remain in use; no new dependency, custom distributed clock,
 Keychain record or parallel legacy resolver is added.
+File coordinators belong to individual operations on their executing thread;
+nested conflict preservation shares its enclosing operation coordinator.
+The writer test adapter performs validation and installation off the main
+thread, matching the production native file-worker boundary.
 
 Other saved-items changes are retained:
 - Organic Maps category reload fix #13679 adapted to CoMaps, track rename

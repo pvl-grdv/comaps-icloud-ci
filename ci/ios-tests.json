@@ -37,7 +37,7 @@
   },
   {
     "className": "SynchronizationFileWriterTests",
-    "expectedTests": 23
+    "expectedTests": 24
   },
   {
     "className": "SynchronizationIncomingFileWriterTests",

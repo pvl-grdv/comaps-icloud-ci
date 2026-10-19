@@ -1,0 +1,124 @@
+diff --git a/iphone/Maps/Core/iCloud/SynchronizationFingerprint.swift b/iphone/Maps/Core/iCloud/SynchronizationFingerprint.swift
+--- a/iphone/Maps/Core/iCloud/SynchronizationFingerprint.swift
++++ b/iphone/Maps/Core/iCloud/SynchronizationFingerprint.swift
+@@ -55,7 +55,6 @@
+   }
+ 
+   private let queue = DispatchQueue(label: "iCloud.app.comaps.fingerprints", qos: .utility)
+-  private let fileCoordinator = NSFileCoordinator()
+   private let failedReadRetryInterval: TimeInterval
+   private var cache = [String: (identity: FileIdentity, fingerprint: Fingerprint)]()
+   private var requestedPaths = Set<String>()
+@@ -115,6 +114,7 @@
+ 
+   /// The read is coordinated: a file being replaced by iCloud is read whole or not at all.
+   private func read(_ fileUrl: URL) -> Fingerprint? {
++    let fileCoordinator = NSFileCoordinator()
+     var fingerprint: Fingerprint?
+     var coordinationError: NSError?
+     fileCoordinator.coordinate(readingItemAt: fileUrl, error: &coordinationError) { url in
+diff --git a/iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift b/iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift
+--- a/iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift
++++ b/iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift
+@@ -69,16 +69,13 @@
+   private let fileManager: FileManager
+   // Utility, not background: a background queue is starved while the map is busy, and the user waits for these files.
+   private let backgroundQueue = DispatchQueue(label: "iCloud.app.comaps.backgroundQueue", qos: .utility)
+-  private let fileCoordinator: NSFileCoordinator
+   private let localDirectoryUrl: URL
+   private let cloudDirectoryUrl: URL
+ 
+   init(fileManager: FileManager = .default,
+-       fileCoordinator: NSFileCoordinator = NSFileCoordinator(),
+        localDirectoryUrl: URL,
+        cloudDirectoryUrl: URL) {
+     self.fileManager = fileManager
+-    self.fileCoordinator = fileCoordinator
+     self.localDirectoryUrl = localDirectoryUrl
+     self.cloudDirectoryUrl = cloudDirectoryUrl
+   }
+@@ -148,6 +145,7 @@
+                                      preservingLocal: Bool,
+                                      completion: @escaping WritingResultCompletionHandler) {
+     LOG(.info, "Write file \(cloudMetadataItem.fileName) to the local directory")
++    let fileCoordinator = NSFileCoordinator()
+     var coordinationError: NSError?
+     let targetLocalFileUrl = cloudMetadataItem.relatedLocalItemUrl(to: localDirectoryUrl)
+     var incoming: IncomingCategorySnapshot?
+@@ -178,7 +176,7 @@
+             preparationResult = .skipped("\(writingUrl.lastPathComponent) changed while preserving its content")
+             return
+           }
+-          let copy = try preserveCopy(of: writingUrl, holding: expectedContent) { url in
++          let copy = try preserveCopy(of: writingUrl, holding: expectedContent, coordinator: fileCoordinator) { url in
+             try self.fileManager.copyItem(at: localSnapshot.fileURL, to: url)
+           }
+           preservedCopy = copy
+@@ -218,6 +216,7 @@
+ 
+   private func removeUnusedPreservedCopy(_ copy: (url: URL, isWritten: Bool)?, holding content: Fingerprint?) {
+     guard let copy, copy.isWritten, let content else { return }
++    let fileCoordinator = NSFileCoordinator()
+     var coordinationError: NSError?
+     fileCoordinator.coordinate(writingItemAt: copy.url, options: .forDeleting, error: &coordinationError) { url in
+       guard Fingerprint(contentsOf: url) == content else { return }
+@@ -262,6 +261,7 @@
+                                      completion: @escaping WritingResultCompletionHandler) {
+     LOG(.info, "Write file \(localMetadataItem.fileName) to the cloud directory")
+     let targetCloudFileUrl = localMetadataItem.relatedCloudItemUrl(to: cloudDirectoryUrl)
++    let fileCoordinator = NSFileCoordinator()
+     var coordinationError: NSError?
+     fileCoordinator.coordinate(readingItemAt: localMetadataItem.fileUrl, writingItemAt: targetCloudFileUrl, error: &coordinationError) { readingUrl, writingUrl in
+       do {
+@@ -312,6 +312,7 @@
+       let resultCompletion: WritingResultCompletionHandler = { result in
+         DispatchQueue.main.async { completion(result) }
+       }
++      let fileCoordinator = NSFileCoordinator()
+       var coordinationError: NSError?
+       fileCoordinator.coordinate(writingItemAt: url, options: [.forDeleting], error: &coordinationError) { url in
+         let localFileUrl = self.localDirectoryUrl.appendingPathComponent(url.lastPathComponent)
+@@ -375,6 +376,7 @@
+       versionsToKeep[versionContent] = version
+     }
+ 
++    let fileCoordinator = NSFileCoordinator()
+     var coordinationError: NSError?
+     fileCoordinator.coordinate(writingItemAt: currentVersion.url,
+                                options: [.forReplacing],
+@@ -397,7 +399,7 @@
+       }
+       do {
+         for (versionContent, version) in versionsToKeep {
+-          try self.keep(version, of: currentVersionUrl, holding: versionContent)
++          try self.keep(version, of: currentVersionUrl, holding: versionContent, coordinator: fileCoordinator)
+         }
+         unresolvedVersions.forEach { $0.isResolved = true }
+         try NSFileVersion.removeOtherVersionsOfItem(at: currentVersionUrl)
+@@ -414,8 +416,8 @@
+   }
+ 
+   /// The caller holds the write access to the file whose conflicting versions are being preserved.
+-  private func keep(_ version: NSFileVersion, of fileUrl: URL, holding versionContent: Fingerprint) throws {
+-    _ = try preserveCopy(of: fileUrl, holding: versionContent) { url in
++  private func keep(_ version: NSFileVersion, of fileUrl: URL, holding versionContent: Fingerprint, coordinator: NSFileCoordinator) throws {
++    _ = try preserveCopy(of: fileUrl, holding: versionContent, coordinator: coordinator) { url in
+       try version.replaceItem(at: url)
+     }
+   }
+@@ -426,6 +428,7 @@
+   /// numbered name, and checking and writing each candidate share the same coordinated access.
+   func preserveCopy(of fileUrl: URL,
+                     holding content: Fingerprint,
++                    coordinator fileCoordinator: NSFileCoordinator = NSFileCoordinator(),
+                     write: (URL) throws -> Void) throws -> (url: URL, isWritten: Bool) {
+     let preferredUrl = copyUrl(of: fileUrl, holding: content)
+     var candidateUrl = preferredUrl
+@@ -481,6 +484,7 @@
+   /// not at all.
+   private func coordinatedFingerprint(of fileUrl: URL) -> Fingerprint? {
+     var fingerprint: Fingerprint?
++    let fileCoordinator = NSFileCoordinator()
+     var coordinationError: NSError?
+     fileCoordinator.coordinate(readingItemAt: fileUrl, error: &coordinationError) { url in
+       fingerprint = Fingerprint(contentsOf: url)
