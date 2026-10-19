@@ -1,0 +1,64 @@
+diff --git a/iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift b/iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift
+--- a/iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift
++++ b/iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift
+@@ -2,6 +2,9 @@
+ import XCTest
+ 
+ final class FileContentFingerprintProviderTests: XCTestCase {
++  // This functional I/O deadline includes system file coordination and queue scheduling.
++  private static let coordinatedReadTimeout: TimeInterval = 30
++
+   private var directoryUrl: URL!
+   private var provider: FileContentFingerprintProvider!
+ 
+@@ -30,7 +33,7 @@
+     provider.onContentsMayBeKnown = { reported.fulfill() }
+ 
+     XCTAssertNil(provider.fingerprint(of: item), "Reading and hashing a file is too slow for the main queue")
+-    await fulfillment(of: [reported], timeout: 5)
++    await fulfillment(of: [reported], timeout: Self.coordinatedReadTimeout)
+     XCTAssertEqual(provider.fingerprint(of: item), Fingerprint(hashing: Data(content.utf8)))
+   }
+ 
+@@ -40,7 +43,7 @@
+     let firstRead = expectation(description: "The first account's content is known")
+     provider.onContentsMayBeKnown = { firstRead.fulfill() }
+     XCTAssertNil(provider.fingerprint(of: item))
+-    await fulfillment(of: [firstRead], timeout: 5)
++    await fulfillment(of: [firstRead], timeout: Self.coordinatedReadTimeout)
+ 
+     // Account containers can reuse the path and cheap metadata of a file with different contents.
+     try Data("B".utf8).write(to: item.fileUrl)
+@@ -49,7 +52,7 @@
+     provider.onContentsMayBeKnown = { secondRead.fulfill() }
+ 
+     XCTAssertNil(provider.fingerprint(of: item))
+-    await fulfillment(of: [secondRead], timeout: 5)
++    await fulfillment(of: [secondRead], timeout: Self.coordinatedReadTimeout)
+     XCTAssertEqual(provider.fingerprint(of: item), Fingerprint(hashing: Data("B".utf8)))
+   }
+ 
+@@ -75,7 +78,7 @@
+     }
+     XCTAssertNil(provider.fingerprint(of: currentItem))
+ 
+-    await fulfillment(of: [currentReport], timeout: 5)
++    await fulfillment(of: [currentReport], timeout: Self.coordinatedReadTimeout)
+     await fulfillment(of: [obsoleteReport], timeout: 0.2)
+   }
+ 
+@@ -88,12 +91,12 @@
+     let firstReport = expectation(description: "The file may be worth reading again")
+     provider.onContentsMayBeKnown = { firstReport.fulfill() }
+     XCTAssertNil(provider.fingerprint(of: item))
+-    await fulfillment(of: [firstReport], timeout: 5)
++    await fulfillment(of: [firstReport], timeout: Self.coordinatedReadTimeout)
+ 
+     let secondReport = expectation(description: "The file may be worth reading again")
+     provider.onContentsMayBeKnown = { secondReport.fulfill() }
+     XCTAssertNil(provider.fingerprint(of: item), "The file still cannot be read")
+-    await fulfillment(of: [secondReport], timeout: 5)
++    await fulfillment(of: [secondReport], timeout: Self.coordinatedReadTimeout)
+   }
+ 
+   // MARK: - Helpers
