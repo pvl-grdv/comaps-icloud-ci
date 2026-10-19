@@ -72,8 +72,8 @@ The ios-saved-items branch extends all-folder search to both bookmarks and
 tracks using explicit typed identities and the existing tokenizer/ranker.
 It adds manual item ordering with separate Points and Tracks sections, KML
 rank properties, and a KML sort-mode property. The full candidate test plan
-requires 20 native map regressions, 10 native search tests, 1 legacy automatic
-sort test, and 61 simulator XCTest cases. New API tests cannot compile on
+requires 33 native map regressions, 10 native search tests, 1 legacy automatic
+sort test, and 71 simulator XCTest cases. New API tests cannot compile on
 the original revision, so this branch does not run that negative control.
 Native builds and test outcomes are pending until the Actions run reports
 success. Local syntax checks and extracted model tests are not app validation.
@@ -84,7 +84,7 @@ concurrent edits and queues signed-in offline writes. There is no custom
 clock, writer identifier, pending queue, or account cache. An ephemeral
 account-token check prevents a drag begun under one account publishing into
 another account. Remote apply updates local bm.json without rewriting KML.
-Twenty native coordinator tests cover this layer; their full runtime is
+Twenty-two native coordinator tests cover this layer; their full runtime is
 pending CI. Missing folders keep their slots until their KML arrives.
 
 The deletion/autosave safety patch separately adapts Organic Maps commit
@@ -103,3 +103,16 @@ three-device iCloud synchronization are not verified by these tests.
 Item order travels with KML, subject to unresolved file-conflict limitations.
 This series does not merge existing copies or import the full Organic Maps
 13232 reconciliation proposal. No complete-duplicate-fix claim is made.
+
+Incoming cloud files are staged without replacing the live KML. The existing
+File worker parses the staged snapshot after older saves; a guarded GUI commit
+installs it and updates memory together. Later local edits or deletion can
+supersede that commit. Open edit sessions defer it until their existing close
+boundary. The serial cloud writer waits for acknowledgement before continuing.
+Thirteen core cases and five XCTest cases cover this addition. A separate
+native control emulates the previous direct-copy/reload boundary and must fail
+normally after observing stale data on disk and in memory; it is not a build
+of the unpatched upstream revision. The guard starts when the snapshot enters
+core, not during earlier Swift staging. Incoming parse or install failure keeps
+local data and the existing warning-only policy; a later outgoing update can
+still replace cloud data. Live multi-device behavior remains unverified.

@@ -22,3 +22,4 @@ stable-category-menu-target.patch
 persist-deletion-fixture.patch
 incoming-bookmark-ordered-commit.patch
 incoming-category-staging.patch
+cancellation-test-explicit-catch.patch

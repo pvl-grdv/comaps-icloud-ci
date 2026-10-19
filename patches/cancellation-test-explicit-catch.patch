@@ -1,0 +1,21 @@
+diff --git a/libs/search/search_tests/bookmarks_processor_tests.cpp b/libs/search/search_tests/bookmarks_processor_tests.cpp
+--- a/libs/search/search_tests/bookmarks_processor_tests.cpp
++++ b/libs/search/search_tests/bookmarks_processor_tests.cpp
+@@ -299,7 +299,16 @@
+ {
+   TEST(Replace({TrackDocument(7, 10, "Sequoia")}), ());
+   Cancel();
+-  TEST_THROW(Search("sequoia"), ::search::CancelException, ());
++  bool cancelled = false;
++  try
++  {
++    Search("sequoia");
++  }
++  catch (::search::CancelException const &)
++  {
++    cancelled = true;
++  }
++  TEST(cancelled, ());
+ }
+ 
+ }  // namespace bookmarks_processor_tests
