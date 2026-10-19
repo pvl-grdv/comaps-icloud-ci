@@ -3,11 +3,20 @@ CoMaps iCloud CI experiments
 Independent, AI-assisted diagnostic repository. Not an official CoMaps
 repository, upstream submission, or complete synchronization fix.
 
-The candidate skips the initial-conflict backup for byte-identical local and
-cloud files. It compares the actual metadata URL and preserves the local
-copy when the comparison cannot be coordinated. It does not merge existing duplicates, compare semantic KML
-contents, fix NSFileVersion conflicts, or prove safe concurrent iCloud edits.
-An explicit metadata-only difference case documents a remaining limitation.
+The initial-conflict candidate skips backups for byte-identical local and
+cloud files. It compares the actual metadata URL and preserves the local copy
+when the comparison cannot be coordinated.
+
+The om-reuse-regressions branch also adapts Organic Maps category reload
+fix #13679 and its track rename persistence fix. The reload patch preserves
+the local category ID, updates metadata, excludes the category itself from
+name collision checks, replaces old CoMaps child compilations, and refreshes
+the iOS category information. The track patch marks renamed tracks dirty.
+Exact sources and adaptation details are in patches/upstream-sources.json.
+
+These changes do not merge existing duplicates, compare semantic KML contents,
+fix NSFileVersion conflicts, or prove safe concurrent iCloud edits. An explicit
+metadata-only difference case documents a remaining limitation.
 
 Only upstream source snippets, a candidate patch, and synthetic fixtures are
 stored here. No personal KML files, coordinates, device names, or cloud account
@@ -19,10 +28,16 @@ License: Apache-2.0; retain LICENSE and NOTICE.
 
 GitHub Actions first runs the standalone Foundation file-pipeline scenarios,
 then downloads the pinned CoMaps checkout on an ephemeral Mac, configures its
-documented dependencies, applies patches/initial-conflict.patch, and runs the
-five new CoMapsTests regression cases in an iOS simulator. A Release archive
-build follows. CI logs and the job summary are the result; no large artifacts
-or DerivedData caches are uploaded. See the actual Actions run for status.
+documented dependencies, and applies patches/series.txt in order. It builds
+the actual map_tests target with three new persistence regressions. The tests
+must fail by assertion on the original core and pass with the candidate;
+zero executed tests or an unexpected crash cannot satisfy the checks.
+
+It then builds the iOS app and runs five initial-conflict CoMapsTests cases
+in an iOS simulator. An unsigned Release archive build follows. CI logs and
+the job summary are the result; no large artifacts or DerivedData caches are
+uploaded. See the actual Actions run for status. Search and ordering features
+are separate work and are not part of this patch series.
 
 These checks do not reproduce live synchronization across real Apple devices.
 Passing cases verify the narrow byte-equality guard, not the complete absence

@@ -1,0 +1,83 @@
+{
+  "comaps_revision": "a70fce4243e5c7eb4fc3f92ea0750e2b93c8ffb8",
+  "category_reload": {
+    "base_revision": "a70fce4243e5c7eb4fc3f92ea0750e2b93c8ffb8",
+    "upstream_pr": "https://github.com/organicmaps/organicmaps/pull/13679",
+    "upstream_merge": "3916dc98db02a70ec9fb83931df5d007bd5746a7",
+    "upstream_commits": [
+      "a16f6fb50e03693b3aef29c695d1e044640ac0a2",
+      "b4226eb5aa9b603adac6b8a674c493922c8b7bd9",
+      "82b5b5c9c7939d236eb651c210bea643d0f625a0"
+    ],
+    "files": {
+      "libs/map/bookmark_manager.cpp": {
+        "baseline_git_blob": "85dbd97c126c9c981c3e3a58f86a25007ddff1d5",
+        "candidate_sha256": "668f3d491aceb24d30e9d9fa1006e3e930e4fb1dcdadd10442f3da2a95df7a42"
+      },
+      "libs/map/bookmark_manager.hpp": {
+        "baseline_git_blob": "4cb0f8b95d34a2308ede2ed7aa83dc10fb7963c0",
+        "candidate_sha256": "d23954240d224931ef842b11ee4cef6afa562d2f20f021ca0c969c45ed19f3fd"
+      },
+      "libs/map/map_tests/bookmarks_test.cpp": {
+        "baseline_git_blob": "de76b2ef560f77cb91780b806af0a695b223ef2a",
+        "candidate_sha256": "eba5b6a126154f8cd77029eb4f72df8e6bffc4fa5d30cf750217abae5b922a75"
+      },
+      "iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift": {
+        "baseline_git_blob": "6522f885ac62c4211e6716660defad4e3d4903ee",
+        "candidate_sha256": "925af68d69a9f1a0d65488194fc6d19815e51dc918dd4c4ed5841b2e5f019364"
+      },
+      "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInfoViewController.swift": {
+        "baseline_git_blob": "762d8fc6361a4223e4368908338a4094455a7fb2",
+        "candidate_sha256": "7d9b37cddae0cc23cf77e16bc956b2a28b3f979bb7a9beb24020af99dc82abc4"
+      }
+    },
+    "changes": [
+      "Replace existing m_categories value instead of unsuccessful emplace, retain stable local parent group ID",
+      "Resolve existing group by file before name validation; exclude that group in checker and collision owner lookup",
+      "Retain CoMaps callback-based unique names and compilation-name checking",
+      "Delete previous compilation objects before replacing parent metadata; keep newly created compilation IDs",
+      "Preserve custom category order mechanism and reload autosave=false behavior",
+      "Refresh iOS category info after successful reload and cancel/clear previous category image"
+    ],
+    "tests": {
+      "patch_apply_check": "passed on exact Git blob baseline with whitespace errors rejected",
+      "patch_reverse_check": "passed on candidate",
+      "swift_parser": "passed both modified Swift files; not typechecked",
+      "extracted_functions": "6 candidate cases passed; 4 baseline failures reproduced; shims replace storage/category/notification dependencies",
+      "project_tests_added": [
+        "Bookmarks_ReloadPreservesCategoryIdentityAndMetadata",
+        "Bookmarks_ReloadReplacesCompilations"
+      ],
+      "project_tests_execution": "not run: full C++ project/dependencies not configured; Xcode unavailable",
+      "ios_runtime": "not run",
+      "live_icloud": "not run",
+      "project_tests_preflight": "Exact CoMaps API checked (SaveKmlFileSafe, KmlFileType, TrackData geometry/layers, category/compilation accessors, manual-order APIs, TEST macros). Added explicit bookmarks-directory creation/guard because GetBookmarksDirectory and BookmarkManager constructor do not create it; prevents first test depending on other tests.",
+      "no_rewrite_assertion": "File mtime explicitly aged 24h using C++23 std::filesystem::last_write_time before reload, then compared via Platform::GetFileModificationTime plus raw bytes; avoids false negative from same-second rewrites. Standard filesystem API compiled and executed locally against synthetic fixture (24h age)."
+    },
+    "limits": [
+      "Does not modify iCloud file conflict algorithm",
+      "Does not remove or merge existing duplicate files",
+      "Not a cross-device persistent UUID implementation",
+      "Actual C++ map_tests and iOS builds required before upstream submission",
+      "Provenance must be preserved; adapted implementation and new tests AI-assisted, require human understanding/review; no DCO signed"
+    ],
+    "skills_selection": "Available SwiftUI and macOS skills were not applied: touched app files use UIKit, main adaptation is C++ and no relevant C++ skill is installed.",
+    "patch_sha256": "882f577c6693b1c29dd867ca8319c6b0207d34b0392cd19fc29c013fd6513355"
+  },
+  "track_rename": {
+    "source": "https://github.com/organicmaps/organicmaps/commit/65e7523dd64eecf3db1cc1ff1d7b7fae26498597",
+    "adaptation": "Original one-line product change plus AI-assisted rename-only persistence regression."
+  },
+  "purpose": "Independent AI-assisted CI experiments. Preserve upstream attribution; these CI bootstrap commits are not for submitting to CoMaps.",
+  "pending_at_integration": [
+    "Full C++ map_tests compilation and execution",
+    "iOS application/test target build",
+    "unsigned Release archive",
+    "real-device iCloud validation"
+  ],
+  "not_included": [
+    "Organic Maps proposed full reconciliation PR13232",
+    "semantic deduplication or existing duplicate cleanup",
+    "global iOS search or new manual item ordering"
+  ]
+}

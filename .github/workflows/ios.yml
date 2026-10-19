@@ -1,7 +1,7 @@
 name: CoMaps iCloud candidate
 on:
   push:
-    branches: [main]
+    branches: [main, om-reuse-regressions]
   workflow_dispatch:
     inputs:
       release:
@@ -69,6 +69,8 @@ jobs:
           printf '%s\n' "$(brew --prefix icu4c)/bin" >> "$GITHUB_PATH"
       - name: Fetch and configure the pinned CoMaps revision
         run: bash ci/prepare-upstream.sh
+      - name: Build and execute bookmark persistence regression tests
+        run: bash ci/test-core.sh
       - name: Build iOS and execute the new regression tests
         run: bash ci/test-ios.sh
       - name: Build an unsigned Release archive
@@ -89,7 +91,12 @@ jobs:
         if: always()
         run: |
           printf '%s\n' 'iOS build and simulator regression results (not live iCloud synchronization).' >> "$GITHUB_STEP_SUMMARY"
-          if [ -d results/CoMaps-Debug-Tests.xcresult ]; then
+          if [ -f results/core-summary.json ]; then
+            printf '\n```json\n' >> "$GITHUB_STEP_SUMMARY"
+            cat results/core-summary.json >> "$GITHUB_STEP_SUMMARY"
+            printf '\n```\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
+          if [ -f results/CoMaps-Debug-Tests.xcresult/Info.plist ]; then
             xcrun xcresulttool get test-results summary --path results/CoMaps-Debug-Tests.xcresult > results/summary.json
             printf '\n```json\n' >> "$GITHUB_STEP_SUMMARY"
             cat results/summary.json >> "$GITHUB_STEP_SUMMARY"

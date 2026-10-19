@@ -1,0 +1,3 @@
+initial-conflict.patch
+category-reload.patch
+track-rename.patch

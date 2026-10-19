@@ -1,0 +1,68 @@
+diff --git a/libs/map/track.cpp b/libs/map/track.cpp
+index 8f687cd8a0d..582fb552fb0 100644
+--- a/libs/map/track.cpp
++++ b/libs/map/track.cpp
+@@ -78,6 +78,7 @@ std::string Track::GetName() const
+ 
+ void Track::SetName(std::string const & name)
+ {
++  m_isDirty = true;
+   kml::SetDefaultStr(m_data.m_name, name);
+ }
+ 
+diff --git a/libs/map/map_tests/bookmarks_test.cpp b/libs/map/map_tests/bookmarks_test.cpp
+--- a/libs/map/map_tests/bookmarks_test.cpp
++++ b/libs/map/map_tests/bookmarks_test.cpp
+@@ -1329,6 +1329,52 @@
+   checkBookmarksChanges(false);
+ }
+ 
++UNIT_CLASS_TEST(Runner, TrackRename_AutoSave)
++{
++  BookmarkManager bmManager(BM_CALLBACKS);
++  bmManager.EnableTestMode(true);
++
++  auto const catId = bmManager.CreateBookmarkCategory("track rename persistence");
++  kml::TrackId trackId = kml::kInvalidTrackId;
++  {
++    auto editSession = bmManager.GetEditSession();
++    kml::TrackData trackData;
++    kml::SetDefaultStr(trackData.m_name, "original track name");
++    trackData.m_layers.emplace_back();
++    trackData.m_geometry.AddLine({{{0.0, 0.0}, 1}, {{1.0, 0.0}, 2}});
++    trackData.m_geometry.AddTimestamps({});
++    auto const * track = editSession.CreateTrack(std::move(trackData));
++    trackId = track->GetId();
++    editSession.AttachTrack(trackId, catId);
++  }
++
++  auto const fileName = bmManager.GetCategoryFileName(catId);
++  SCOPE_GUARD(fileDeleter, [&]() { (void)base::DeleteFileX(fileName); });
++  auto checkPersistedName = [&](std::string const & expected)
++  {
++    auto const fileData = LoadKmlFile(fileName, GetActiveKmlFileType());
++    TEST(fileData != nullptr, ());
++    TEST_EQUAL(fileData->m_tracksData.size(), 1, ());
++    TEST_EQUAL(kml::GetDefaultStr(fileData->m_tracksData.front().m_name), expected, ());
++  };
++
++  checkPersistedName("original track name");
++  {
++    auto editSession = bmManager.GetEditSession();
++    editSession.GetTrackForEdit(trackId)->SetName("renamed track");
++    TEST_EQUAL(bmManager.GetTrack(trackId)->GetName(), "renamed track", ());
++    checkPersistedName("original track name");
++  }
++  checkPersistedName("renamed track");
++
++  {
++    auto editSession = bmManager.GetEditSession();
++    editSession.GetTrackForEdit(trackId)->SetName("renamed again");
++  }
++  checkPersistedName("renamed again");
++}
++
++
+ UNIT_CLASS_TEST(Runner, Bookmarks_AutoSave)
+ {
+   BookmarkManager bmManager(BM_CALLBACKS);
