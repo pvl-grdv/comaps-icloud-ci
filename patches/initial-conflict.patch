@@ -1,0 +1,149 @@
+--- a/iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift
++++ b/iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift
+@@ -1,3 +1,4 @@
++// Modified with AI assistance for an independent CI experiment on 2026-10-19.
+ final class SynchronizationFileWriter {
+   private let fileManager: FileManager
+   private let backgroundQueue = DispatchQueue(label: "iCloud.app.comaps.backgroundQueue", qos: .background)
+@@ -221,18 +222,29 @@
+   }
+ 
+   private func resolveInitialSynchronizationConflict(_ localMetadataItem: LocalMetadataItem, completion: @escaping WritingResultCompletionHandler) {
+-    LOG(.info, "Start resolving initial sync conflict for file \(localMetadataItem.fileName) by copying with a new name...")
+-    do {
+-      let newFileUrl = generateNewFileUrl(for: localMetadataItem.fileUrl, addDeviceName: true)
+-      if !fileManager.fileExists(atPath: newFileUrl.path) {
+-        try fileManager.copyItem(at: localMetadataItem.fileUrl, to: newFileUrl)
+-      } else {
+-        try fileManager.replaceFileSafe(at: newFileUrl, with: localMetadataItem.fileUrl)
+-      }
+-      LOG(.info, "File \(localMetadataItem.fileName) was successfully resolved.")
+-      completion(.reloadCategoriesAtURLs([newFileUrl]))
+-    } catch {
+-      completion(.failure(error))
++    let cloudFileUrl = localMetadataItem.relatedCloudItemUrl(to: cloudDirectoryUrl)
++    var coordinationError: NSError?
++    fileCoordinator.coordinate(readingItemAt: cloudFileUrl,
++                               writingItemAt: localMetadataItem.fileUrl,
++                               error: &coordinationError) { cloudFileUrl, localFileUrl in
++      if fileManager.contentsEqual(atPath: localFileUrl.path, andPath: cloudFileUrl.path) {
++        completion(.success)
++        return
++      }
++      do {
++        let newFileUrl = generateNewFileUrl(for: localFileUrl, addDeviceName: true)
++        if !fileManager.fileExists(atPath: newFileUrl.path) {
++          try fileManager.copyItem(at: localFileUrl, to: newFileUrl)
++        } else {
++          try fileManager.replaceFileSafe(at: newFileUrl, with: localFileUrl)
++        }
++        completion(.reloadCategoriesAtURLs([newFileUrl]))
++      } catch {
++        completion(.failure(error))
++      }
++    }
++    if let coordinationError {
++      completion(.failure(coordinationError))
+     }
+   }
+ 
+--- a/iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift
++++ b/iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift
+@@ -1,4 +1,6 @@
++// Modified with AI assistance for an independent CI experiment on 2026-10-19.
+ import XCTest
++import UIKit
+ @testable import CoMaps__Debug_
+ 
+ final class SynchronizationtateManagerTests: XCTestCase {
+@@ -572,3 +574,90 @@
+   }
+ }
+ 
++
++final class SynchronizationFileWriterInitialConflictTests: XCTestCase {
++  private let fileManager = FileManager.default
++  private var rootURL: URL!
++  private var localDirectory: URL { rootURL.appendingPathComponent("local", isDirectory: true) }
++  private var cloudDirectory: URL { rootURL.appendingPathComponent("cloud", isDirectory: true) }
++  private var localURL: URL { localDirectory.appendingPathComponent("Collection.kml") }
++  private var cloudURL: URL { cloudDirectory.appendingPathComponent("Collection.kml") }
++  private let localData = Data("<kml><Document><name>A</name></Document></kml>".utf8)
++  private let changedData = Data("<kml><Document><name>B</name></Document></kml>".utf8)
++
++  override func setUpWithError() throws {
++    try super.setUpWithError()
++    rootURL = fileManager.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
++    try fileManager.createDirectory(at: localDirectory, withIntermediateDirectories: true)
++    try fileManager.createDirectory(at: cloudDirectory, withIntermediateDirectories: true)
++  }
++
++  override func tearDownWithError() throws {
++    defer { rootURL = nil }
++    if let rootURL { try fileManager.removeItem(at: rootURL) }
++    try super.tearDownWithError()
++  }
++
++  func testEqualFilesWithDifferentDatesDoNotCreateConflictCopy() throws {
++    try prepareFiles(cloudData: localData)
++    try synchronize()
++    XCTAssertEqual(try conflictCopies().count, 0)
++    XCTAssertEqual(try Data(contentsOf: localURL), localData)
++  }
++
++  func testDifferentFilesPreserveLocalCopyBeforeCloudReplacement() throws {
++    try prepareFiles(cloudData: changedData)
++    try synchronize()
++    let copies = try conflictCopies()
++    XCTAssertEqual(copies.count, 1)
++    let copy = try XCTUnwrap(copies.first)
++    XCTAssertEqual(try Data(contentsOf: copy), localData)
++    XCTAssertEqual(try Data(contentsOf: localURL), changedData)
++  }
++
++  func testEqualFilesDoNotOverwriteExistingConflictCopy() throws {
++    try prepareFiles(cloudData: localData)
++    let copy = localDirectory.appendingPathComponent("Collection_1_\(UIDevice.current.name).kml")
++    try changedData.write(to: copy)
++    try synchronize()
++    XCTAssertEqual(try conflictCopies().count, 1)
++    XCTAssertEqual(try Data(contentsOf: copy), changedData)
++  }
++
++  private func prepareFiles(cloudData: Data) throws {
++    try localData.write(to: localURL)
++    try cloudData.write(to: cloudURL)
++    try fileManager.setAttributes([.modificationDate: Date(timeIntervalSince1970: 200)], ofItemAtPath: localURL.path)
++    try fileManager.setAttributes([.modificationDate: Date(timeIntervalSince1970: 100)], ofItemAtPath: cloudURL.path)
++  }
++
++  private func conflictCopies() throws -> [URL] {
++    try fileManager.contentsOfDirectory(at: localDirectory, includingPropertiesForKeys: nil)
++      .filter { $0.lastPathComponent != "Collection.kml" && $0.pathExtension == "kml" }
++  }
++
++  private func synchronize() throws {
++    let local = try LocalMetadataItem(fileUrl: localURL)
++    let cloud = CloudMetadataItem(fileName: "Collection.kml", fileUrl: cloudURL,
++                                  isDownloaded: true, percentDownloaded: 100,
++                                  lastModificationDate: 100, downloadingError: nil,
++                                  uploadingError: nil, hasUnresolvedConflicts: false)
++    let resolver = iCloudSynchronizationStateResolver(isInitialSynchronization: true)
++    let events = resolver.resolveEvent(.didFinishGatheringLocalContents([local]))
++      + resolver.resolveEvent(.didFinishGatheringCloudContents([cloud]))
++    XCTAssertTrue(events.contains { if case .resolveInitialSynchronizationConflict = $0 { return true }; return false })
++    let completed = expectation(description: "Synchronization events completed")
++    completed.expectedFulfillmentCount = events.count
++    completed.assertForOverFulfill = true
++    let writer = SynchronizationFileWriter(localDirectoryUrl: localDirectory, cloudDirectoryUrl: cloudDirectory)
++    for event in events {
++      writer.processEvent(event) { result in
++        XCTAssertTrue(Thread.isMainThread)
++        if case .failure(let error) = result { XCTFail(String(describing: error)) }
++        completed.fulfill()
++      }
++    }
++    wait(for: [completed], timeout: 10)
++    withExtendedLifetime(writer) {}
++  }
++}
