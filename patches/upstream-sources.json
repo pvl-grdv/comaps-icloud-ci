@@ -103,7 +103,8 @@
     "persist-deletion-fixture.patch": "CI fixture fix: explicitly persist initial synthetic deletion category and assert on-disk path/content before exercising deletion failures; production behavior and seven regression scenarios unchanged.",
     "incoming-bookmark-ordered-commit.patch": "KISS local incoming-file boundary: parse immutable staged bytes on existing File worker, guarded atomic rename and category application in one GUI turn. Per-category transient revision, existing loading queue and one edit-session continuation. 13 native positive regressions; macro-only previous-boundary control.",
     "incoming-category-staging.patch": "Swift cloud read coordinator stages same-volume snapshot and closes accessor before core call. Existing serial writer queue waits for idempotent acknowledgement; cleanup on payload release. Four async writer and one actual bridge XCTest; existing five file-writer fixtures retain original assertions.",
-    "cancellation-test-explicit-catch.patch": "Test-only compile fix: catch the exact search::CancelException explicitly; no exception fails and unexpected exceptions propagate. Common TEST_THROW macro unchanged."
+    "cancellation-test-explicit-catch.patch": "Test-only compile fix: catch the exact search::CancelException explicitly; no exception fails and unexpected exceptions propagate. Common TEST_THROW macro unchanged.",
+    "explicit-fixture-callbacks.patch": "Test-only explicit BookmarkManager::Callbacks prvalues at two make_unique calls; callback values and constructor unchanged."
   },
   "patch_sha256": {
     "initial-conflict.patch": "baebd78a4a6779fb07ea7a92173169d805cd2460dae0b0bb8b8375a28c0ca19e",
@@ -130,7 +131,8 @@
     "persist-deletion-fixture.patch": "50e124825693e3d503cb7a7bd785e3b2b6430c537d537f0df6f18abf24065ab8",
     "incoming-bookmark-ordered-commit.patch": "52fdaebe25eb1203069c0ee385eb0b5c3216d9acbdc242556a3967e6c6a330ec",
     "incoming-category-staging.patch": "37e957e8aa8a58185dd2a3ecb5cf35f555295248a77d4f6ec8ef7b2299b7ff1c",
-    "cancellation-test-explicit-catch.patch": "b47320fe3bde4a762f88a07d2ed20a63bf711ea43a5cbb6bc960bb53c3095a79"
+    "cancellation-test-explicit-catch.patch": "b47320fe3bde4a762f88a07d2ed20a63bf711ea43a5cbb6bc960bb53c3095a79",
+    "explicit-fixture-callbacks.patch": "13b351f3d3acf757e7d70f40eff25e170a7c058a20d0ad4673457087d62cd9ca"
   },
   "ci_findings": [
     {
@@ -161,6 +163,12 @@
       "error": "The TEST_THROW macro parameter named exception substitutes the token inside std::exception, making a qualified CancelException argument invalid C++.",
       "fix": "Use an explicit exact CancelException catch and final TEST assertion in one cancellation test; product and common testing macro unchanged.",
       "partial_native_results": "All 20 selected map regressions passed. Search target failed compilation; iOS/XCTest/archive were not reached. These are predecessor results, not the current 33-case candidate."
+    },
+    {
+      "run": 39279533144,
+      "error": "Two incoming-race fixture make_unique<BookmarkManager>(BM_CALLBACKS) calls cannot deduce template arguments from the macro braced initializer.",
+      "fix": "Give both braced initializer expressions the existing public BookmarkManager::Callbacks type; no product or common macro changes.",
+      "partial_native_results": "Foundation file pipeline passed; new core test target failed compilation, so none of its 33 selected tests or later native stages ran."
     }
   ],
   "upstream_deletion_source": "https://github.com/organicmaps/organicmaps/commit/01e8b634df68750ce15b86aec19ceed4362eb24e",

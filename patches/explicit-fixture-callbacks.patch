@@ -1,0 +1,21 @@
+diff --git a/libs/map/map_tests/bookmarks_test.cpp b/libs/map/map_tests/bookmarks_test.cpp
+--- a/libs/map/map_tests/bookmarks_test.cpp
++++ b/libs/map/map_tests/bookmarks_test.cpp
+@@ -2485,7 +2485,7 @@
+     auto gui = std::make_unique<IncomingTestGuiLoop>();
+     m_gui = gui.get();
+     GetPlatform().SetGuiThread(std::move(gui));
+-    m_manager = std::make_unique<BookmarkManager>(BM_CALLBACKS);
++    m_manager = std::make_unique<BookmarkManager>(BookmarkManager::Callbacks BM_CALLBACKS);
+     m_manager->EnableTestMode(true);
+     bool loaded = false;
+     BookmarkManager::AsyncLoadingCallbacks callbacks;
+@@ -2557,7 +2557,7 @@
+   void StartBeforeInitialLoad(std::string const & snapshot)
+   {
+     m_manager->Teardown(); DrainIncomingFileWorker(); m_gui->Drain();
+-    m_manager = std::make_unique<BookmarkManager>(BM_CALLBACKS);
++    m_manager = std::make_unique<BookmarkManager>(BookmarkManager::Callbacks BM_CALLBACKS);
+     m_manager->EnableTestMode(true);
+     Begin(snapshot);
+     m_manager->LoadBookmarks();
