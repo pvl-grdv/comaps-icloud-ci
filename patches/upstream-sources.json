@@ -106,7 +106,8 @@
     "cancellation-test-explicit-catch.patch": "Test-only compile fix: catch the exact search::CancelException explicitly; no exception fails and unexpected exceptions propagate. Common TEST_THROW macro unchanged.",
     "explicit-fixture-callbacks.patch": "Test-only explicit BookmarkManager::Callbacks prvalues at two make_unique calls; callback values and constructor unchanged.",
     "parser-rejected-invalid-snapshot-fixture.patch": "Test-only mismatched XML fixture with actual loader rejection precondition; false completion, Original memory and full original destination bytes must be preserved.",
-    "bookmark-original-name-search-alias.patch": "Retain preferred localized original bookmark name alongside custom/display and type aliases; one typed-index test covers both names and alias changes. Existing tokenizer/ranker and legacy Smoke assertions unchanged."
+    "bookmark-original-name-search-alias.patch": "Retain preferred localized original bookmark name alongside custom/display and type aliases; one typed-index test covers both names and alias changes. Existing tokenizer/ranker and legacy Smoke assertions unchanged.",
+    "declare-fill-empty-names.patch": "Declare existing external FillEmptyNames in bookmark_helpers.hpp so standalone Xcode C++ compilation sees it; no implementation or destination basename change."
   },
   "patch_sha256": {
     "initial-conflict.patch": "baebd78a4a6779fb07ea7a92173169d805cd2460dae0b0bb8b8375a28c0ca19e",
@@ -136,7 +137,8 @@
     "cancellation-test-explicit-catch.patch": "b47320fe3bde4a762f88a07d2ed20a63bf711ea43a5cbb6bc960bb53c3095a79",
     "explicit-fixture-callbacks.patch": "13b351f3d3acf757e7d70f40eff25e170a7c058a20d0ad4673457087d62cd9ca",
     "parser-rejected-invalid-snapshot-fixture.patch": "f4ae752454076d5c6e2532d59dfe178b101c3c6a1f28e8b6f674f252043525cb",
-    "bookmark-original-name-search-alias.patch": "872319ee04be424ec9b3ad3691b021b8ffc133f4d485ec856e7d2fc32bd9d8a8"
+    "bookmark-original-name-search-alias.patch": "872319ee04be424ec9b3ad3691b021b8ffc133f4d485ec856e7d2fc32bd9d8a8",
+    "declare-fill-empty-names.patch": "dd9413724c4688eecf99ceadec5db43f5a053f72afa19d8ad17c3b4afe1b5c88"
   },
   "ci_findings": [
     {
@@ -186,6 +188,12 @@
       "error": "Legacy Smoke expects original-name matching with customName set, while the pinned extractor indexes only preferred custom/display name plus type. This unchanged baseline behavior omitted the original alias.",
       "fix": "Add preferred original localized name to existing owned names vector. Existing trim/dedup/normalization and all old Smoke assertions stay. Add one typed-index names-only alias/update regression, search plan10to11.",
       "partial_native_results": "All33 native core tests passed; native previous-boundary control confirmed normal assertion failure and restored binary. Search10executed9passed1legacySmoke failure; iOS/archive not reached."
+    },
+    {
+      "run": 39293170140,
+      "error": "CMake unity build sees FillEmptyNames definition from another source file, while standalone Xcode compilation of bookmark_manager.cpp lacks its declaration.",
+      "fix": "Add exact existing public helper declaration to bookmark_helpers.hpp. No new implementation, parser or copying.",
+      "partial_native_results": "All33core, native previous-boundary control,11search and1automatic-sort passed. iOS compilation failed before XCTest; archive/visuals pending."
     }
   ],
   "upstream_deletion_source": "https://github.com/organicmaps/organicmaps/commit/01e8b634df68750ce15b86aec19ceed4362eb24e",

@@ -1,0 +1,11 @@
+diff --git a/libs/map/bookmark_helpers.hpp b/libs/map/bookmark_helpers.hpp
+--- a/libs/map/bookmark_helpers.hpp
++++ b/libs/map/bookmark_helpers.hpp
+@@ -110,6 +110,7 @@
+ /// @{
+ std::unique_ptr<kml::FileData> LoadKmlFile(std::string const & file, KmlFileType fileType);
+ std::unique_ptr<kml::FileData> LoadKmlData(Reader const & reader, KmlFileType fileType);
++void FillEmptyNames(std::unique_ptr<kml::FileData> & kmlData, std::string const & file);
+ 
+ std::vector<std::string> GetKMLOrGPXFilesPathsToLoad(std::string const & filePath);
+ std::vector<std::string> GetFilePathsToLoadFromKml(std::string const & filePath);
