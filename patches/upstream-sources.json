@@ -68,19 +68,7 @@
     "source": "https://github.com/organicmaps/organicmaps/commit/65e7523dd64eecf3db1cc1ff1d7b7fae26498597",
     "adaptation": "Original one-line product change plus AI-assisted rename-only persistence regression."
   },
-  "purpose": "Independent AI-assisted CI experiments. Preserve upstream attribution; these CI bootstrap commits are not for submitting to CoMaps.",
-  "pending_at_integration": [
-    "33 native candidate core regressions",
-    "1 expected native previous-boundary assertion failure control (not an unpatched upstream build)",
-    "10 native search tests and 1 legacy automatic sorting",
-    "iOS app build and 71 selected XCTest cases",
-    "unsigned Release archive and 3 simulator images",
-    "real three-device iCloud delivery remains untested"
-  ],
-  "not_included": [
-    "Organic Maps proposed full reconciliation PR13232",
-    "semantic deduplication or existing duplicate cleanup"
-  ],
+  "purpose": "AI-assisted diagnostic full OM13232 reconciliation port plus saved-item search and ordering; pending actual native/iOS CI at current HEAD.",
   "feature_patches": {
     "global-bookmark-search.patch": "New AI-assisted UIKit/bridge UI exposing existing CoMaps all-groups bookmark search; 11 model tests.",
     "ios-folder-order.patch": "New AI-assisted UIKit/bridge manual folder ordering plus two core edge fixes; six bridge tests and two core regressions. Stores order locally; cross-device preference layer is not included yet.",
@@ -107,7 +95,9 @@
     "explicit-fixture-callbacks.patch": "Test-only explicit BookmarkManager::Callbacks prvalues at two make_unique calls; callback values and constructor unchanged.",
     "parser-rejected-invalid-snapshot-fixture.patch": "Test-only mismatched XML fixture with actual loader rejection precondition; false completion, Original memory and full original destination bytes must be preserved.",
     "bookmark-original-name-search-alias.patch": "Retain preferred localized original bookmark name alongside custom/display and type aliases; one typed-index test covers both names and alias changes. Existing tokenizer/ranker and legacy Smoke assertions unchanged.",
-    "declare-fill-empty-names.patch": "Declare existing external FillEmptyNames in bookmark_helpers.hpp so standalone Xcode C++ compilation sees it; no implementation or destination basename change."
+    "declare-fill-empty-names.patch": "Declare existing external FillEmptyNames in bookmark_helpers.hpp so standalone Xcode C++ compilation sees it; no implementation or destination basename change.",
+    "icloud-content-reconciliation.patch": "Atomic full OM13232 production/tests/core port with persisted-save guard, lifecycle fix and CoMaps integration; exact source provenance and coverage mapping in companion manifests.",
+    "explicit-search-service-capture.patch": "Current Xcode compiler fix: explicit self.manager in six nested compactMap references; no search behavior or test-count change."
   },
   "patch_sha256": {
     "initial-conflict.patch": "baebd78a4a6779fb07ea7a92173169d805cd2460dae0b0bb8b8375a28c0ca19e",
@@ -138,7 +128,9 @@
     "explicit-fixture-callbacks.patch": "13b351f3d3acf757e7d70f40eff25e170a7c058a20d0ad4673457087d62cd9ca",
     "parser-rejected-invalid-snapshot-fixture.patch": "f4ae752454076d5c6e2532d59dfe178b101c3c6a1f28e8b6f674f252043525cb",
     "bookmark-original-name-search-alias.patch": "872319ee04be424ec9b3ad3691b021b8ffc133f4d485ec856e7d2fc32bd9d8a8",
-    "declare-fill-empty-names.patch": "dd9413724c4688eecf99ceadec5db43f5a053f72afa19d8ad17c3b4afe1b5c88"
+    "declare-fill-empty-names.patch": "dd9413724c4688eecf99ceadec5db43f5a053f72afa19d8ad17c3b4afe1b5c88",
+    "icloud-content-reconciliation.patch": "6f868535e44b8e65fc43ffeb438dcf186bcc644eb9445481471133e35c519a4b",
+    "explicit-search-service-capture.patch": "42db39c552b39ef881464b459a868f73a9a0725489053485a0d7c34e61e67da9"
   },
   "ci_findings": [
     {
@@ -194,37 +186,110 @@
       "error": "CMake unity build sees FillEmptyNames definition from another source file, while standalone Xcode compilation of bookmark_manager.cpp lacks its declaration.",
       "fix": "Add exact existing public helper declaration to bookmark_helpers.hpp. No new implementation, parser or copying.",
       "partial_native_results": "All33core, native previous-boundary control,11search and1automatic-sort passed. iOS compilation failed before XCTest; archive/visuals pending."
+    },
+    {
+      "run": 39297865738,
+      "error": "Nested compactMap closure in BMCSavedItemsSearchService needs explicit self.manager at six references.",
+      "fix": "Qualify only those references; existing self retention and search algorithm unchanged. Included with full port.",
+      "partial_native_results": "Application Swift compilation failed before XCTest; full-port results pending."
     }
   ],
   "upstream_deletion_source": "https://github.com/organicmaps/organicmaps/commit/01e8b634df68750ce15b86aec19ceed4362eb24e",
-  "skill_review": {
-    "reviewed_head": "d02591459a8c1a851f6b30a8736d15052297274d",
-    "skills": [
-      "charleswiltgen/axiom: axiom-uikit (Codex variant)",
-      "trailofbits/skills: modern-cpp"
+  "historical_before_full_reconciliation": {
+    "pending_at_integration": [
+      "33 native candidate core regressions",
+      "1 expected native previous-boundary assertion failure control (not an unpatched upstream build)",
+      "10 native search tests and 1 legacy automatic sorting",
+      "iOS app build and 71 selected XCTest cases",
+      "unsigned Release archive and 3 simulator images",
+      "real three-device iCloud delivery remains untested"
     ],
-    "method": "Three subagents; source review with relevant skill references; minimal fixes within current UIKit/C++23 architecture.",
-    "new_cpp_regressions_found": 0,
-    "residual_baseline_risk": "Swift incoming file replacement and queued C++ save use different execution boundaries; a queued older snapshot can overwrite incoming bytes before reload. Source-inspected, native reproducer draft not executed; not fixed by this series.",
-    "local_foundation_check": "20 original cases pass; 2 new lifecycle cases fail before fix and 22 pass after fix using unchanged test bodies with assertion shim. Not native XCTest/live iCloud.",
-    "new_native_cases": 5,
-    "native_and_visual_status": "Pending CI; no local iOS SDK."
-  },
-  "incoming_file_boundary": {
-    "reviewed_base": "d3b6403433006f45f12339956d1f2fbb6bf6ac7e",
-    "local_verification": "Six original and six candidate file-pipeline cases passed with staged request adapter. Four actual async writer test bodies passed through Foundation assertion/expectation shim. Not native XCTest.",
-    "native_status": "Pending current CI",
-    "negative_control": {
-      "test": "bookmarks_test.cpp::Runner_Bookmarks_IncomingPreviousBoundaryControl",
-      "macro": "COMAPS_ICLOUD_PREVIOUS_BOUNDARY_CONTROL",
-      "marker": "INCOMING_PREVIOUS_BOUNDARY_OBSERVED_A_ON_DISK_AND_IN_MEMORY",
-      "scope": "Native emulation of previous Swift direct-copy then existing core ReloadBookmark boundary; product sources are current candidate"
+    "not_included": [
+      "Organic Maps proposed full reconciliation PR13232",
+      "semantic deduplication or existing duplicate cleanup"
+    ],
+    "skill_review": {
+      "reviewed_head": "d02591459a8c1a851f6b30a8736d15052297274d",
+      "skills": [
+        "charleswiltgen/axiom: axiom-uikit (Codex variant)",
+        "trailofbits/skills: modern-cpp"
+      ],
+      "method": "Three subagents; source review with relevant skill references; minimal fixes within current UIKit/C++23 architecture.",
+      "new_cpp_regressions_found": 0,
+      "residual_baseline_risk": "Swift incoming file replacement and queued C++ save use different execution boundaries; a queued older snapshot can overwrite incoming bytes before reload. Source-inspected, native reproducer draft not executed; not fixed by this series.",
+      "local_foundation_check": "20 original cases pass; 2 new lifecycle cases fail before fix and 22 pass after fix using unchanged test bodies with assertion shim. Not native XCTest/live iCloud.",
+      "new_native_cases": 5,
+      "native_and_visual_status": "Pending CI; no local iOS SDK."
     },
-    "scope": "Local save/install/apply ordering only; existing cloud content-conflict and failure-warning policy retained.",
+    "incoming_file_boundary": {
+      "reviewed_base": "d3b6403433006f45f12339956d1f2fbb6bf6ac7e",
+      "local_verification": "Six original and six candidate file-pipeline cases passed with staged request adapter. Four actual async writer test bodies passed through Foundation assertion/expectation shim. Not native XCTest.",
+      "native_status": "Pending current CI",
+      "negative_control": {
+        "test": "bookmarks_test.cpp::Runner_Bookmarks_IncomingPreviousBoundaryControl",
+        "macro": "COMAPS_ICLOUD_PREVIOUS_BOUNDARY_CONTROL",
+        "marker": "INCOMING_PREVIOUS_BOUNDARY_OBSERVED_A_ON_DISK_AND_IN_MEMORY",
+        "scope": "Native emulation of previous Swift direct-copy then existing core ReloadBookmark boundary; product sources are current candidate"
+      },
+      "scope": "Local save/install/apply ordering only; existing cloud content-conflict and failure-warning policy retained.",
+      "limits": [
+        "Per-category guard starts when staged input reaches core; earlier Swift staging edits are outside guard.",
+        "On incoming I/O/parse failure, local data is retained, but existing warning-only policy still permits a later queued outgoing update.",
+        "No live multi-device iCloud, semantic deduplication, existing duplicate cleanup or full reconciliation."
+      ]
+    }
+  },
+  "full_reconciliation": {
+    "upstream_pr": "https://github.com/organicmaps/organicmaps/pull/13232",
+    "upstream_head": "5f24813d6fd93f26cb216d823ab4d5996d49d192",
+    "main_commit": "2b6740f79b07ad7fba24e5c99c81420d69369f64",
+    "deletion_prerequisite": "01e8b634df68750ce15b86aec19ceed4362eb24e",
+    "integration": "One atomic content-reconciliation patch supersedes the date-based resolver and intermediate bool API. No compatibility resolver/wrapper.",
+    "adaptations": [
+      "Existing CoMaps SettingsBridge, Combine observers and one KVS folder-order startup",
+      "Typed incoming Applied/Skipped/Failed and fresh destination validation after queued native saves",
+      "Native pending and persisted-revision guards; failed save leaves newer memory protected",
+      "Skip older queued saves after newer synchronous persistence under existing mutex",
+      "Staged fingerprints establish common base only after Applied",
+      "Opaque NSCoding identity equality; uncertain identity preserves common base",
+      "Balanced DispatchSource deinit and one suspension flag",
+      "One existing internal result handler visible to @testable tests; no new DI abstractions",
+      "SystemBootTime privacy reason35F9.1 for active interval timing"
+    ],
+    "owner_artifact_hashes": {
+      "core": "fed8951756d28bd2c77a24f77a65ebf30dc6fa3c1a6df7c8c22afb8e3d7fe397",
+      "persisted_guard": "35c55aaa368fa9467cb62651d6eca2545645bb35c99f6ddbd7fcdea1479572ce",
+      "swift": "a129266ced8c811d3d176e36710f8332c43a47fc957df7de920e38fd67bb80e7",
+      "tests": "46a25dbc6a766eaa5382ecd55d7d4a50e70e53610edbbc3db904db79525f9050"
+    },
+    "selected_tests": {
+      "native_core": 48,
+      "native_incoming_control": 1,
+      "native_search": 11,
+      "native_automatic_sort": 1,
+      "XCTest": 162,
+      "icloud_XCTest": 100,
+      "file_pipeline_candidate": 12,
+      "file_pipeline_historical": 6
+    },
+    "local_checks": {
+      "strict_series": "31 patches,45 exact baseline files,43 Swift parse, PBX/bash/JSON/Python checks",
+      "file_pipeline": "6 historical +12 current scenarios passed; real production sources with synthetic native adapter",
+      "source_body_execution": "39 resolver,12 real local monitor,2 real state-store Foundation assertion-shim cases passed",
+      "save_state_harness": "17 source-extracted checks passed; preceding state fails4 normally",
+      "separate_module_typecheck": "9 real production +12 test/mock files, actual ObjC selector/enum, app/XCTest surface stubs"
+    },
     "limits": [
-      "Per-category guard starts when staged input reaches core; earlier Swift staging edits are outside guard.",
-      "On incoming I/O/parse failure, local data is retained, but existing warning-only policy still permits a later queued outgoing update.",
-      "No live multi-device iCloud, semantic deduplication, existing duplicate cleanup or full reconciliation."
-    ]
+      "No live three-device synchronization or real NSFileVersion conflict-version fixture",
+      "No existing duplicate cleanup or semantic KML deduplication; state keyed by filename",
+      "Accepted writes may finish after session ends; stale result cannot establish next-session base",
+      "New edits after outgoing preflight may allow an accepted older disk snapshot to upload; newer unsaved memory protected",
+      "No new local-save retry engine; permissive shared XML loader unchanged"
+    ],
+    "unrelated_upstream_changes_excluded": [
+      "CarPlay overhaul",
+      "OM project file replacement"
+    ],
+    "native_iOS_status": "pending fresh CI of full port"
   }
 }

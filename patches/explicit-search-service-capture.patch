@@ -1,0 +1,28 @@
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSavedItemsSearchService.swift b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSavedItemsSearchService.swift
+--- a/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSavedItemsSearchService.swift
++++ b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSavedItemsSearchService.swift
+@@ -18,18 +18,18 @@
+     let onResults: ([SavedItemSearchResult]) -> Void = { [weak self] items in
+       guard let self else { return }
+       completion(items.compactMap { item in
+-        guard manager.hasCategory(item.categoryId) else { return nil }
+-        let category = manager.category(withId: item.categoryId)
++        guard self.manager.hasCategory(item.categoryId) else { return nil }
++        let category = self.manager.category(withId: item.categoryId)
+         switch item.kind {
+         case .bookmark:
+-          guard manager.hasBookmark(item.itemId) else { return nil }
+-          let bookmark = manager.bookmark(withId: item.itemId)
++          guard self.manager.hasBookmark(item.itemId) else { return nil }
++          let bookmark = self.manager.bookmark(withId: item.itemId)
+           return BMCSearchResult(item: .bookmark(item.itemId), categoryId: category.categoryId,
+                                  categoryName: category.title, name: bookmark.bookmarkName,
+                                  subtitle: bookmark.bookmarkType)
+         case .track:
+-          guard manager.hasTrack(item.itemId) else { return nil }
+-          let track = manager.track(withId: item.itemId)
++          guard self.manager.hasTrack(item.itemId) else { return nil }
++          let track = self.manager.track(withId: item.itemId)
+           let distance = DistanceFormatter.distanceString(fromMeters: Double(track.trackLengthMeters))
+           return BMCSearchResult(item: .track(item.itemId), categoryId: category.categoryId,
+                                  categoryName: category.title, name: track.trackName,

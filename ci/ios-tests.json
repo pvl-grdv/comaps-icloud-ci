@@ -1,9 +1,5 @@
 [
   {
-    "className": "SynchronizationFileWriterInitialConflictTests",
-    "expectedTests": 5
-  },
-  {
     "className": "BMCSearchViewModelTests",
     "expectedTests": 11
   },
@@ -32,7 +28,35 @@
     "expectedTests": 1
   },
   {
+    "className": "DefaultLocalDirectoryMonitorTests",
+    "expectedTests": 12
+  },
+  {
+    "className": "FileContentFingerprintProviderTests",
+    "expectedTests": 4
+  },
+  {
+    "className": "SynchronizationFileWriterTests",
+    "expectedTests": 23
+  },
+  {
     "className": "SynchronizationIncomingFileWriterTests",
     "expectedTests": 4
+  },
+  {
+    "className": "SynchronizationManagerTests",
+    "expectedTests": 10
+  },
+  {
+    "className": "SynchronizationStateResolverTests",
+    "expectedTests": 39
+  },
+  {
+    "className": "SynchronizedStateStoreTests",
+    "expectedTests": 2
+  },
+  {
+    "className": "iCloudDirectoryMonitorTests",
+    "expectedTests": 6
   }
 ]

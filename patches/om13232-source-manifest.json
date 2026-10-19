@@ -1,0 +1,227 @@
+{
+  "revision": "5f24813d6fd93f26cb216d823ab4d5996d49d192",
+  "files": [
+    {
+      "path": "android/app/src/main/java/app/organicmaps/bookmarks/BookmarkCategoriesFragment.kt",
+      "sha256": "1b65f759cc20e200dae472c31a22de05fe0f116c5479e2a60d3528768324e1d7",
+      "bytes": 10384,
+      "git_blob": "f48e1289f2b3245918088ab5f471d73d41bddd4a"
+    },
+    {
+      "path": "android/sdk/src/main/java/app/organicmaps/sdk/bookmarks/data/BookmarkManager.java",
+      "sha256": "60a88b85ef33eda7665ae281a836ef4764ea2084ab066ad50b0f4edb78adaed0",
+      "bytes": 22912,
+      "git_blob": "972808a8bd578fd8a56719f35565602e43f12918"
+    },
+    {
+      "path": "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
+      "sha256": "6cc0147bfaf986ff70df39903fcb48f04f823484df962ad33328d7e45a41c2b1",
+      "bytes": 9807,
+      "git_blob": "7af67510656fcf5b8d52ac23ee893f9fb4a1b444"
+    },
+    {
+      "path": "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
+      "sha256": "32e63b0c17db7116258a54d5ec6841d4ab686a4961879d5ebdc591b73122e9c8",
+      "bytes": 31607,
+      "git_blob": "b391a060f7ff09e7b6da809ce40c81b9d711d8b1"
+    },
+    {
+      "path": "iphone/CoreApi/CoreApi/Bookmarks/MWMCarPlayBookmarkObject.h",
+      "sha256": "9bcb7c358fd8e79de3db4940a930385706f8faef2db94e8b341289f00e651b57",
+      "bytes": 674,
+      "git_blob": "9d0e27d2a0af26226cf664be892bdc5326e83012"
+    },
+    {
+      "path": "iphone/CoreApi/CoreApi/Bookmarks/MWMCarPlayBookmarkObject.mm",
+      "sha256": "b58e91c2d682c3976e66ddbbc08da805fc39a0ab2cbc202f243269d1d7d41d8b",
+      "bytes": 1330,
+      "git_blob": "b38a4d8a74a56ef7a0297ba6962f3fc299586dae"
+    },
+    {
+      "path": "iphone/Maps/Core/CarPlay/CarPlayService.swift",
+      "sha256": "c1dd6aacf90366f65c69affd050c4d1033d72cd3f43390b857a702812f1224db",
+      "bytes": 52634,
+      "git_blob": "475dd90916656fec8f0c2d00d2cb68e56798facc"
+    },
+    {
+      "path": "iphone/Maps/Core/CarPlay/Template Builders/ListTemplateBuilder.swift",
+      "sha256": "8edb48f7fb7f3c4c3519cea6a235e5b38cd3f26427314f6ca81d58ae0a14ed1b",
+      "bytes": 6746,
+      "git_blob": "ea9f83a06a0d88df8957f5c87770bfb7a3520eef"
+    },
+    {
+      "path": "iphone/Maps/Core/iCloud/CloudDirectoryMonitor.swift",
+      "sha256": "db252e4907e812004cbc9efded1babed0cc79b59a51ed970e554f1b2a412ccd0",
+      "bytes": 10685,
+      "git_blob": "b2c56f727182cdb60bd95d1ceacda93c5f30022d"
+    },
+    {
+      "path": "iphone/Maps/Core/iCloud/LocalDirectoryMonitor.swift",
+      "sha256": "b6e2e38da732116305a5f93d029d56aec8f9d7b1bf697ae9a5e0e67b24ec2095",
+      "bytes": 7278,
+      "git_blob": "8c91c66b8d72404255fc228a0421a2a542cf71a9"
+    },
+    {
+      "path": "iphone/Maps/Core/iCloud/MetadataItem.swift",
+      "sha256": "7de0d4bbe609e8253661a14f6ef57842523c1bb4a5ddf10182bec43165a084f5",
+      "bytes": 7093,
+      "git_blob": "e7303f2de6c0e11f92d9d8e481aa9d96f18f7e5b"
+    },
+    {
+      "path": "iphone/Maps/Core/iCloud/SynchronizaionManager.swift",
+      "sha256": "c08a1a1530bcacbeab4a35a2cf147ae5038dea37d96f3f61afbe11e385b16145",
+      "bytes": 20662,
+      "git_blob": "8b235efa907d32cf496363d0c47185557958362c"
+    },
+    {
+      "path": "iphone/Maps/Core/iCloud/SynchronizationError.swift",
+      "sha256": "05282630a7512133405831743dfc37202507c7f091a0c5e6a8eb19e531c600c2",
+      "bytes": 1719,
+      "git_blob": "b2c339ff4151222053c4d200280dd7f6cecf4493"
+    },
+    {
+      "path": "iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift",
+      "sha256": "ab8638bb74be867cb86429550b28b66787d12697c4521ccae9d5c21af99dac68",
+      "bytes": 22652,
+      "git_blob": "c9254c8cb98dfcdf92dedae992fb4ba2dcd4af84"
+    },
+    {
+      "path": "iphone/Maps/Core/iCloud/SynchronizationFingerprint.swift",
+      "sha256": "d69c9734de6ebb10c5a72762d4d8e64a11aaec897cd402046954a072acf038bf",
+      "bytes": 5678,
+      "git_blob": "2867744c869456403a68c35f3ef12eef858427a1"
+    },
+    {
+      "path": "iphone/Maps/Core/iCloud/SynchronizationStateResolver.swift",
+      "sha256": "3f0dec2403e87ea2acc1da5e65133ba25abaee71ea71c5d2c721c521a826f7b3",
+      "bytes": 24907,
+      "git_blob": "d4ffa4b4d88e2c5071c4e7f4f062f356f185b0fb"
+    },
+    {
+      "path": "iphone/Maps/Core/iCloud/SynchronizedStateStore.swift",
+      "sha256": "b28779a605317e75075c8c462f268b412738c1530a0ce04eabb91cfdefb6e825",
+      "bytes": 4222,
+      "git_blob": "eea0fd998200452a2bd5d4b808e0a6037b250522"
+    },
+    {
+      "path": "iphone/Maps/Maps.xcodeproj/project.pbxproj",
+      "sha256": "a75a33a3f8ac124417b79ba245510118a58835c9a1b231068af6aecc091d211e",
+      "bytes": 481702,
+      "git_blob": "77d08540e1dba0ab87b651245caf622a52f62e9b"
+    },
+    {
+      "path": "iphone/Maps/PrivacyInfo.xcprivacy",
+      "sha256": "ff1406198878c825d113156d70443c4600980e75643e9dcf1b306c8430528f9b",
+      "bytes": 1165,
+      "git_blob": "46fe754e42130b17c70b8ebd47d3d1f0ca5ac03e"
+    },
+    {
+      "path": "iphone/Maps/Tests/Classes/CarPlay/CarPlayServiceTests.swift",
+      "sha256": "5ac6f1e1d412f078cc72d65eb22b50a07fa80fc5a69d53e0a36e78c2435abd0c",
+      "bytes": 15431,
+      "git_blob": "2d8835ee2a17f6a3f5771397f35d9d9f58e83cfa"
+    },
+    {
+      "path": "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/DefaultLocalDirectoryMonitorTests.swift",
+      "sha256": "462c82662d804b0a24486396eeda6066a55255ab0b19a46478dcfd072282999f",
+      "bytes": 6761,
+      "git_blob": "91a805fb47464ca8499fca7b274f89195793539b"
+    },
+    {
+      "path": "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/LocalDirectoryMonitorDelegateMock.swift",
+      "sha256": "1fb8aa5b9fa8e62d71749209c71eaf7eb5a5ec9d6c43140fbb5845c1bb5983ab",
+      "bytes": 734,
+      "git_blob": "63ca731277c47c4f573c32de5af67ba41699de30"
+    },
+    {
+      "path": "iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift",
+      "sha256": "ec6321c6cba162160656ec323dbf61ccd4099974dfda31eefd3cf328674821ac",
+      "bytes": 3804,
+      "git_blob": "bbb0b191b9a69369582d16c64fddca5752d90fc8"
+    },
+    {
+      "path": "iphone/Maps/Tests/Core/iCloudTests/MetadataItemStubs.swift",
+      "sha256": "98bdd082132ef52c5ca3bdb8b58ea7608ac6a66756e14b1b8a1471ea25a860bd",
+      "bytes": 2858,
+      "git_blob": "ed0f93dccc292a89d7d0308062cd5a9dbdf265c8"
+    },
+    {
+      "path": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift",
+      "sha256": "db069d85414d4459aed1bd2849821d25c300125d6609fc8be6ef35db9c9e6f32",
+      "bytes": 20817,
+      "git_blob": "c444608f4cad2162311094b088b0622124de52c6"
+    },
+    {
+      "path": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationManagerTests.swift",
+      "sha256": "bc3678c812347bf0a09bbd70fbd4533909da97d8636a99b3d80d2eb2eafba2b5",
+      "bytes": 7377,
+      "git_blob": "c26508343e8bf3282da153513a3bcb65ee56e03b"
+    },
+    {
+      "path": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift",
+      "sha256": "07d5c04eb83d3e94a4c7b7f243984f69fc4483f7e388cdcee58706412114d083",
+      "bytes": 26317,
+      "git_blob": "df5e21a58df9082467d319d965df31615b78f041"
+    },
+    {
+      "path": "iphone/Maps/Tests/Core/iCloudTests/iCloudDirectoryMonitorTests/FileManagerMock.swift",
+      "sha256": "6ad3fedb791c5eaf9d341f7a20db40e1a381edc4e03ea23013de2809e66d70fd",
+      "bytes": 822,
+      "git_blob": "03bc3e0538a74c9f475ac3510858a47bffb04e8f"
+    },
+    {
+      "path": "iphone/Maps/Tests/Core/iCloudTests/iCloudDirectoryMonitorTests/UbiquitousDirectoryMonitorDelegateMock.swift",
+      "sha256": "32d0e854229f0fa842575c3a7454ff6cd477de9818d27093b0971e0c84f9c996",
+      "bytes": 510,
+      "git_blob": "df202b5c6b7f41ef614731dc5d6c7f015426d436"
+    },
+    {
+      "path": "iphone/Maps/Tests/Core/iCloudTests/iCloudDirectoryMonitorTests/iCloudDirectoryMonitorTests.swift",
+      "sha256": "6d21396fcdb71f27c829ad1c7a15f974d8d8d396191c97a078d23ede0d834ab1",
+      "bytes": 4756,
+      "git_blob": "45d514fea14a413bfc00e3581df2092c64e94840"
+    },
+    {
+      "path": "iphone/Maps/UI/Bookmarks/BookmarksList/BookmarksListInteractor.swift",
+      "sha256": "d2af8a0302826863d331544945c83f759311ea673ac0e309f65bafed5df2cab8",
+      "bytes": 5398,
+      "git_blob": "1c832177a175140ad9345aefca82f933a0e78498"
+    },
+    {
+      "path": "iphone/Maps/UI/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift",
+      "sha256": "1554f57867ea2523820224f1e851765b0926b73ce92a0249fcc4199de1699a5f",
+      "bytes": 4609,
+      "git_blob": "5b3029d780e0d4ca3d606c00f5a40a99eaf8b35a"
+    },
+    {
+      "path": "iphone/Maps/UI/Bookmarks/Categories/CategorySettings/CategorySettingsViewController.swift",
+      "sha256": "3b767ca5298445b99d1af0ccf3370670be8f37917961a0f5d39ef3b496a92a78",
+      "bytes": 8055,
+      "git_blob": "c44615cedd315c5417ca7916dc2ffe645e2ed1fd"
+    },
+    {
+      "path": "libs/map/bookmark.hpp",
+      "sha256": "72f1020c3512677626d5f384c7b969226f30d41e9cf68a792a6a6d5bd7b2940d",
+      "bytes": 4640,
+      "git_blob": "32a51c270ab1334dc6d90f81c6f2c3f7743f197c"
+    },
+    {
+      "path": "libs/map/bookmark_manager.cpp",
+      "sha256": "0ea995d0e41da7ccc7e8b03d8a6a9c1108882d2b5e6d0c18d9b567e85ded8130",
+      "bytes": 120746,
+      "git_blob": "9b379baaa54772d8865ea44733bd61e19d486940"
+    },
+    {
+      "path": "libs/map/bookmark_manager.hpp",
+      "sha256": "72057220cb6a700c0233faefb3ce2674d9aea13a4aaa12669f2bb95a4b4f2710",
+      "bytes": 34516,
+      "git_blob": "ddb99dfdce7397bb292a039e17b0043c1a3d9f33"
+    },
+    {
+      "path": "libs/map/map_tests/bookmarks_test.cpp",
+      "sha256": "182eea0ecc6f768159c631c1f2f5742f7e869e5ff691ba8bb0d6e8f9048f98a7",
+      "bytes": 117842,
+      "git_blob": "10404be879657ae4951f7cdf5506b745076147ef"
+    }
+  ]
+}

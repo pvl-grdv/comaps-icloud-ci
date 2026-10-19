@@ -31,5 +31,20 @@
   "Bookmarks_IncomingInstallFailurePreservesCurrentVersion",
   "Bookmarks_IncomingBeforeInitialLoadApplies",
   "Bookmarks_IncomingTeardownAcknowledgesActiveAndQueued",
-  "Bookmarks_IncomingTeardownAcknowledgesDeferredCommitOnce"
+  "Bookmarks_IncomingTeardownAcknowledgesDeferredCommitOnce",
+  "Bookmarks_IncomingExpectedAbsentDestinationCanBeCreated",
+  "Bookmarks_IncomingExpectedContentIsValidatedOnFileWorker",
+  "Bookmarks_IncomingQueuedSaveInvalidatesExpectedContent",
+  "Bookmarks_IncomingValidatedSnapshotCannotRevertLaterLocalEdit",
+  "Bookmarks_IncomingValidationFailurePreservesCurrentVersion",
+  "Bookmarks_SynchronizedDeletionDefersBeforeInitialLoadAndTrashesUnparsedFile",
+  "Bookmarks_SynchronizedDeletionDefersOpenEditSessionAndTeardown",
+  "Bookmarks_SynchronizedDeletionDefersQueuedSaveAndPreservesLatestTrash",
+  "Bookmarks_SynchronizedDeletionDefersWhileIncomingLoadIsActive",
+  "Bookmarks_SynchronizedDeletionMoveFailurePreservesUnparsedFile",
+  "Bookmarks_IncomingCanApplyAfterFailedAutosaveIsSaved",
+  "Bookmarks_IncomingCannotReplaceMemoryAfterFailedAutosave",
+  "Bookmarks_OlderSuccessfulSaveCannotMarkNewerEditPersisted",
+  "Bookmarks_QueuedOlderSaveCannotOverwriteNewerSynchronousSave",
+  "Bookmarks_SynchronizedDeletionDefersAfterFailedAutosaveUntilSaved"
 ]

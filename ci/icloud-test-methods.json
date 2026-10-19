@@ -1,0 +1,175 @@
+[
+  {
+    "path": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift",
+    "class": "BookmarkFolderOrderTests",
+    "count": 10,
+    "tests": [
+      "testManualOrderMovesNewEmptyCategories",
+      "testAutomaticModeRejectsMoves",
+      "testInvalidDestinationsLeaveOrderUntouched",
+      "testUnknownCategoryLeavesOrderUntouched",
+      "testNewFolderIsAppendedToExistingManualOrder",
+      "testAutomaticSortRestoresCategoryNameOrder",
+      "testSynchronizationEndedNotificationClosesFolderEditingUI",
+      "testMenuTargetRemainsSameCategoryAfterRemoteOrderChanges",
+      "testRemovedMenuTargetNoLongerResolvesToAnotherCategory",
+      "testIncomingSnapshotBridgeCommitsBeforeCallingCompletion"
+    ]
+  },
+  {
+    "path": "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/DefaultLocalDirectoryMonitorTests.swift",
+    "class": "DefaultLocalDirectoryMonitorTests",
+    "count": 12,
+    "tests": [
+      "testInitialization",
+      "testStartMonitoring",
+      "testStopMonitoring",
+      "testMonitorCanBeReleasedAfterLifecycleTransitions",
+      "testStoppedMonitorIsNotStartedByResume",
+      "testPausedMonitorCanBeStoppedAndStartedAgain",
+      "testPauseAndResumeMonitoring",
+      "testPausingDuringDebounceDoesNotSuppressLaterChanges",
+      "testDelegateDidReceiveSnapshot",
+      "testDelegateDidReceiveError",
+      "testContentUpdateDetection",
+      "testFileWithIncorrectExtension"
+    ]
+  },
+  {
+    "path": "iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift",
+    "class": "FileContentFingerprintProviderTests",
+    "count": 4,
+    "tests": [
+      "testContentIsHashedInTheBackground",
+      "testResetDropsCachedContentEvenWhenTheNewAccountReusesTheIdentity",
+      "testResetCancelsReportsFromAnEarlierReadSession",
+      "testFileThatCannotBeReadIsTriedAgain"
+    ]
+  },
+  {
+    "path": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift",
+    "class": "SynchronizationFileWriterTests",
+    "count": 23,
+    "tests": [
+      "testLocalFileHoldingTheDecidedContentIsReplaced",
+      "testMetadataURLSelectsTheFileThatWillActuallyBeTransferred",
+      "testLocalFileChangedSinceTheDecisionIsNotReplaced",
+      "testReplacedLocalVersionIsKeptUnderANewName",
+      "testPreservedCopyThatIsThereAlreadyIsNotWrittenAgain",
+      "testEditedConflictCopyDoesNotPreventPreservingTheOriginalContent",
+      "testFailedReplaceRemovesOnlyTheCopyItWrote",
+      "testCloudFileHoldingTheDecidedContentIsReplaced",
+      "testUploadReportsTheContentOfTheStagedCopy",
+      "testConflictPreservationReusesAMatchingNumberedCopy",
+      "testConflictPreservationKeepsEveryOccupiedCopy",
+      "testCloudFileChangedSinceTheDecisionIsNotReplaced",
+      "testFileThatIsBackIsNotCreatedOverAgain",
+      "testUnreadableFileIsNotCreatedOverAgain",
+      "testUploadOfAFileThatIsGoneIsSkipped",
+      "testLocalFileHoldingTheSynchronizedContentIsReportedForDeletion",
+      "testLocalFileChangedSinceTheDeletionIsNotDeleted",
+      "testLocalDeletionIsSkippedWhenTheCloudFileIsBackOnDisk",
+      "testCloudDeletionIsSkippedWhenTheLocalFileIsBackOnDisk",
+      "testCloudDeletionStillRemovesTheFileWhenLocalAbsenceIsCurrent",
+      "testCloudFileChangedSinceTheDeletionIsNotTrashed",
+      "testDownloadThatCannotStartIsSkipped",
+      "testConflictCopyIsNamedAfterTheContentItHolds"
+    ]
+  },
+  {
+    "path": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationIncomingFileWriterTests.swift",
+    "class": "SynchronizationIncomingFileWriterTests",
+    "count": 4,
+    "tests": [
+      "testIncomingWriterStagesImmutableBytesBeforeTouchingLiveFile",
+      "testIncomingWriterHoldsNextUploadUntilCoreAcknowledges",
+      "testUnavailableIncomingFileDoesNotBlockNextWriterEvent",
+      "testIncomingSnapshotReleaseRemovesStagingDirectoryOnly"
+    ]
+  },
+  {
+    "path": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationManagerTests.swift",
+    "class": "SynchronizationManagerTests",
+    "count": 10,
+    "tests": [
+      "testStartCompletedInBackgroundResumesItsClockOnForeground",
+      "testForegroundWhileStartingDoesNotStartTheLocalMonitorEarly",
+      "testFingerprintCallbackDoesNotReconcilePausedSnapshots",
+      "testAccountChangeResetsTheFingerprintProvider",
+      "testUnavailableAccountIdentityDoesNotDiscardCommonBase",
+      "testCleanSnapshotClearsAnUnmappedSystemError",
+      "testConfirmedDeletionTrashesAFileThatHasNoLoadedCategory",
+      "testIncomingCommonBaseChangesOnlyAfterTheWrittenTerminalResult",
+      "testSkippedAndFailedIncomingWritesDoNotEstablishACommonBase",
+      "testEndedSessionRejectsIncomingSnapshotAndUnblocksTheWriter"
+    ]
+  },
+  {
+    "path": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift",
+    "class": "SynchronizationStateResolverTests",
+    "count": 39,
+    "tests": [
+      "testNoEventsUntilBothDirectoriesAreObserved",
+      "testEmptyDirectoriesProduceNoEvents",
+      "testFilesAreReconciledIndependently",
+      "testEqualContentWithDifferentDatesIsSynchronizedWithoutConflict",
+      "testChangedLocalFileIsUploaded",
+      "testChangedCloudFileIsDownloaded",
+      "testCompletingAnUploadDoesNotRecordANewerLocalEdit",
+      "testFileIsReconciledWhenItsContentBecomesKnown",
+      "testInFlightUploadDoesNotExpireOrSettleBeforeItsCompletion",
+      "testCompletedTransferRecordsItsActualContent",
+      "testFileChangedOnBothSidesKeepsBothVersions",
+      "testDownloadIsRequestedAgainWhenICloudDoesNotAct",
+      "testRemoteDeletionRequiresTwoStableObservations",
+      "testDeletionNeedsASecondLookAtTheMissingSide",
+      "testConfirmedDeletionIsRequestedOnce",
+      "testRemovedFileThatReappearsIsNotDeleted",
+      "testRemovalDuringOwnUploadIsIgnored",
+      "testLocalChangeDuringOwnUploadIsUploadedOnce",
+      "testIncompleteSnapshotCancelsPendingDeletion",
+      "testUnavailableCloudItemCancelsPendingDeletion",
+      "testDeletionIsNotAuthorizedAfterTheFileIsObservedAgain",
+      "testDeletionIsNotAuthorizedByAnAbsenceThatWasNeverConfirmed",
+      "testDeletionIsNotAuthorizedWhenTheSynchronizedContentChanged",
+      "testCloudDeletionIsAuthorizedByTheSameRule",
+      "testCommonBaseIsKeptUntilBothSidesReportTheFileGone",
+      "testRemoteDeletionOfALocallyChangedFilePreservesIt",
+      "testLocalDeletionRemovesTheCloudFileAfterConfirmation",
+      "testFileWrittenLocallyIsNotUploadedBack",
+      "testFailedWriteIsRetried",
+      "testFileRemovedOnBothSidesIsForgotten",
+      "testItemWithoutUrlIsPresentButNotActionable",
+      "testItemWithoutNameIsIdentifiedByUrl",
+      "testUnusableItemOutsideOfTheDirectoryDoesNotStandForTheFileInIt",
+      "testUnusableItemInTheDirectoryProvesThatTheFileIsThere",
+      "testItemWithoutNameAndUrlIsUnidentifiable",
+      "testTheMostRecentFileWinsWhenTheSameNameIsObservedTwice",
+      "testCompleteItemIsActionable",
+      "testItemWithoutSizeIsPresentButNotActionable",
+      "testGatheringQueryCannotConfirmAbsence"
+    ]
+  },
+  {
+    "path": "iphone/Maps/Tests/Core/iCloudTests/SynchronizedStateStoreTests.swift",
+    "class": "SynchronizedStateStoreTests",
+    "count": 2,
+    "tests": [
+      "testWrittenCommonBaseIsRestoredAfterReopening",
+      "testChangedAccountPersistsOnlyItsOwnCommonBase"
+    ]
+  },
+  {
+    "path": "iphone/Maps/Tests/Core/iCloudTests/iCloudDirectoryMonitorTests/iCloudDirectoryMonitorTests.swift",
+    "class": "iCloudDirectoryMonitorTests",
+    "count": 6,
+    "tests": [
+      "testInitialization",
+      "testCloudAvailability",
+      "testOpaqueAccountTokenWithoutSecureCodingCanBeArchived",
+      "testStartThatIsNotStoppedMeanwhileCompletes",
+      "testStartThatIsStoppedMeanwhileStartsNothing",
+      "testCancelledLookupCannotCacheThePreviousAccountsDirectory"
+    ]
+  }
+]

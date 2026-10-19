@@ -1,0 +1,56 @@
+{
+  "upstream": {
+    "head": "5f24813d6fd93f26cb216d823ab4d5996d49d192",
+    "canonical_tests_retained": {"resolver": 39, "writer": 22, "manager": 6, "fingerprint": 4},
+    "monitor_tests_retained": {"local": 11, "cloud": 5},
+    "adaptation": "CoMaps module/settings/container names; async native callback waits; incoming file writes use staged payload and typed core acknowledgement instead of optimistic canonical reload. No second legacy resolver."
+  },
+  "added_or_retained_adaptation_regressions": [
+    {"class": "SynchronizationManagerTests", "tests": ["testIncomingCommonBaseChangesOnlyAfterTheWrittenTerminalResult", "testSkippedAndFailedIncomingWritesDoNotEstablishACommonBase", "testEndedSessionRejectsIncomingSnapshotAndUnblocksTheWriter"], "boundary": "Real resolver and state mock establish A then incoming B; actual manager result handler confirms actual terminal fingerprint, leaves A on skip/failure, rejects old-session payload with acknowledgement, ignores old terminal. Last case uses real filesystem writer and next queued upload to prove queue unblocks."},
+    {"class": "SynchronizationManagerTests", "tests": ["testUnavailableAccountIdentityDoesNotDiscardCommonBase"], "boundary": "Unknown account identity does not erase common-base history."},
+    {"class": "SynchronizationFileWriterTests", "tests": ["testMetadataURLSelectsTheFileThatWillActuallyBeTransferred"], "boundary": "Transfer follows actual metadata URL rather than constructing source from display name; unrelated same-name file untouched."},
+    {"class": "SynchronizationIncomingFileWriterTests", "count": 4, "boundary": "Immutable coordinated source staging; acknowledgement barrier before next upload; unavailable source does not block queue; owned temporary snapshot lifetime. Tests retained from previous patch series with new typed contract."},
+    {"class": "SynchronizedStateStoreTests", "count": 2, "boundary": "Actual asynchronous disk persistence, reopen and account-reset ordering. Opaque synthetic NSCoding-only account identity compares isEqual; equal accounts with unequal archives preserve base, different account discards it."},
+    {"class": "DefaultLocalDirectoryMonitorTests", "tests": ["testMonitorCanBeReleasedAfterLifecycleTransitions"], "boundary": "Real DispatchSource lifecycle release in active, paused, stopped, and stop/start/pause/resume/stop states; no lifetime-retaining workaround."},
+    {"class": "iCloudDirectoryMonitorTests", "tests": ["testOpaqueAccountTokenWithoutSecureCodingCanBeArchived"], "boundary": "Apple ubiquity identity token contract does not require NSSecureCoding; archive/decode preserves semantic identity."},
+    {"class": "BookmarkFolderOrderTests", "tests": ["testIncomingSnapshotBridgeCommitsBeforeCallingCompletion"], "boundary": "Existing real native bridge scenario adapted to validator and explicit Applied result; target memory, bytes and mtime checked before callback acknowledgement. Other nine folder tests unchanged."}
+  ],
+  "superseded_previous_tests": {
+    "deleted_file": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift",
+    "legacy_resolver_methods": 21,
+    "reason": "Old date-only resolver API and expectations conflict with canonical common-base reconciliation. All 21 are replaced by the 39 upstream resolver scenarios. A newer mtime alone intentionally no longer selects a destructive winner.",
+    "replacement_groups": [
+      {"old": "Initial sync / empty directory / nonconflicting create / not-yet-downloaded tests", "new": ["testNoEventsUntilBothDirectoriesAreObserved", "testEmptyDirectoriesProduceNoEvents", "testFilesAreReconciledIndependently", "testDownloadIsRequestedAgainWhenICloudDoesNotAct"]},
+      {"old": "Newer cloud / newer local / changed local / changed cloud tests", "new": ["testEqualContentWithDifferentDatesIsSynchronizedWithoutConflict", "testChangedLocalFileIsUploaded", "testChangedCloudFileIsDownloaded", "testFileChangedOnBothSidesKeepsBothVersions"]},
+      {"old": "Unchanged, item addition and removal snapshots", "new": ["testFileWrittenLocallyIsNotUploadedBack", "testLocalChangeDuringOwnUploadIsUploadedOnce", "testRemoteDeletionRequiresTwoStableObservations", "testLocalDeletionRemovesTheCloudFileAfterConfirmation", "testRemoteDeletionOfALocallyChangedFilePreservesIt", "testIncompleteSnapshotCancelsPendingDeletion"]}
+    ],
+    "previous_initial_conflict_cases": [
+      {"old": "testEqualFilesWithDifferentDatesDoNotCreateConflictCopy", "replacement": "SynchronizationStateResolverTests.testEqualContentWithDifferentDatesIsSynchronizedWithoutConflict"},
+      {"old": "testDifferentFilesPreserveLocalCopyBeforeCloudReplacement", "replacement": "Resolver.testFileChangedOnBothSidesKeepsBothVersions plus Writer.testReplacedLocalVersionIsKeptUnderANewName"},
+      {"old": "testEqualFilesDoNotOverwriteExistingConflictCopy", "replacement": "Writer.testPreservedCopyThatIsThereAlreadyIsNotWrittenAgain / testConflictPreservationReusesAMatchingNumberedCopy / testConflictPreservationKeepsEveryOccupiedCopy"},
+      {"old": "testMetadataURLSelectsTheFileThatWillActuallyBeTransferred", "replacement": "Same named test retained in SynchronizationFileWriterTests"},
+      {"old": "testUnavailableCloudComparisonStillPreservesLocalData", "replacement": "Resolver.testFileIsReconciledWhenItsContentBecomesKnown plus Writer.testUnreadableFileIsNotCreatedOverAgain. Canonical engine defers unknown hashes instead of overwriting; data-preservation intent retained, decision policy safer."}
+    ],
+    "previous_staging_gate_methods": "All four retained under SynchronizationIncomingFileWriterTests, adapted to canonical writer event/typed acknowledgement API."
+  },
+  "integration_coverage_owned_by_other_agents": {
+    "native_core": "48 cases planned: prior33, typed incoming validator/delete10, failed autosave/persisted revision5. Real entrypoint tests cover queued A/incoming B/local C, open edit, unrelated C, teardown, delete/recreate, validator mismatch/failure, save failure/recovery, older queued save cannot overwrite newer synchronous save.",
+    "search": "11 native cases unchanged by this test bundle.",
+    "unrelated_iOS": "Parent counts 62 unchanged scenarios, including the 10 folder order methods; parent final plan is authoritative."
+  },
+  "verification": {
+    "actual_resolver_test_bodies_with_Foundation_assertion_shim": "39 PASS",
+    "actual_real_store_test_bodies_with_Foundation_assertion_shim": "2 PASS",
+    "actual_real_local_monitor_test_bodies_with_Foundation_assertion_shim": "12 PASS",
+    "separate_Swift_typecheck": "9 actual production files +12 actual test/mock files; app/XCTest surfaces stubbed; PASS",
+    "native_XCTest": "Pending remote CI, no local Xcode available.",
+    "real_cloud_monitor": "Not run locally: metadata query uses actual ubiquity scope even with mock FileManager. Run only in isolated CI simulator."
+  },
+  "residual_boundaries": [
+    "Accepted native incoming work may finish after stop/account change, per upstream accepted-write semantics; stale terminal cannot establish common base. Unaccepted old-session payload is skipped and acknowledged. No newly invented core cancellation protocol.",
+    "OS NSFileVersion conflict enumeration/resolution still requires simulator or real-device coverage; current upstream22 writer cases exercise preservation/collision and metadata guards but do not provide a direct NSFileVersion conflict fixture seam.",
+    "Known-unsaved outgoing preflight is source-reviewed and native core getter tests cover its guard; manager's concrete BookmarksManager has unavailable initializer, so no new mock/protocol architecture was introduced solely for another test.",
+    "Real three-device iCloud/account/quota and app lifecycle exercise remains necessary after native CI.",
+    "Common-base is raw-byte SHA256 per filename; pre-existing differently named duplicate folders and semantically equal but byte-different KML are not automatically deduplicated."
+  ]
+}

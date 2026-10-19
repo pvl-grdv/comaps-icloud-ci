@@ -22,3 +22,7 @@ Please refer to their LICENCE, COPYING or NOTICE files for terms of use.
 Some icons files may be copyrighted by (C) 2020 My.com B.V. (Mail.Ru Group)
 See also `data/copyright.html` file for a full list of copyright notices.
 
+
+This experiment adapts Organic Maps PR13232 at 5f24813d6fd93f26cb216d823ab4d5996d49d192.
+Modifications for CoMaps and synthetic CI were made with AI assistance in 2026.
+Exact source and adaptation provenance is in patches/upstream-sources.json.
