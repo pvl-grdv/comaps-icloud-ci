@@ -31,3 +31,5 @@ icloud-content-reconciliation.patch
 explicit-search-service-capture.patch
 fingerprint-tests-coordination-budget.patch
 hosted-ui-window-lifecycle.patch
+provider-timing-diagnostics.patch
+fingerprint-tests-diagnostic-trace.patch
