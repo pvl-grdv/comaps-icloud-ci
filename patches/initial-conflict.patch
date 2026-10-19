@@ -1,3 +1,4 @@
+diff --git a/iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift b/iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift
 --- a/iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift
 +++ b/iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift
 @@ -1,3 +1,4 @@
@@ -55,6 +56,7 @@
        completion(.reloadCategoriesAtURLs([newFileUrl]))
      } catch {
        completion(.failure(error))
+diff --git a/iphone/Maps/Core/iCloud/SynchronizationStateResolver.swift b/iphone/Maps/Core/iCloud/SynchronizationStateResolver.swift
 --- a/iphone/Maps/Core/iCloud/SynchronizationStateResolver.swift
 +++ b/iphone/Maps/Core/iCloud/SynchronizationStateResolver.swift
 @@ -1,3 +1,4 @@
@@ -80,6 +82,7 @@
                events.append(.updateLocalItem(with: cloudItem))
              } else {
                events.append(.startDownloading(cloudItem))
+diff --git a/iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift b/iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift
 --- a/iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift
 +++ b/iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift
 @@ -1,4 +1,6 @@
@@ -125,7 +128,7 @@
          // copy local file with a new name and replace the original with the cloud file
          XCTAssertEqual(item, localItem1)
        case .updateLocalItem(let item):
-@@ -571,3 +573,117 @@
+@@ -571,3 +573,123 @@
      }
    }
  }
@@ -153,16 +156,18 @@
 +    try super.tearDownWithError()
 +  }
 +
-+  func testEqualFilesWithDifferentDatesDoNotCreateConflictCopy() throws {
++  @MainActor
++  func testEqualFilesWithDifferentDatesDoNotCreateConflictCopy() async throws {
 +    try prepareFiles(cloudData: localData)
-+    try synchronize()
++    try await synchronize()
 +    XCTAssertEqual(try conflictCopies().count, 0)
 +    XCTAssertEqual(try Data(contentsOf: localURL), localData)
 +  }
 +
-+  func testDifferentFilesPreserveLocalCopyBeforeCloudReplacement() throws {
++  @MainActor
++  func testDifferentFilesPreserveLocalCopyBeforeCloudReplacement() async throws {
 +    try prepareFiles(cloudData: changedData)
-+    try synchronize()
++    try await synchronize()
 +    let copies = try conflictCopies()
 +    XCTAssertEqual(copies.count, 1)
 +    let copy = try XCTUnwrap(copies.first)
@@ -170,11 +175,12 @@
 +    XCTAssertEqual(try Data(contentsOf: localURL), changedData)
 +  }
 +
-+  func testEqualFilesDoNotOverwriteExistingConflictCopy() throws {
++  @MainActor
++  func testEqualFilesDoNotOverwriteExistingConflictCopy() async throws {
 +    try prepareFiles(cloudData: localData)
 +    let copy = localDirectory.appendingPathComponent("Collection_1_\(UIDevice.current.name).kml")
 +    try changedData.write(to: copy)
-+    try synchronize()
++    try await synchronize()
 +    XCTAssertEqual(try conflictCopies().count, 1)
 +    XCTAssertEqual(try Data(contentsOf: copy), changedData)
 +  }
@@ -191,30 +197,33 @@
 +      .filter { $0.lastPathComponent != "Collection.kml" && $0.pathExtension == "kml" }
 +  }
 +
-+  func testMetadataURLSelectsTheFileThatWillActuallyBeTransferred() throws {
++  @MainActor
++  func testMetadataURLSelectsTheFileThatWillActuallyBeTransferred() async throws {
 +    try prepareFiles(cloudData: localData)
 +    let movedDirectory = cloudDirectory.appendingPathComponent("moved", isDirectory: true)
 +    try fileManager.createDirectory(at: movedDirectory, withIntermediateDirectories: true)
 +    let movedFile = movedDirectory.appendingPathComponent("Collection.kml")
 +    try changedData.write(to: movedFile)
-+    try synchronize(cloudFileURL: movedFile)
++    try await synchronize(cloudFileURL: movedFile)
 +    let copies = try conflictCopies()
 +    XCTAssertEqual(copies.count, 1)
 +    XCTAssertEqual(try Data(contentsOf: XCTUnwrap(copies.first)), localData)
 +    XCTAssertEqual(try Data(contentsOf: localURL), changedData)
 +  }
 +
-+  func testUnavailableCloudComparisonStillPreservesLocalData() throws {
++  @MainActor
++  func testUnavailableCloudComparisonStillPreservesLocalData() async throws {
 +    try prepareFiles(cloudData: changedData)
 +    try fileManager.removeItem(at: cloudURL)
-+    try synchronize(afterInitialConflict: { try self.changedData.write(to: self.cloudURL) })
++    try await synchronize(afterInitialConflict: { try self.changedData.write(to: self.cloudURL) })
 +    let copies = try conflictCopies()
 +    XCTAssertEqual(copies.count, 1)
 +    XCTAssertEqual(try Data(contentsOf: XCTUnwrap(copies.first)), localData)
 +    XCTAssertEqual(try Data(contentsOf: localURL), changedData)
 +  }
 +
-+  private func synchronize(cloudFileURL: URL? = nil, afterInitialConflict: (() throws -> Void)? = nil) throws {
++  @MainActor
++  private func synchronize(cloudFileURL: URL? = nil, afterInitialConflict: (() throws -> Void)? = nil) async throws {
 +    let local = try LocalMetadataItem(fileUrl: localURL)
 +    let cloud = CloudMetadataItem(fileName: "Collection.kml", fileUrl: cloudFileURL ?? cloudURL,
 +                                  isDownloaded: true, percentDownloaded: 100,
@@ -239,7 +248,7 @@
 +        completed.fulfill()
 +      }
 +    }
-+    wait(for: [completed], timeout: 10)
++    await fulfillment(of: [completed], timeout: 10)
 +    withExtendedLifetime(writer) {}
 +  }
 +}
