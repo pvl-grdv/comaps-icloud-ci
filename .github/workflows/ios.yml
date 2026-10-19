@@ -1,7 +1,7 @@
 name: CoMaps iCloud candidate
 on:
   push:
-    branches: [main, om-reuse-regressions]
+    branches: [main, om-reuse-regressions, ios-library-features]
   workflow_dispatch:
     inputs:
       release:

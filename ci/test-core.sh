@@ -34,7 +34,7 @@ from pathlib import Path
 results_dir = Path(sys.argv[1])
 exit_code = int(sys.argv[2])
 summary = {
-    "scope": "three synthetic CoMaps map_tests regressions; no live iCloud",
+    "scope": "synthetic CoMaps map_tests regressions; no live iCloud",
     "ci_exit_code": exit_code,
     "candidate_sources_restored": True,
     "baseline": None,
@@ -72,12 +72,22 @@ cmake -S "$upstream_dir" -B "$build_dir" -G Ninja \
 
 test_binary="$build_dir/map_tests"
 test_args=("--data_path=$upstream_dir/data" "--user_resource_path=$upstream_dir/data")
-expected_tests=(
-  Bookmarks_ReloadPreservesCategoryIdentityAndMetadata
-  Bookmarks_ReloadReplacesCompilations
-  TrackRename_AutoSave
+expected_tests=()
+while IFS= read -r test_name; do
+  expected_tests+=("$test_name")
+done < <(jq -er '.[]' "$experiment_dir/ci/core-tests.json")
+test "${#expected_tests[@]}" -gt 0
+test_filter=$(python3 - "$experiment_dir/ci/core-tests.json" <<'PY_FILTER'
+import json
+import re
+import sys
+from pathlib import Path
+names = json.loads(Path(sys.argv[1]).read_text())
+assert names and len(names) == len(set(names))
+assert all(re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name) for name in names)
+print("^bookmarks_test[.]cpp::Runner_(" + "|".join(re.escape(name) for name in names) + ")$")
+PY_FILTER
 )
-test_filter='^bookmarks_test[.]cpp::Runner_(Bookmarks_ReloadPreservesCategoryIdentityAndMetadata|Bookmarks_ReloadReplacesCompilations|TrackRename_AutoSave)$'
 
 run_regressions() {
   local mode="$1"
@@ -96,33 +106,29 @@ run_regressions() {
   local pipeline_status=("${PIPESTATUS[@]}")
   set -e
   test "${pipeline_status[1]}" -eq 0
-  python3 - "$mode" "${pipeline_status[0]}" "$log_file" <<'PY_CHECK'
+  python3 - "$mode" "${pipeline_status[0]}" "$log_file" "$experiment_dir/ci/core-tests.json" <<'PY_CHECK'
 import json
 import re
 import sys
 from pathlib import Path
 
-mode, return_code, log_path = sys.argv[1:]
+mode, return_code, log_path, plan_path = sys.argv[1:]
 return_code = int(return_code)
 lines = [line.strip() for line in Path(log_path).read_text().splitlines()]
-expected = {
-    "bookmarks_test.cpp::Runner_Bookmarks_ReloadPreservesCategoryIdentityAndMetadata",
-    "bookmarks_test.cpp::Runner_Bookmarks_ReloadReplacesCompilations",
-    "bookmarks_test.cpp::Runner_TrackRename_AutoSave",
-}
+expected = {"bookmarks_test.cpp::Runner_" + name for name in json.loads(Path(plan_path).read_text())}
 executed = [line.removeprefix("Running ") for line in lines if line.startswith("Running ")]
-assert len(executed) == 3 and set(executed) == expected, executed
+assert len(executed) == len(expected) and set(executed) == expected, executed
 if mode == "baseline":
     assert return_code == 1, f"Expected normal test failure exit 1, got {return_code}"
-    assert sum(line == "FAILED" for line in lines) == 3, "Expected three assertion failures"
-    assert any(re.fullmatch(r"3\s+tests failed:", line) for line in lines)
+    assert sum(line == "FAILED" for line in lines) == len(expected), "Missing assertion failures"
+    assert any(re.fullmatch(rf"{len(expected)}\s+tests failed:", line) for line in lines)
     failures = [line for line in lines if line.startswith("bookmarks_test.cpp::")]
-    assert len(failures) == 3 and set(failures) == expected, failures
+    assert len(failures) == len(expected) and set(failures) == expected, failures
     assert "Some tests FAILED." in lines
     assert not any("Exception thrown" in line or "Unknown exception" in line for line in lines)
 else:
     assert return_code == 0, f"Candidate failed with exit {return_code}"
-    assert sum(line == "OK" for line in lines) == 3, "Expected three successful tests"
+    assert sum(line == "OK" for line in lines) == len(expected), "Missing successful tests"
     assert "All tests passed." in lines
 report = {"mode": mode, "exit_code": return_code, "executed_tests": sorted(executed), "expected_result_confirmed": True}
 Path(log_path).with_suffix(".json").write_text(json.dumps(report, indent=2) + "\n")
@@ -136,7 +142,7 @@ run_regressions candidate
 
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
   printf '%s\n' \
-    'CoMaps map_tests: all three synthetic regressions fail by assertion on the original core and pass with the candidate.' \
+    "CoMaps map_tests: all ${#expected_tests[@]} synthetic regressions fail by assertion on the original core and pass with the candidate." \
     'Tests cover category reload identity, metadata, compilations, and track rename persistence.' \
     'Real multi-device iCloud synchronization is not exercised.' \
     >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,14 @@
+[
+  {
+    "className": "SynchronizationFileWriterInitialConflictTests",
+    "expectedTests": 5
+  },
+  {
+    "className": "BMCSearchViewModelTests",
+    "expectedTests": 11
+  },
+  {
+    "className": "BookmarkFolderOrderTests",
+    "expectedTests": 6
+  }
+]

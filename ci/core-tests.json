@@ -1,0 +1,7 @@
+[
+  "Bookmarks_ReloadPreservesCategoryIdentityAndMetadata",
+  "Bookmarks_ReloadReplacesCompilations",
+  "TrackRename_AutoSave",
+  "Bookmarks_ManualFolderOrderPersistsEmptyCategories",
+  "Bookmarks_NewCategorySaveFailureRestoresUnsavedState"
+]

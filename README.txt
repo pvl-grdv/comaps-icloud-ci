@@ -54,3 +54,15 @@ Relevant upstream Organic Maps work:
 https://github.com/organicmaps/organicmaps/pull/13232
 This broader reconciliation proposal is unmerged and still needs real-device
 testing. It is a research reference, not a dependency of this candidate.
+
+The ios-library-features branch adds a global bookmark search screen grouped
+by category and a folder sort/reorder UI. Five core regressions are checked
+against original and candidate code. The selected iOS plan now requires
+22 successful tests: five initial-conflict tests, eleven global-search model
+tests, and six folder-order bridge tests. The xcresult summary must match
+that count with no failures or skips; zero tests cannot pass.
+
+Folder order in this branch is local bm.json state. The requested shared
+order across devices, track search, and manual bookmark/track ordering are
+separate layers still in development. This branch does not claim those
+features or live iCloud validation.

@@ -1,0 +1,637 @@
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
+@@ -49,6 +49,8 @@
+ - (BOOL)areAllCategoriesEmpty;
+ - (BOOL)isCategoryEmpty:(MWMMarkGroupID)groupId;
+ - (void)prepareForSearch:(MWMMarkGroupID)groupId;
++- (void)prepareForSearchAllGroups NS_SWIFT_NAME(prepareForSearchAllGroups());
++- (void)releaseSearch NS_SWIFT_NAME(releaseSearch());
+ - (NSString *)getCategoryName:(MWMMarkGroupID)groupId;
+ - (uint64_t)getCategoryMarksCount:(MWMMarkGroupID)groupId;
+ - (uint64_t)getCategoryTracksCount:(MWMMarkGroupID)groupId;
+@@ -95,6 +97,8 @@
+ - (void)searchBookmarksGroup:(MWMMarkGroupID)groupId
+                         text:(NSString *)text
+                   completion:(SearchBookmarksCompletionBlock)completion;
++- (void)searchAllBookmarks:(NSString *)text
++               completion:(SearchBookmarksCompletionBlock)completion NS_SWIFT_NAME(searchAllBookmarks(_:completion:));
+ 
+ - (MWMTrackIDCollection)trackIdsForCategory:(MWMMarkGroupID)categoryId;
+ 
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+@@ -241,6 +241,15 @@
+   self.bm.PrepareForSearch(groupId);
+ }
+ 
++- (void)prepareForSearchAllGroups {
++  self.bm.PrepareForSearch(std::nullopt);
++}
++
++- (void)releaseSearch {
++  ++self.lastSearchId;
++  self.bm.ReleaseSearch();
++}
++
+ - (NSString *)getCategoryName:(MWMMarkGroupID)groupId
+ {
+   return @(self.bm.GetCategoryName(groupId).c_str());
+@@ -574,6 +583,12 @@
+   GetFramework().GetSearchAPI().SearchInBookmarks(std::move(params));
+ }
+ 
++- (void)searchAllBookmarks:(NSString *)text
++               completion:(SearchBookmarksCompletionBlock)completion
++{
++  [self searchBookmarksGroup:kml::kInvalidMarkGroupId text:text completion:completion];
++}
++
+ 
+ #pragma mark - Tracks
+ 
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCView/BMCSearchResultsViewController.swift b/iphone/Maps/Bookmarks/Categories/BMCView/BMCSearchResultsViewController.swift
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Bookmarks/Categories/BMCView/BMCSearchResultsViewController.swift
+@@ -0,0 +1,176 @@
++import UIKit
++
++final class BMCSearchResultsViewController: UITableViewController {
++  private let manager = BookmarksManager.shared()
++  private let model = BMCSearchViewModel(service: BMCBookmarksSearchService())
++  var onSelect: ((BMCSearchResult) -> Void)?
++
++  init() {
++    super.init(style: .plain)
++    model.onChange = { [weak self] in self?.updateResults() }
++  }
++
++  required init?(coder: NSCoder) {
++    fatalError("init(coder:) has not been implemented")
++  }
++
++  deinit {
++    model.stop()
++  }
++
++  override func viewDidLoad() {
++    super.viewDidLoad()
++    view.setStyle(.pressBackground)
++    tableView.registerNibs([BookmarksListCell.self])
++    tableView.tableFooterView = UIView()
++    tableView.keyboardDismissMode = .onDrag
++    updateResults()
++  }
++
++  func start() {
++    manager.add(self)
++    model.start()
++  }
++
++  func stop() {
++    manager.remove(self)
++    model.stop()
++  }
++
++  private func updateResults() {
++    guard isViewLoaded else { return }
++    tableView.reloadData()
++    if model.isSearching {
++      let activity = UIActivityIndicatorView(style: .medium)
++      activity.startAnimating()
++      tableView.backgroundView = activity
++    } else if !model.query.isEmpty && model.sections.isEmpty {
++      let label = UILabel()
++      label.text = L("search_not_found")
++      label.textAlignment = .center
++      label.numberOfLines = 0
++      label.textColor = .secondaryLabel
++      tableView.backgroundView = label
++    } else {
++      tableView.backgroundView = nil
++    }
++  }
++
++  override func numberOfSections(in tableView: UITableView) -> Int {
++    model.sections.count
++  }
++
++  override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
++    model.sections[section].results.count
++  }
++
++  override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
++    model.sections[section].title
++  }
++
++  override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
++    let cell = tableView.dequeueReusableCell(cell: BookmarksListCell.self, indexPath: indexPath)
++    let result = model.sections[indexPath.section].results[indexPath.row]
++    cell.accessoryType = .none
++    var image = UIImage()
++    switch result.item {
++    case .bookmark(let id):
++      if manager.hasBookmark(id) {
++        let bookmark = manager.bookmark(withId: id)
++        image = bookmark.bookmarkColor.image(bookmark.bookmarkIconName)
++      }
++    case .track(let id):
++      if manager.hasTrack(id) {
++        image = circleImageForColor(manager.track(withId: id).trackColor, frameSize: 22)
++      }
++    }
++    cell.config(BMCSearchCellViewModel(name: result.name, subtitle: result.subtitle ?? "", image: image,
++                                       colorDidTapAction: { [weak self, weak cell] in
++      guard let self, let cell, let indexPath = self.tableView.indexPath(for: cell) else { return }
++      selectResult(at: indexPath)
++    }))
++    return cell
++  }
++
++  override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
++    tableView.deselectRow(at: indexPath, animated: true)
++    selectResult(at: indexPath)
++  }
++
++  private func selectResult(at indexPath: IndexPath) {
++    guard let result = model.selectResult(section: indexPath.section, row: indexPath.row) else { return }
++    onSelect?(result)
++  }
++}
++
++private struct BMCSearchCellViewModel: IBookmarksListItemViewModel {
++  let name: String
++  let subtitle: String
++  let image: UIImage
++  let colorDidTapAction: (() -> Void)?
++}
++
++extension BMCSearchResultsViewController: UISearchResultsUpdating {
++  func updateSearchResults(for searchController: UISearchController) {
++    model.search(searchController.searchBar.text ?? "")
++  }
++}
++
++extension BMCSearchResultsViewController: BookmarksObserver {
++  func onBookmarksLoadFinished() {
++    model.refresh()
++  }
++
++  func onBookmarksFileLoadSuccess() {
++    model.refresh()
++  }
++
++  func onBookmarksCategoryDeleted(_ groupId: MWMMarkGroupID) {
++    model.refresh()
++  }
++
++  func onBookmarkDeleted(_ bookmarkId: MWMMarkID) {
++    model.refresh()
++  }
++}
++
++private final class BMCBookmarksSearchService: BMCSearchService {
++  private let manager = BookmarksManager.shared()
++
++  func prepare() {
++    manager.prepareForSearchAllGroups()
++  }
++
++  func release() {
++    manager.releaseSearch()
++  }
++
++  func search(_ text: String, completion: @escaping ([BMCSearchResult]) -> Void) {
++    manager.searchAllBookmarks(text) { [manager] bookmarks in
++      let results = bookmarks.map { bookmark in
++        let category = manager.category(forBookmarkId: bookmark.bookmarkId)
++        return BMCSearchResult(item: .bookmark(bookmark.bookmarkId),
++                               categoryId: category.categoryId,
++                               categoryName: category.title,
++                               name: bookmark.bookmarkName,
++                               subtitle: bookmark.bookmarkType)
++      }
++      completion(results)
++    }
++  }
++
++  func resolveSelection(_ result: BMCSearchResult) -> BMCSearchResult? {
++    let category: BookmarkGroup
++    switch result.item {
++    case .bookmark(let id):
++      guard manager.hasBookmark(id) else { return nil }
++      category = manager.category(forBookmarkId: id)
++    case .track(let id):
++      guard manager.hasTrack(id) else { return nil }
++      category = manager.category(forTrackId: id)
++    }
++    guard manager.hasCategory(category.categoryId) else { return nil }
++    return BMCSearchResult(item: result.item, categoryId: category.categoryId,
++                           categoryName: category.title, name: result.name, subtitle: result.subtitle)
++  }
++}
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift b/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
+--- a/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
++++ b/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
+@@ -7,6 +7,9 @@
+   }
+ 
+   private weak var coordinator: BookmarksCoordinator?
++
++  private let searchResultsController = BMCSearchResultsViewController()
++  private lazy var searchController = UISearchController(searchResultsController: searchResultsController)
+ 
+   @IBOutlet private weak var tableView: UITableView! {
+     didSet {
+@@ -36,6 +39,28 @@
+     super.viewDidLoad()
+     view.setStyle(.pressBackground)
+     viewModel = BMCDefaultViewModel()
++    configureSearch()
++  }
++
++  private func configureSearch() {
++    searchController.searchResultsUpdater = searchResultsController
++    searchController.delegate = self
++    searchController.obscuresBackgroundDuringPresentation = false
++    searchController.hidesNavigationBarDuringPresentation = alternativeSizeClass(iPhone: true, iPad: false)
++    searchController.searchBar.placeholder = L("search")
++    searchController.searchBar.applyTheme()
++    navigationItem.searchController = searchController
++    navigationItem.hidesSearchBarWhenScrolling = false
++    definesPresentationContext = true
++    searchResultsController.onSelect = { [weak self] result in
++      guard let self else { return }
++      searchController.isActive = false
++      switch result.item {
++      case .bookmark(let id): FrameworkHelper.showBookmark(id)
++      case .track(let id): FrameworkHelper.showTrack(id)
++      }
++      coordinator?.hide(categoryId: result.categoryId)
++    }
+   }
+ 
+   override func viewWillAppear(_ animated: Bool) {
+@@ -325,3 +350,14 @@
+     navigationController?.popViewController(animated: true)
+   }
+ }
++
++extension BMCViewController: UISearchControllerDelegate {
++  func willPresentSearchController(_ searchController: UISearchController) {
++    setEditing(false, animated: true)
++    searchResultsController.start()
++  }
++
++  func didDismissSearchController(_ searchController: UISearchController) {
++    searchResultsController.stop()
++  }
++}
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSearchViewModel.swift b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSearchViewModel.swift
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSearchViewModel.swift
+@@ -0,0 +1,106 @@
++import Foundation
++
++enum BMCSearchItem: Equatable {
++  case bookmark(MWMMarkID)
++  case track(MWMTrackID)
++}
++
++struct BMCSearchResult: Equatable {
++  let item: BMCSearchItem
++  let categoryId: MWMMarkGroupID
++  let categoryName: String
++  let name: String
++  let subtitle: String?
++}
++
++struct BMCSearchSection: Equatable {
++  let categoryId: MWMMarkGroupID
++  let title: String
++  var results: [BMCSearchResult]
++}
++
++protocol BMCSearchService: AnyObject {
++  func prepare()
++  func release()
++  func search(_ text: String, completion: @escaping ([BMCSearchResult]) -> Void)
++  func resolveSelection(_ result: BMCSearchResult) -> BMCSearchResult?
++}
++
++final class BMCSearchViewModel {
++  private let service: BMCSearchService
++  private var generation = 0
++  private(set) var isActive = false
++  private(set) var query = ""
++  private(set) var isSearching = false
++  private(set) var sections: [BMCSearchSection] = []
++  var onChange: (() -> Void)?
++
++  init(service: BMCSearchService) {
++    self.service = service
++  }
++
++  func start() {
++    guard !isActive else { return }
++    isActive = true
++    service.prepare()
++    search(query)
++  }
++
++  func stop() {
++    guard isActive else { return }
++    generation += 1
++    isActive = false
++    isSearching = false
++    query = ""
++    sections = []
++    service.release()
++    onChange?()
++  }
++
++  func search(_ text: String) {
++    generation += 1
++    let requestedGeneration = generation
++    query = text.trimmingCharacters(in: .whitespacesAndNewlines)
++    sections = []
++    isSearching = isActive && !query.isEmpty
++    onChange?()
++    guard isSearching else { return }
++    service.search(query) { [weak self] results in
++      guard let self, isActive, generation == requestedGeneration else { return }
++      isSearching = false
++      sections = Self.group(results)
++      onChange?()
++    }
++  }
++
++  func refresh() {
++    guard isActive else { return }
++    service.prepare()
++    search(query)
++  }
++
++  func selectResult(section: Int, row: Int) -> BMCSearchResult? {
++    guard sections.indices.contains(section), sections[section].results.indices.contains(row) else { return nil }
++    guard let result = service.resolveSelection(sections[section].results[row]) else {
++      refresh()
++      return nil
++    }
++    return result
++  }
++
++  private static func group(_ results: [BMCSearchResult]) -> [BMCSearchSection] {
++    var sections: [BMCSearchSection] = []
++    var sectionIndexes: [MWMMarkGroupID: Int] = [:]
++    for result in results {
++      if let index = sectionIndexes[result.categoryId] {
++        sections[index].results.append(result)
++      } else {
++        sectionIndexes[result.categoryId] = sections.count
++        sections.append(BMCSearchSection(categoryId: result.categoryId,
++                                         title: result.categoryName,
++                                         results: [result]))
++      }
++    }
++    return sections
++  }
++}
+diff --git a/iphone/Maps/Maps.xcodeproj/project.pbxproj b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+--- a/iphone/Maps/Maps.xcodeproj/project.pbxproj
++++ b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+@@ -689,6 +689,9 @@
+ 		FA85D44E279B738F00B858E9 /* CopyableLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA85D44D279B738F00B858E9 /* CopyableLabel.swift */; };
+ 		FA8E808925F412E2002A1434 /* FirstSession.mm in Sources */ = {isa = PBXBuildFile; fileRef = FA8E808825F412E2002A1434 /* FirstSession.mm */; };
+ 		FAF9DDA32A86DC54000D7037 /* libharfbuzz.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAF9DDA22A86DC54000D7037 /* libharfbuzz.a */; };
++		A421ABC00000000000000101 /* BMCSearchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000201 /* BMCSearchViewModel.swift */; };
++		A421ABC00000000000000102 /* BMCSearchResultsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000202 /* BMCSearchResultsViewController.swift */; };
++		A421ABC00000000000000103 /* BMCSearchViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000203 /* BMCSearchViewModelTests.swift */; };
+ /* End PBXBuildFile section */
+ 
+ /* Begin PBXContainerItemProxy section */
+@@ -1830,6 +1833,9 @@
+ 		FAF9A8A82CE0CEC000F6604D /* lv */ = {isa = PBXFileReference; lastKnownFileType = text.plist.stringsdict; name = lv; path = lv.lproj/Localizable.stringsdict; sourceTree = "<group>"; };
+ 		FAF9DDA22A86DC54000D7037 /* libharfbuzz.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libharfbuzz.a; sourceTree = BUILT_PRODUCTS_DIR; };
+ 		FAFF42291347F101009BBB14 /* World.mwm */ = {isa = PBXFileReference; lastKnownFileType = file; name = World.mwm; path = ../../data/World.mwm; sourceTree = "<group>"; };
++		A421ABC00000000000000201 /* BMCSearchViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMCSearchViewModel.swift; sourceTree = "<group>"; };
++		A421ABC00000000000000202 /* BMCSearchResultsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMCSearchResultsViewController.swift; sourceTree = "<group>"; };
++		A421ABC00000000000000203 /* BMCSearchViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMCSearchViewModelTests.swift; sourceTree = "<group>"; };
+ /* End PBXFileReference section */
+ 
+ /* Begin PBXFrameworksBuildPhase section */
+@@ -2405,6 +2411,7 @@
+ 			isa = PBXGroup;
+ 			children = (
+ 				34B846A72029E8110081ECCD /* BMCDefaultViewModel.swift */,
++				A421ABC00000000000000201 /* BMCSearchViewModel.swift */,
+ 			);
+ 			path = BMCViewModel;
+ 			sourceTree = "<group>";
+@@ -2413,6 +2420,7 @@
+ 			isa = PBXGroup;
+ 			children = (
+ 				3404F489202894EA0090E401 /* BMCViewController.swift */,
++				A421ABC00000000000000202 /* BMCSearchResultsViewController.swift */,
+ 				3404F48A202894EA0090E401 /* BMCViewController.xib */,
+ 			);
+ 			path = BMCView;
+@@ -3435,6 +3443,7 @@
+ 			isa = PBXGroup;
+ 			children = (
+ 				EDC4E3422C5D1BD3009286A2 /* RecentlyDeletedTests */,
++				A421ABC00000000000000203 /* BMCSearchViewModelTests.swift */,
+ 			);
+ 			path = Categories;
+ 			sourceTree = "<group>";
+@@ -4466,6 +4475,7 @@
+ 				F6E2FDE91E097BA00083EBEC /* MWMObjectsCategorySelectorController.mm in Sources */,
+ 				34AB665F1FC5AA330078E451 /* TransportTransitIntermediatePoint.swift in Sources */,
+ 				34B846A82029E8110081ECCD /* BMCDefaultViewModel.swift in Sources */,
++				A421ABC00000000000000101 /* BMCSearchViewModel.swift in Sources */,
+ 				993DF12123F6BDB100AC231A /* UIViewControllerRenderer.swift in Sources */,
+ 				34D3AFF61E37A36A004100F9 /* UICollectionView+Cells.swift in Sources */,
+ 				4767CDA420AAF66B00BD8166 /* NSAttributedString+HTML.swift in Sources */,
+@@ -4523,6 +4533,7 @@
+ 				6741A9B81BF340DE002C974C /* MapViewController.mm in Sources */,
+ 				34AB662C1FC5AA330078E451 /* RouteManagerViewModel.swift in Sources */,
+ 				3404F48B202894EA0090E401 /* BMCViewController.swift in Sources */,
++				A421ABC00000000000000102 /* BMCSearchResultsViewController.swift in Sources */,
+ 				F6E2FDE01E097BA00083EBEC /* MWMEditorViewController.mm in Sources */,
+ 				6741A9C01BF340DE002C974C /* MWMTextView.m in Sources */,
+ 				F6E2FDB61E097BA00083EBEC /* MWMEditorAdditionalNamesHeader.m in Sources */,
+@@ -4943,6 +4954,7 @@
+ 				4B83AE4B2C2E642100B0C3BC /* TTSTesterTest.m in Sources */,
+ 				EDF838C22C00B9D6007E4E67 /* MetadataItemStubs.swift in Sources */,
+ 				EDC4E3612C5E2576009286A2 /* RecentlyDeletedCategoriesViewModelTests.swift in Sources */,
++				A421ABC00000000000000103 /* BMCSearchViewModelTests.swift in Sources */,
+ 				4B4153B52BF9695500EE4B02 /* MWMTextToSpeechTests.mm in Sources */,
+ 				EDF838C42C00B9D6007E4E67 /* FileManagerMock.swift in Sources */,
+ 			);
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift
+@@ -0,0 +1,159 @@
++import XCTest
++@testable import CoMaps__Debug_
++
++final class BMCSearchViewModelTests: XCTestCase {
++  private var service: BMCSearchServiceMock!
++  private var model: BMCSearchViewModel!
++
++  override func setUp() {
++    super.setUp()
++    service = BMCSearchServiceMock()
++    model = BMCSearchViewModel(service: service)
++  }
++
++  func testRepeatedStartAndStopPrepareAndReleaseOnlyOnce() {
++    model.start()
++    model.start()
++    model.stop()
++    model.stop()
++    XCTAssertEqual(service.prepareCount, 1)
++    XCTAssertEqual(service.releaseCount, 1)
++    XCTAssertTrue(service.requests.isEmpty)
++  }
++
++  func testResultsAreGroupedByCategoryIdentityInResultOrder() {
++    model.start()
++    model.search("park")
++    let first = result(id: 1, category: 10, name: "Same folder")
++    let second = result(id: 2, category: 20, name: "Same folder")
++    let third = result(id: 3, category: 10, name: "Same folder")
++    service.requests[0].completion([first, second, third])
++    XCTAssertEqual(model.sections.map(\.categoryId), [10, 20])
++    XCTAssertEqual(model.sections[0].results.map(\.item), [.bookmark(1), .bookmark(3)])
++    XCTAssertEqual(model.sections[1].results.map(\.item), [.bookmark(2)])
++    XCTAssertFalse(model.isSearching)
++  }
++
++  func testEarlierQueryCannotReplaceCurrentResults() {
++    model.start()
++    model.search("old")
++    model.search("new")
++    service.requests[1].completion([result(id: 2, category: 10)])
++    service.requests[0].completion([result(id: 1, category: 10)])
++    XCTAssertEqual(model.sections[0].results.map(\.item), [.bookmark(2)])
++  }
++
++  func testDismissedSearchIgnoresPendingResults() {
++    model.start()
++    model.search("park")
++    model.stop()
++    service.requests[0].completion([result(id: 1, category: 10)])
++    XCTAssertTrue(model.sections.isEmpty)
++    XCTAssertFalse(model.isActive)
++    XCTAssertFalse(model.isSearching)
++  }
++
++  func testClearingQueryClearsResultsAndInvalidatesOldCompletion() {
++    model.start()
++    model.search("park")
++    service.requests[0].completion([result(id: 1, category: 10)])
++    model.search(" \n ")
++    service.requests[0].completion([result(id: 2, category: 10)])
++    XCTAssertTrue(model.sections.isEmpty)
++    XCTAssertEqual(service.requests.count, 1)
++    XCTAssertFalse(model.isSearching)
++  }
++
++  func testRefreshReindexesAndRepeatsCurrentQuery() {
++    model.start()
++    model.search("park")
++    model.refresh()
++    XCTAssertEqual(service.prepareCount, 2)
++    XCTAssertEqual(service.requests.map(\.text), ["park", "park"])
++    service.requests[0].completion([result(id: 1, category: 10)])
++    XCTAssertTrue(model.sections.isEmpty)
++    service.requests[1].completion([result(id: 2, category: 20)])
++    XCTAssertEqual(model.sections[0].categoryId, 20)
++  }
++
++  func testInactiveRefreshDoesNotAcquireIndex() {
++    model.refresh()
++    XCTAssertEqual(service.prepareCount, 0)
++    XCTAssertTrue(service.requests.isEmpty)
++  }
++
++  func testRestartDoesNotAcceptCompletionFromPreviousSession() {
++    model.start()
++    model.search("park")
++    model.stop()
++    model.start()
++    model.search("park")
++    service.requests[0].completion([result(id: 1, category: 10)])
++    XCTAssertTrue(model.sections.isEmpty)
++    service.requests[1].completion([result(id: 2, category: 20)])
++    XCTAssertEqual(model.sections[0].results[0].item, .bookmark(2))
++  }
++
++  func testSelectingDeletedResultRefreshesInsteadOfReturningStaleIdentity() {
++    model.start()
++    model.search("park")
++    service.requests[0].completion([result(id: 1, category: 10)])
++    service.selectionResolver = { _ in nil }
++    XCTAssertNil(model.selectResult(section: 0, row: 0))
++    XCTAssertEqual(service.requests.count, 2)
++  }
++
++  func testBookmarkAndTrackWithSameNumericIdRemainDistinct() {
++    model.start()
++    model.search("park")
++    let bookmark = result(id: 1, category: 10)
++    let track = BMCSearchResult(item: .track(1), categoryId: 10,
++                                categoryName: "Folder", name: "Track", subtitle: nil)
++    service.requests[0].completion([bookmark, track])
++    XCTAssertEqual(model.sections[0].results.map(\.item), [.bookmark(1), .track(1)])
++    XCTAssertEqual(model.selectResult(section: 0, row: 1)?.item, .track(1))
++  }
++
++  func testSelectingMovedResultUsesItsCurrentCategory() {
++    model.start()
++    model.search("park")
++    service.requests[0].completion([result(id: 1, category: 10)])
++    service.selectionResolver = { old in
++      BMCSearchResult(item: old.item, categoryId: 20, categoryName: "Moved",
++                      name: old.name, subtitle: old.subtitle)
++    }
++    XCTAssertEqual(model.selectResult(section: 0, row: 0)?.categoryId, 20)
++  }
++
++  private func result(id: MWMMarkID, category: MWMMarkGroupID, name: String = "Folder") -> BMCSearchResult {
++    BMCSearchResult(item: .bookmark(id), categoryId: category, categoryName: name,
++                    name: "Result", subtitle: nil)
++  }
++}
++
++private final class BMCSearchServiceMock: BMCSearchService {
++  struct Request {
++    let text: String
++    let completion: ([BMCSearchResult]) -> Void
++  }
++  var prepareCount = 0
++  var releaseCount = 0
++  var requests: [Request] = []
++  var selectionResolver: (BMCSearchResult) -> BMCSearchResult? = { $0 }
++
++  func prepare() {
++    prepareCount += 1
++  }
++
++  func release() {
++    releaseCount += 1
++  }
++
++  func search(_ text: String, completion: @escaping ([BMCSearchResult]) -> Void) {
++    requests.append(Request(text: text, completion: completion))
++  }
++
++  func resolveSelection(_ result: BMCSearchResult) -> BMCSearchResult? {
++    selectionResolver(result)
++  }
++}

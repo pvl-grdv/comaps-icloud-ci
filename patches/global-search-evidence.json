@@ -1,0 +1,53 @@
+{
+  "date": "2026-10-19",
+  "upstreamRevision": "a70fce4243e5c7eb4fc3f92ea0750e2b93c8ffb8",
+  "patch": "work/ios-global-search/global-bookmark-search.patch",
+  "scope": "iOS global bookmark search using existing CoMaps all-groups core. Search results are grouped by category identity and show points on the map. Separate UISearchController results table leaves category reordering UI independent.",
+  "files": [
+    "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
+    "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
+    "iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift",
+    "iphone/Maps/Bookmarks/Categories/BMCView/BMCSearchResultsViewController.swift",
+    "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSearchViewModel.swift",
+    "iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift",
+    "iphone/Maps/Maps.xcodeproj/project.pbxproj"
+  ],
+  "bridgeAPI": [
+    "prepareForSearchAllGroups() -> core PrepareForSearch(std::nullopt)",
+    "releaseSearch() increments lastSearchId and core ReleaseSearch()",
+    "searchAllBookmarks(_:completion:) -> existing searchBookmarksGroup invalid group ID"
+  ],
+  "typedFuture": "BMCSearchItem enum bookmark(MWMMarkID)/track(MWMTrackID) distinguishes overlapping numeric IDs. Current native adapter still uses bookmark-only search API; typed core agent will replace this adapter when ready. Rendering/selection can handle track kind, but do not claim track search implemented by this patch.",
+  "safety": [
+    "Per query/session generation guards reject stale results after cancel/new query/restart.",
+    "Selections are resolved again via service before use; deleted points trigger refresh and moved points resolve current category.",
+    "Existing equal category titles are grouped by category ID, not collapsed by name.",
+    "Results are cleared on query change, and imports/deletions/load completion refresh indexes and query.",
+    "No dependency or localization generation added; existing search/search_not_found strings reused."
+  ],
+  "validation": {
+    "swiftFrontendParse": "passed for all four changed/new Swift files",
+    "xcodeProjectPlistLint": "passed",
+    "gitApplyCheck": "passed against exact CoMaps baseline; reverse check passed against candidate",
+    "patchWhitespace": "passed git apply --check --whitespace=error-all",
+    "localModelScenarios": 11,
+    "localModelScenariosResult": "all passed using actual production model and same test method bodies with lightweight assertion harness; XCTest is unavailable in local CLT",
+    "nativeXCTestExecuted": false,
+    "iosTypecheckBuildExecuted": false,
+    "UIExecuted": false,
+    "nativeTestsRegistered": "BMCSearchViewModelTests, 11 tests, app/test PBX source registration complete"
+  },
+  "integration": [
+    "Apply alongside folder ordering patch and preserve its BMC reordering methods; search presentation calls setEditing(false). Disable folder edit/reorder while searchController.isActive.",
+    "Root should register BookmarkFolderOrderTests from other agent in PBX; this patch registers only own files.",
+    "Parent must run iOS CI; especially validate bridge Swift importer names, actual UI layout/navigation and single-folder search after index release.",
+    "Track core service interface coordinated with agent ci_and_rename; use new typed result API in BMCBookmarksSearchService when it exists."
+  ],
+  "remainingScope": "work/search-sort-review/review.json",
+  "noChanges": [
+    "No commits or pushes",
+    "No current shared candidate repo changes",
+    "No installed app or iCloud data changes",
+    "No userdata read or used as fixtures"
+  ]
+}

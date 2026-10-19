@@ -1,3 +1,5 @@
 initial-conflict.patch
 category-reload.patch
 track-rename.patch
+global-bookmark-search.patch
+ios-folder-order.patch

@@ -78,6 +78,12 @@
   "not_included": [
     "Organic Maps proposed full reconciliation PR13232",
     "semantic deduplication or existing duplicate cleanup",
-    "global iOS search or new manual item ordering"
-  ]
+    "typed track search integration under development",
+    "synchronized folder-order preferences under development",
+    "manual bookmark/track ordering under development"
+  ],
+  "feature_patches": {
+    "global-bookmark-search.patch": "New AI-assisted UIKit/bridge UI exposing existing CoMaps all-groups bookmark search; 11 model tests.",
+    "ios-folder-order.patch": "New AI-assisted UIKit/bridge manual folder ordering plus two core edge fixes; six bridge tests and two core regressions. Stores order locally; cross-device preference layer is not included yet."
+  }
 }

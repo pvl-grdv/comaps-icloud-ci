@@ -1,0 +1,85 @@
+{
+  "base_revision": "a70fce4243e5c7eb4fc3f92ea0750e2b93c8ffb8",
+  "baseline_blobs": {
+    "libs/map/bookmark_manager.cpp": "85dbd97c126c9c981c3e3a58f86a25007ddff1d5",
+    "libs/map/map_tests/bookmarks_test.cpp": "de76b2ef560f77cb91780b806af0a695b223ef2a",
+    "iphone/Maps/Tests/Bookmarks/Categories/RecentlyDeletedTests/RecentlyDeletedCategoriesViewModelTests.swift": "f3f9ddae8cc18f53ed1056a0878f42638ce6e9a5",
+    "iphone/Maps/Maps.xcodeproj/project.pbxproj": "ebd7efed4ae7b0ac8380c11265c11d8f671a9035",
+    "iphone/Maps/Bookmarks/Categories/BMCModels.swift": "e29ba58cce3b04bcca282806773383abdd97ef56",
+    "iphone/Maps/Bookmarks/Categories/BMCViewModel/BookmarksCategoriesDefaultViewModel.swift": "5e30b89f933c9c97eafc4c839f56b547a888d8f6",
+    "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift": "6198d693e28587fd217e041f43069d37fcdb5ebb",
+    "iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift": "fa3ebcd968d8f75c9a819cb02c0f568fa49db21b",
+    "iphone/Maps/Bookmarks/Categories/Categories/BMCCategoriesHeader.swift": "71850389003321207b870fe1c7619bbe9d73804c",
+    "iphone/Maps/Bookmarks/Categories/Categories/BMCCategoryCell.swift": "74a22bad5e8ce512368bb5973167ec779079c57c",
+    "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm": "86ef65d4a32b49928b9ded4d70b3bbf96425bb66",
+    "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h": "6c02ab31b9f8ec33178054b3179f625d7eee9e49"
+  },
+  "feature_scope": [
+    "Native UIKit Edit/Done folder handles, restricted to manual category mode",
+    "Automatic name/date sort menu reuses current localized strings",
+    "Stable group IDs, stale displayed category snapshot rejection, category-only target clamping",
+    "Persistent local manual order via current core bm.json; new empty folders saved once before ordering",
+    "Core manual-order entry preserves previous automatic display order",
+    "Core failed new-category write restores empty filename and original metadata order to permit retry",
+    "Current category-list insertion uses actual core sorted position"
+  ],
+  "patches": {
+    "folder-order.patch": {
+      "bytes": 22885,
+      "sha256": "9f03cc819dd030f1ad88625893370b3b0539b51a6e78bbde885ac93a31813984"
+    },
+    "folder-order-after-category.patch": {
+      "bytes": 22654,
+      "sha256": "9a24a94fc9fb0d8853e9f4a4db779d1f2ddd867cbfe912303bd33e4112e46eeb"
+    },
+    "folder-order-test-registration.patch": {
+      "bytes": 3791,
+      "sha256": "15e04682b4282a293871cae9cec1eb11ca4784096175039959a3971f9c3f1c11"
+    }
+  },
+  "tests": {
+    "swift_parse": "passed four modified/new Swift files; no UIKit typecheck",
+    "pbx_lint": "passed",
+    "exact_apply": "passed feature+registration with whitespace errors rejected",
+    "exact_reverse": "passed feature+registration",
+    "extracted_core": "6 candidate cases passed, 4 baseline failures reproduced; dependencies shimmed; not a full build",
+    "xctest_class": "BookmarkFolderOrderTests",
+    "xctest_methods": [
+      "testManualOrderMovesNewEmptyCategories",
+      "testAutomaticModeRejectsMoves",
+      "testInvalidDestinationsLeaveOrderUntouched",
+      "testUnknownCategoryLeavesOrderUntouched",
+      "testNewFolderIsAppendedToExistingManualOrder",
+      "testAutomaticSortRestoresCategoryNameOrder"
+    ],
+    "core_tests": [
+      "Bookmarks_ManualFolderOrderPersistsEmptyCategories",
+      "Bookmarks_NewCategorySaveFailureRestoresUnsavedState"
+    ],
+    "project_execution": "pending CI, no Xcode here",
+    "actual_restart": "not tested",
+    "live_icloud": "not tested",
+    "after_category_apply": "passed feature patch over exact source plus category-reload.patch",
+    "async_load_preflight": "XCTest setUpWithError calls loadBookmarks and waits up to30s for areBookmarksLoaded via predicate; failure throws before creating fixtures; tearDown restores mode only if captured."
+  },
+  "integration_notes": [
+    "Apply folder-order-after-category.patch after category-reload.patch to avoid duplicate standard header include hunk",
+    "PBX registration separated because global-search patch also changes that project; IDs A421ABC10000000000000101 and A421ABC10000000000000201",
+    "Main table must exit editing and disable Edit/Sort while global search is active; canMove/canEdit guards should include !searchController.isActive",
+    "Local bm.json does not satisfy requested identical folder order across all three devices; separate iCloud preference synchronization layer required"
+  ],
+  "not_changed": [
+    "No current CI repo mutation",
+    "No real user cloud folder reads/writes",
+    "No code commits/push/DCO",
+    "No additional dependencies"
+  ],
+  "integration": {
+    "base": "initial-conflict + category-reload + track-rename + global-bookmark-search",
+    "root_changes": [
+      "Merge both Xcode test registrations",
+      "Disable editing and sorting while search is active"
+    ],
+    "cross_device_order": "separate layer in development; this patch exposes local core order only"
+  }
+}
