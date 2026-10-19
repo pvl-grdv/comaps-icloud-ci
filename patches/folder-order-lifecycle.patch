@@ -1,0 +1,197 @@
+diff --git a/iphone/Maps/Core/iCloud/FolderOrderCoordinator.swift b/iphone/Maps/Core/iCloud/FolderOrderCoordinator.swift
+--- a/iphone/Maps/Core/iCloud/FolderOrderCoordinator.swift
++++ b/iphone/Maps/Core/iCloud/FolderOrderCoordinator.swift
+@@ -22,6 +22,7 @@
+   private let isEnabled: () -> Bool
+   private let accountIdentity: () -> NSObjectProtocol?
+   private let didApply: () -> Void
++  private let didEndEditing: () -> Void
+   private let onError: (Error) -> Void
+   private var store: SharedFolderOrderStore?
+   private(set) var isEditing = false
+@@ -29,12 +30,14 @@
+ 
+   init(library: FolderOrderLibrary, storeFactory: @escaping () -> SharedFolderOrderStore,
+        isEnabled: @escaping () -> Bool, accountIdentity: @escaping () -> NSObjectProtocol?,
+-       didApply: @escaping () -> Void = {}, onError: @escaping (Error) -> Void = { _ in }) {
++       didApply: @escaping () -> Void = {}, didEndEditing: @escaping () -> Void = {},
++       onError: @escaping (Error) -> Void = { _ in }) {
+     self.library = library
+     self.storeFactory = storeFactory
+     self.isEnabled = isEnabled
+     self.accountIdentity = accountIdentity
+     self.didApply = didApply
++    self.didEndEditing = didEndEditing
+     self.onError = onError
+   }
+ 
+@@ -64,16 +67,10 @@
+     isEditing = false
+     editingAccountIdentity = nil
+     localOrderChanged()
++    didEndEditing()
+   }
+ 
+-  func background() {
+-    guard isEditing else { return }
+-    guard editingAccountMatchesCurrent() else {
+-      cancelEditing()
+-      return
+-    }
+-    localOrderChanged()
+-  }
++  func background() { endEditing() }
+ 
+   private func editingAccountMatchesCurrent() -> Bool {
+     guard let original = editingAccountIdentity, let current = accountIdentity() else { return false }
+@@ -83,6 +80,7 @@
+   private func cancelEditing() {
+     isEditing = false
+     editingAccountIdentity = nil
++    didEndEditing()
+     applyRemote()
+   }
+ 
+diff --git a/iphone/Maps/Core/iCloud/BookmarkFolderOrderSynchronization.swift b/iphone/Maps/Core/iCloud/BookmarkFolderOrderSynchronization.swift
+--- a/iphone/Maps/Core/iCloud/BookmarkFolderOrderSynchronization.swift
++++ b/iphone/Maps/Core/iCloud/BookmarkFolderOrderSynchronization.swift
+@@ -2,6 +2,7 @@
+ import UIKit
+ 
+ extension Notification.Name {
++  static let bookmarkFolderOrderEditingDidEnd = Notification.Name("comaps.folder-order.editing-ended")
+   static let bookmarkFolderOrderDidApply = Notification.Name("comaps.folder-order.did-apply")
+ }
+ 
+@@ -61,6 +62,7 @@
+     isEnabled: { Settings.shouldSync },
+     accountIdentity: { FileManager.default.ubiquityIdentityToken },
+     didApply: { NotificationCenter.default.post(name: .bookmarkFolderOrderDidApply, object: nil) },
++    didEndEditing: { NotificationCenter.default.post(name: .bookmarkFolderOrderEditingDidEnd, object: nil) },
+     onError: { LOG(.error, $0.localizedDescription) })
+ 
+   private init() {}
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift b/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
+--- a/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
++++ b/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
+@@ -7,6 +7,7 @@
+   }
+ 
+   private weak var coordinator: BookmarksCoordinator?
++  private var folderOrderEditingObserver: NSObjectProtocol?
+   private let sortButton = UIBarButtonItem(image: UIImage(systemName: "arrow.up.arrow.down"),
+                                            style: .plain,
+                                            target: nil,
+@@ -39,6 +40,10 @@
+     fatalError("init(coder:) has not been implemented")
+   }
+ 
++  deinit {
++    if let folderOrderEditingObserver { NotificationCenter.default.removeObserver(folderOrderEditingObserver) }
++  }
++
+   override func viewDidLoad() {
+     super.viewDidLoad()
+     view.setStyle(.pressBackground)
+@@ -47,6 +52,12 @@
+     sortButton.accessibilityLabel = L("sort")
+     updateReorderingButton()
+     configureSearch()
++    folderOrderEditingObserver = NotificationCenter.default.addObserver(
++      forName: .bookmarkFolderOrderEditingDidEnd, object: nil, queue: .main
++    ) { [weak self] _ in
++      guard let self, self.isEditing else { return }
++      self.setEditing(false, animated: false)
++    }
+   }
+ 
+   private func configureSearch() {
+diff --git a/iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift b/iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift
+--- a/iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift
++++ b/iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift
+@@ -39,6 +39,7 @@
+   private var identity = FolderOrderTestIdentity("A")
+   private var storeCreations = 0
+   private var applies = 0
++  private var editingEnds = 0
+   private var errors = 0
+   private var coordinator: FolderOrderCoordinator!
+ 
+@@ -46,7 +47,7 @@
+     super.setUp()
+     library = FolderOrderTestLibrary(); store = FolderOrderTestStore()
+     identity = FolderOrderTestIdentity("A")
+-    enabled = true; signedIn = true; storeCreations = 0; applies = 0; errors = 0
++    enabled = true; signedIn = true; storeCreations = 0; applies = 0; editingEnds = 0; errors = 0
+     coordinator = makeCoordinator()
+   }
+ 
+@@ -56,6 +57,7 @@
+                            isEnabled: { [unowned self] in self.enabled },
+                            accountIdentity: { [unowned self] in self.signedIn ? self.identity : nil },
+                            didApply: { [unowned self] in self.applies += 1 },
++                           didEndEditing: { [unowned self] in self.editingEnds += 1 },
+                            onError: { [unowned self] _ in self.errors += 1 })
+   }
+ 
+@@ -285,6 +287,41 @@
+     XCTAssertTrue(store.writes.isEmpty)
+   }
+ 
++  func testBackgroundEndsEditBeforeLaterRemoteOrderWithoutRepublishing() throws {
++    coordinator.startOrForeground(); coordinator.beginEditing()
++    library.value.manualFileNames.reverse()
++    coordinator.background()
++    XCTAssertFalse(coordinator.isEditing)
++    XCTAssertEqual(editingEnds, 1)
++    XCTAssertEqual(store.writes.count, 1)
++    let remote = try payload(["B.kml", "C.kml", "A.kml"])
++    store.data = remote
++    coordinator.externalChange(.server)
++    coordinator.startOrForeground(); coordinator.background(); coordinator.endEditing()
++    XCTAssertEqual(library.value.manualFileNames, ["B.kml", "C.kml", "A.kml"])
++    XCTAssertEqual(store.data, remote)
++    XCTAssertEqual(store.writes.count, 1)
++    XCTAssertEqual(editingEnds, 1)
++  }
++
++  func testAccountCancellationNotifiesPresentationBeforeAnotherEdit() throws {
++    coordinator.startOrForeground(); coordinator.beginEditing()
++    library.value.manualFileNames.reverse()
++    identity = FolderOrderTestIdentity("B")
++    store.data = try payload(["B.kml", "A.kml", "C.kml"])
++    coordinator.externalChange(.account)
++    XCTAssertFalse(coordinator.isEditing)
++    XCTAssertEqual(editingEnds, 1)
++    XCTAssertTrue(store.writes.isEmpty)
++    coordinator.endEditing()
++    XCTAssertEqual(editingEnds, 1)
++    coordinator.beginEditing()
++    library.value.manualFileNames = ["C.kml", "A.kml", "B.kml"]
++    coordinator.endEditing()
++    XCTAssertEqual(store.writes.count, 1)
++    XCTAssertEqual(editingEnds, 2)
++  }
++
+   func testOpaqueIdentityCanonicalizesUnicodeAndRejectsPaths() throws {
+     XCTAssertEqual(try SharedFolderOrder.token(forFileName: "Café.kml"),
+                    try SharedFolderOrder.token(forFileName: "Cafe\u{301}.kml"))
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift
+--- a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift
++++ b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift
+@@ -94,4 +94,15 @@
+     let ids = sortedIds.filter { categoryIds.contains($0) }
+     XCTAssertEqual(ids, [categoryIds[0], categoryIds[1]])
+   }
++
++  @MainActor
++  func testSynchronizationEndedNotificationClosesFolderEditingUI() {
++    let controller = BMCViewController(coordinator: nil)
++    controller.loadViewIfNeeded()
++    controller.setEditing(true, animated: false)
++    XCTAssertTrue(controller.isEditing)
++    NotificationCenter.default.post(name: .bookmarkFolderOrderEditingDidEnd, object: nil)
++    XCTAssertFalse(controller.isEditing)
++  }
++
+ }

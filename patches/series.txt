@@ -17,3 +17,6 @@ category-info-compile-fix.patch
 save-open-failure.patch
 show-reorder-controls.patch
 search-viewport-test-setup.patch
+folder-order-lifecycle.patch
+stable-category-menu-target.patch
+persist-deletion-fixture.patch

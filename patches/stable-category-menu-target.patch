@@ -1,0 +1,92 @@
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift b/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
+--- a/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
++++ b/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
+@@ -213,23 +213,30 @@
+ 
+     let settings = L("edit")
+     actionSheet.addAction(UIAlertAction(title: settings, style: .default, handler: { _ in
+-      self.openCategorySettings(category: category)
++      guard let index = self.viewModel.categoryIndex(forId: category.categoryId) else { return }
++      self.openCategorySettings(category: self.viewModel.category(at: index))
+     }))
++    let desiredVisible = !category.isVisible
+     let showHide = L(category.isVisible ? "hide_from_map" : "zoom_to_country")
+     actionSheet.addAction(UIAlertAction(title: showHide, style: .default, handler: { _ in
+-      self.setCategoryVisible(!category.isVisible, at: index)
++      guard let index = self.viewModel.categoryIndex(forId: category.categoryId) else { return }
++      self.setCategoryVisible(desiredVisible, at: index)
+       let sectionIndex = self.viewModel.sectionIndex(section: .categories)
+       self.tableView.reloadRows(at: [IndexPath(row: index, section: sectionIndex)], with: .none)
+     }))
+     actionSheet.addAction(UIAlertAction(title: L("export_file"), style: .default, handler: { _ in
+-      self.shareCategoryFile(at: index, fileType: .text, anchor: anchor)
++      guard let index = self.viewModel.categoryIndex(forId: category.categoryId) else { return }
++      self.shareCategoryFile(at: index, fileType: .text, anchor: anchor.window == nil ? self.view : anchor)
+     }))
+     actionSheet.addAction(UIAlertAction(title: L("export_file_gpx"), style: .default, handler: { _ in
+-      self.shareCategoryFile(at: index, fileType: .gpx, anchor: anchor)
++      guard let index = self.viewModel.categoryIndex(forId: category.categoryId) else { return }
++      self.shareCategoryFile(at: index, fileType: .gpx, anchor: anchor.window == nil ? self.view : anchor)
+     }))
+     let delete = L("delete_list")
+     let deleteAction = UIAlertAction(title: delete, style: .destructive, handler: { [viewModel] _ in
+-      viewModel!.deleteCategory(at: index)
++      guard let viewModel, viewModel.canDeleteCategory(),
++            let index = viewModel.categoryIndex(forId: category.categoryId) else { return }
++      viewModel.deleteCategory(at: index)
+     })
+     deleteAction.isEnabled = (viewModel.canDeleteCategory())
+     actionSheet.addAction(deleteAction)
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift
+--- a/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift
++++ b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift
+@@ -103,6 +103,11 @@
+ 
+   func category(at index: Int) -> BookmarkGroup {
+     categories[index]
++  }
++
++  func categoryIndex(forId categoryId: MWMMarkGroupID) -> Int? {
++    guard manager.hasCategory(categoryId) else { return nil }
++    return categories.firstIndex { $0.categoryId == categoryId }
+   }
+ 
+   var categorySortingType: BookmarkCategorySortingType {
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift
+--- a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift
++++ b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift
+@@ -105,4 +105,34 @@
+     XCTAssertFalse(controller.isEditing)
+   }
+ 
++  @MainActor
++  func testMenuTargetRemainsSameCategoryAfterRemoteOrderChanges() async throws {
++    XCTAssertTrue(manager.setCategorySortingType(.manual))
++    let model = BMCDefaultViewModel()
++    let targetId = categoryIds[1]
++    let oldIndex = try XCTUnwrap(model.categoryIndex(forId: targetId))
++    var remoteOrder = manager.manualCategoryFileNames()
++    XCTAssertGreaterThan(remoteOrder.count, 1)
++    let first = remoteOrder.removeFirst()
++    remoteOrder.append(first)
++    XCTAssertTrue(manager.applyCategorySortingType(.manual, manualFileNames: remoteOrder))
++    model.reloadData()
++    let currentIndex = try XCTUnwrap(model.categoryIndex(forId: targetId))
++    XCTAssertNotEqual(currentIndex, oldIndex)
++    model.deleteCategory(at: currentIndex)
++    XCTAssertFalse(manager.hasCategory(targetId))
++    XCTAssertTrue(manager.hasCategory(categoryIds[0]))
++  }
++
++  @MainActor
++  func testRemovedMenuTargetNoLongerResolvesToAnotherCategory() async throws {
++    let model = BMCDefaultViewModel()
++    let targetId = categoryIds[1]
++    XCTAssertNotNil(model.categoryIndex(forId: targetId))
++    XCTAssertTrue(manager.deleteCategory(targetId))
++    model.reloadData()
++    XCTAssertNil(model.categoryIndex(forId: targetId))
++    XCTAssertTrue(manager.hasCategory(categoryIds[0]))
++  }
++
+ }

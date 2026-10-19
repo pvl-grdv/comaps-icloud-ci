@@ -1,0 +1,22 @@
+diff --git a/libs/map/map_tests/bookmarks_test.cpp b/libs/map/map_tests/bookmarks_test.cpp
+--- a/libs/map/map_tests/bookmarks_test.cpp
++++ b/libs/map/map_tests/bookmarks_test.cpp
+@@ -2158,7 +2158,17 @@
+   collection.emplace_back("", std::move(data));
+   manager.CreateCategories(std::move(collection), true);
+   TEST_EQUAL(manager.GetBmGroupsCount(), 1, ());
+-  return manager.GetUnsortedBmGroupsIdList().front();
++  auto const groupId = manager.GetUnsortedBmGroupsIdList().front();
++  TEST(manager.SaveBookmarkCategory(groupId), ());
++  auto const filePath = manager.GetCategoryFileName(groupId);
++  TEST(!filePath.empty(), ());
++  TEST(Platform::IsFileExistsByFullPath(filePath), ());
++  auto const persistedData = LoadKmlFile(filePath, KmlFileType::Text);
++  TEST(persistedData, ());
++  TEST_EQUAL(kml::GetDefaultStr(persistedData->m_categoryData.m_name), "Deletion safety test", ());
++  TEST_EQUAL(persistedData->m_tracksData.size(), 1, ());
++  TEST_EQUAL(persistedData->m_compilationsData.size(), 1, ());
++  return groupId;
+ }
+ 
+ bool DeleteWithBlockedTrash(BookmarkManager & manager, kml::MarkGroupId groupId)

@@ -61,7 +61,7 @@
       "Actual C++ map_tests and iOS builds required before upstream submission",
       "Provenance must be preserved; adapted implementation and new tests AI-assisted, require human understanding/review; no DCO signed"
     ],
-    "skills_selection": "Available SwiftUI and macOS skills were not applied: touched app files use UIKit, main adaptation is C++ and no relevant C++ skill is installed.",
+    "skills_selection": "Original adaptation predates relevant installed skills. Current integrated series reviewed with Axiom UIKit and Trail of Bits Modern C++; see skill_review.",
     "patch_sha256": "882f577c6693b1c29dd867ca8319c6b0207d34b0392cd19fc29c013fd6513355"
   },
   "track_rename": {
@@ -72,7 +72,7 @@
   "pending_at_integration": [
     "20 native candidate core regressions",
     "10 native search tests and legacy automatic sorting",
-    "iOS app build and 61 selected XCTest cases",
+    "iOS app build and 66 selected XCTest cases",
     "unsigned Release archive",
     "real-device iCloud delivery and visual inspection of simulator images"
   ],
@@ -96,7 +96,10 @@
     "category-info-compile-fix.patch": "CI compiler fix: adapt OM category info refresh to actual CoMaps setTitle/setInfo API and reuse duplicated rendering helper.",
     "save-open-failure.patch": "CI failure fix: catch FileWriter open failure and return false as expected by save API; test filename and nonempty manual metadata rollback; scoped allowance only for intentionally provoked filesystem error logs.",
     "show-reorder-controls.patch": "UIKit requires showsReorderControl in addition to moveRowAt; enable handles for compatible folder/point/track cells, retain existing mode/section guards, check hosted UI.",
-    "search-viewport-test-setup.patch": "Test-only ObjC++ setup initializes existing search viewport API because -IsTests disables Drape. Separate test bridging header inherits prior app bridge; 2 existing test setup calls, count unchanged."
+    "search-viewport-test-setup.patch": "Test-only ObjC++ setup initializes existing search viewport API because -IsTests disables Drape. Separate test bridging header inherits prior app bridge; 2 existing test setup calls, count unchanged.",
+    "folder-order-lifecycle.patch": "Axiom UIKit review fix: end reorder once on background/account cancellation, notify native Edit UI; two coordinator and one UIKit regressions.",
+    "stable-category-menu-target.patch": "Axiom UIKit review fix: resolve captured folder ID when menu action runs after remote reorder; retain visibility intent and reject removed target; two model regressions.",
+    "persist-deletion-fixture.patch": "CI fixture fix: explicitly persist initial synthetic deletion category and assert on-disk path/content before exercising deletion failures; production behavior and seven regression scenarios unchanged."
   },
   "patch_sha256": {
     "initial-conflict.patch": "baebd78a4a6779fb07ea7a92173169d805cd2460dae0b0bb8b8375a28c0ca19e",
@@ -117,7 +120,10 @@
     "category-info-compile-fix.patch": "0ca078d596a5388bc6fb9845f726b694c89e5f557ee47e8d35da9dbf9c630804",
     "save-open-failure.patch": "e579c6d420d330ee737eff3908ee1134b229fa4137816d86b315d44aa5d64485",
     "show-reorder-controls.patch": "066d10ee7a15f0dcf976557e8317c3f8f825b83e67b34072bedf47249910e271",
-    "search-viewport-test-setup.patch": "4a8e1a157c7e231af1fb0645d97e2f64975ea954fa0720de573a892b0ed22b77"
+    "search-viewport-test-setup.patch": "4a8e1a157c7e231af1fb0645d97e2f64975ea954fa0720de573a892b0ed22b77",
+    "folder-order-lifecycle.patch": "319fbe3638997c3132bda01446762418510b47cef6fafe9c595776d9ee5259d1",
+    "stable-category-menu-target.patch": "139d68f02e5dc17522bc0c987aada3a0bf1e41a9a3d70eccbccabcdc0a7e8587",
+    "persist-deletion-fixture.patch": "50e124825693e3d503cb7a7bd785e3b2b6430c537d537f0df6f18abf24065ab8"
   },
   "ci_findings": [
     {
@@ -136,7 +142,26 @@
       "error": "FileWriter constructor OpenException escaped bool save API during intentional failure test",
       "fix": "Catch recoverable Writer::Exception and return false; keep failure test, add metadata preservation assertion",
       "partial_native_results": "9 of 10 selected core cases reported OK before abort; whole run failed and remaining stages skipped"
+    },
+    {
+      "run": 39272488922,
+      "error": "Deletion test fixture assumed CreateCategories(..., true) immediately autosaved; rename received empty filename before product deletion was called.",
+      "fix": "Explicitly SaveBookmarkCategory in fixture and verify path, file and expected content. No validator or product-code relaxation.",
+      "partial_native_results": "First 10 selected core cases reported OK; 11th aborted in setup; entire run failed. Remaining tests/iOS/archive not reached."
     }
   ],
-  "upstream_deletion_source": "https://github.com/organicmaps/organicmaps/commit/01e8b634df68750ce15b86aec19ceed4362eb24e"
+  "upstream_deletion_source": "https://github.com/organicmaps/organicmaps/commit/01e8b634df68750ce15b86aec19ceed4362eb24e",
+  "skill_review": {
+    "reviewed_head": "d02591459a8c1a851f6b30a8736d15052297274d",
+    "skills": [
+      "charleswiltgen/axiom: axiom-uikit (Codex variant)",
+      "trailofbits/skills: modern-cpp"
+    ],
+    "method": "Three subagents; source review with relevant skill references; minimal fixes within current UIKit/C++23 architecture.",
+    "new_cpp_regressions_found": 0,
+    "residual_baseline_risk": "Swift incoming file replacement and queued C++ save use different execution boundaries; a queued older snapshot can overwrite incoming bytes before reload. Source-inspected, native reproducer draft not executed; not fixed by this series.",
+    "local_foundation_check": "20 original cases pass; 2 new lifecycle cases fail before fix and 22 pass after fix using unchanged test bodies with assertion shim. Not native XCTest/live iCloud.",
+    "new_native_cases": 5,
+    "native_and_visual_status": "Pending CI; no local iOS SDK."
+  }
 }

@@ -9,7 +9,7 @@
   },
   {
     "className": "BookmarkFolderOrderTests",
-    "expectedTests": 6
+    "expectedTests": 9
   },
   {
     "className": "SavedItemsSearchTests",
@@ -25,7 +25,7 @@
   },
   {
     "className": "SharedFolderOrderCoordinatorTests",
-    "expectedTests": 20
+    "expectedTests": 22
   },
   {
     "className": "HostedBookmarksUISmokeTests",
