@@ -1,0 +1,124 @@
+diff --git a/libs/map/bookmark_helpers.cpp b/libs/map/bookmark_helpers.cpp
+--- a/libs/map/bookmark_helpers.cpp
++++ b/libs/map/bookmark_helpers.cpp
+@@ -586,17 +586,25 @@
+ 
+ bool SaveKmlFile(kml::FileData & kmlData, std::string const & file, KmlFileType fileType)
+ {
+-  FileWriter writer(file);
+-  switch (fileType)
+-  {
+-  case KmlFileType::Text:  // fallthrough
+-  case KmlFileType::Binary: return SaveKmlData(kmlData, writer, fileType);
+-  case KmlFileType::Gpx: return SaveGpxData(kmlData, writer);
+-  default:
+-  {
+-    LOG(LWARNING, ("Unexpected KmlFileType", fileType));
++  try
++  {
++    FileWriter writer(file);
++    switch (fileType)
++    {
++    case KmlFileType::Text:  // fallthrough
++    case KmlFileType::Binary: return SaveKmlData(kmlData, writer, fileType);
++    case KmlFileType::Gpx: return SaveGpxData(kmlData, writer);
++    default:
++    {
++      LOG(LWARNING, ("Unexpected KmlFileType", fileType));
++      return false;
++    }
++    }
++  }
++  catch (Writer::Exception const & e)
++  {
++    LOG(LWARNING, ("KML file writing failure:", e.what()));
+     return false;
+-  }
+   }
+ }
+ 
+diff --git a/libs/map/map_tests/bookmarks_test.cpp b/libs/map/map_tests/bookmarks_test.cpp
+--- a/libs/map/map_tests/bookmarks_test.cpp
++++ b/libs/map/map_tests/bookmarks_test.cpp
+@@ -19,6 +19,7 @@
+ #include "i18n/string_utf8_multilang.hpp"
+ 
+ #include "base/file_name_utils.hpp"
++#include "base/logging.hpp"
+ #include "base/scope_guard.hpp"
+ 
+ #include <algorithm>
+@@ -2172,6 +2173,7 @@
+     std::filesystem::rename(backup, trash);
+   });
+   { FileWriter blocker(trash.string()); blocker.Write("block", 5); }
++  base::ScopedLogAbortLevelChanger expectedFileError;
+   return manager.GetEditSession().DeleteBmCategory(groupId, false);
+ }
+ 
+@@ -2258,7 +2260,12 @@
+   });
+   std::filesystem::create_directory(filePath);
+   { FileWriter blocker((filePath / "blocker").string()); blocker.Write("block", 5); }
+-  TEST(!manager.GetEditSession().DeleteBmCategory(groupId, true), ());
++  bool deleted;
++  {
++    base::ScopedLogAbortLevelChanger expectedFileError;
++    deleted = manager.GetEditSession().DeleteBmCategory(groupId, true);
++  }
++  TEST(!deleted, ());
+   TEST(manager.HasBmCategory(groupId), ());
+   TEST_EQUAL(manager.GetUserMarkIds(groupId), bookmarkIds, ());
+   TEST_EQUAL(manager.GetTrackIds(groupId), trackIds, ());
+@@ -2348,11 +2355,16 @@
+     (void)base::DeleteFileX(filePath.string());
+   });
+   manager.EnableTestMode(false);
+-  manager.GetEditSession().SetCategoryName(groupId, "Failed autosave memory in trash");
+-  auto const drained = std::make_shared<std::promise<void>>();
+-  auto future = drained->get_future();
+-  GetPlatform().RunTask(Platform::Thread::File, [drained]() { drained->set_value(); });
+-  TEST(future.wait_for(std::chrono::seconds(10)) == std::future_status::ready, ());
++  std::future_status saveStatus;
++  {
++    base::ScopedLogAbortLevelChanger expectedFileError;
++    manager.GetEditSession().SetCategoryName(groupId, "Failed autosave memory in trash");
++    auto const drained = std::make_shared<std::promise<void>>();
++    auto future = drained->get_future();
++    GetPlatform().RunTask(Platform::Thread::File, [drained]() { drained->set_value(); });
++    saveStatus = future.wait_for(std::chrono::seconds(10));
++  }
++  TEST(saveStatus == std::future_status::ready, ());
+   TEST(!manager.IsCategorySaving(groupId), ());
+   manager.EnableTestMode(true);
+   std::filesystem::remove_all(filePath);
+@@ -2456,6 +2468,14 @@
+ {
+   BookmarkManager bmManager(BM_CALLBACKS);
+   bmManager.EnableTestMode(true);
++  auto const existingId = bmManager.CreateBookmarkCategory("Existing before failed folder save", false);
++  TEST(bmManager.SaveBookmarkCategory(existingId), ());
++  auto const existingFile = bmManager.GetCategoryFileName(existingId);
++  SCOPE_GUARD(existingFileDeleter, [&]() { (void)base::DeleteFileX(existingFile); });
++  bmManager.SetCategorySortType(BookmarkManager::CategorySortType::Manual);
++  bmManager.MoveCategoryToPosition(existingId, 0);
++  auto const originalOrder = bmManager.GetManualCategoryOrder();
++  TEST(!originalOrder.empty(), ());
+   auto const groupId = bmManager.CreateBookmarkCategory(std::string(1024, 'x'), false);
+   SCOPE_GUARD(fileDeleter, [&]()
+   {
+@@ -2463,7 +2483,13 @@
+     if (!filePath.empty())
+       (void)base::DeleteFileX(filePath);
+   });
+-  TEST(!bmManager.SaveBookmarkCategory(groupId), ());
++  bool saved;
++  {
++    base::ScopedLogAbortLevelChanger expectedFileError;
++    saved = bmManager.SaveBookmarkCategory(groupId);
++  }
++  TEST(!saved, ());
++  TEST_EQUAL(bmManager.GetManualCategoryOrder(), originalOrder, ());
+   TEST(bmManager.GetCategoryFileName(groupId).empty(), ());
+   TEST_EQUAL(bmManager.GetCategoryData(groupId).m_id, groupId, ());
+   bmManager.GetEditSession().SetCategoryName(groupId, "Recovered folder order save");

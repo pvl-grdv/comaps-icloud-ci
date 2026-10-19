@@ -70,16 +70,15 @@
   },
   "purpose": "Independent AI-assisted CI experiments. Preserve upstream attribution; these CI bootstrap commits are not for submitting to CoMaps.",
   "pending_at_integration": [
-    "Full 10-case native core suite for this expanded series",
-    "10 native search compatibility tests and legacy automatic sorting",
-    "iOS app build and all 40 selected XCTest cases",
+    "20 native candidate core regressions",
+    "10 native search tests and legacy automatic sorting",
+    "iOS app build and 61 selected XCTest cases",
     "unsigned Release archive",
-    "real-device multi-device iCloud validation"
+    "real-device iCloud delivery and visual inspection of simulator images"
   ],
   "not_included": [
     "Organic Maps proposed full reconciliation PR13232",
-    "semantic deduplication or existing duplicate cleanup",
-    "synchronized folder-order preferences (production adapter under development)"
+    "semantic deduplication or existing duplicate cleanup"
   ],
   "feature_patches": {
     "global-bookmark-search.patch": "New AI-assisted UIKit/bridge UI exposing existing CoMaps all-groups bookmark search; 11 model tests.",
@@ -88,7 +87,16 @@
     "typed-saved-items-ios.patch": "Typed search bridge, current-folder and all-folders iOS search, stale result checks; eight asynchronous native tests.",
     "manual-item-order.patch": "Separate point and track KML ranks and shared sort mode; five native core tests. Complete permutations validated before mutation; CoMaps compilation restrictions retained.",
     "ios-manual-item-order.patch": "UIKit separate-section drag reorder mode, bridge and six model plus four native tests; existing child collection navigation retained.",
-    "typed-search-cancellation.patch": "Independent review fix for typed callback completion when cancelled before processing; two deterministic native processor regressions."
+    "typed-search-cancellation.patch": "Independent review fix for typed callback completion when cancelled before processing; two deterministic native processor regressions.",
+    "manual-bookmark-creation.patch": "Independent review fix: persist rank during normal bookmark creation; preserve undo position; two native regressions.",
+    "shared-folder-order.patch": "KISS: one atomic KVS record {version, mode, opaque folder tokens}; system conflict selection/offline queue, no Keychain/custom revisions/pending. Ephemeral account equality during drag. Remote batch writes local bm.json only. 20 native coordinator cases and one native core regression.",
+    "invalidate-default-sort.patch": "Drop queued automatic sort callbacks after user resets to Default, using existing bridge generation guard.",
+    "hosted-bookmarks-ui-smoke.patch": "One hosted UIKit simulator test: real nib, folder drag datasource, global points/tracks search; three synthetic PNG attachments. No target/dependencies.",
+    "deletion-autosave-safety.patch": "Narrow adaptation of Organic Maps 01e8b634df68750ce15b86aec19ceed4362eb24e; queued-save cancellation, failure-preserving deletion, latest-memory pretrash save and 7 core regressions. Java void ABI retained. Deferred/reconciler prerequisite excluded.",
+    "category-info-compile-fix.patch": "CI compiler fix: adapt OM category info refresh to actual CoMaps setTitle/setInfo API and reuse duplicated rendering helper.",
+    "save-open-failure.patch": "CI failure fix: catch FileWriter open failure and return false as expected by save API; test filename and nonempty manual metadata rollback; scoped allowance only for intentionally provoked filesystem error logs.",
+    "show-reorder-controls.patch": "UIKit requires showsReorderControl in addition to moveRowAt; enable handles for compatible folder/point/track cells, retain existing mode/section guards, check hosted UI.",
+    "search-viewport-test-setup.patch": "Test-only ObjC++ setup initializes existing search viewport API because -IsTests disables Drape. Separate test bridging header inherits prior app bridge; 2 existing test setup calls, count unchanged."
   },
   "patch_sha256": {
     "initial-conflict.patch": "baebd78a4a6779fb07ea7a92173169d805cd2460dae0b0bb8b8375a28c0ca19e",
@@ -100,7 +108,16 @@
     "typed-saved-items-ios.patch": "d571149cc42d1149a2c9c0464e11302d8ead145fe2f13f8300bf08df5fbde161",
     "manual-item-order.patch": "fa2c0b1171e876a1d7a3af8fd4ddb2c3fd6cfcdf50f4c679c0559ea956c2c43b",
     "ios-manual-item-order.patch": "f658c0fdc61e11663d024833e35c5c73721a82e74aa32c6c7b71b74281ab9196",
-    "typed-search-cancellation.patch": "a4a231c229e48897846f4c71d47ec57d0eb2f6d9ef7a0911368e83856d4a84e5"
+    "typed-search-cancellation.patch": "a4a231c229e48897846f4c71d47ec57d0eb2f6d9ef7a0911368e83856d4a84e5",
+    "manual-bookmark-creation.patch": "1fd3f6001512a2d06ced13dbe0763d4103f2836bc374ee8c21e57552ef4f7bed",
+    "invalidate-default-sort.patch": "3b590f0fab087475f8ec9015f31ccd210f9d00530bf50090eb1c26325fb271f4",
+    "hosted-bookmarks-ui-smoke.patch": "459e4ca29f1bcc4b0bfee9c04334bd98cdad5ee985487bc6672176239b864749",
+    "deletion-autosave-safety.patch": "8dc53c85f7e8c7ad30fa4e028468c28b80f648fd431374666c609e1071c6aa80",
+    "shared-folder-order.patch": "6e4b5d50d66d18f9e69d9c18766ddc72f881ed5f26909838c6d99ac314c08f9c",
+    "category-info-compile-fix.patch": "0ca078d596a5388bc6fb9845f726b694c89e5f557ee47e8d35da9dbf9c630804",
+    "save-open-failure.patch": "e579c6d420d330ee737eff3908ee1134b229fa4137816d86b315d44aa5d64485",
+    "show-reorder-controls.patch": "066d10ee7a15f0dcf976557e8317c3f8f825b83e67b34072bedf47249910e271",
+    "search-viewport-test-setup.patch": "4a8e1a157c7e231af1fb0645d97e2f64975ea954fa0720de573a892b0ed22b77"
   },
   "ci_findings": [
     {
@@ -108,6 +125,18 @@
       "branch": "ios-library-features",
       "error": "Folder save-failure regression called private BookmarkManager::SetCategoryName",
       "fix": "Use the public GetEditSession().SetCategoryName API; product behavior unchanged."
+    },
+    {
+      "run": 39266022857,
+      "error": "Category reload adaptation called nonexistent presenter.updateInfo",
+      "fix": "Add helper using existing CoMaps title/info rendering; compile confirmation pending"
+    },
+    {
+      "run": 39268828542,
+      "error": "FileWriter constructor OpenException escaped bool save API during intentional failure test",
+      "fix": "Catch recoverable Writer::Exception and return false; keep failure test, add metadata preservation assertion",
+      "partial_native_results": "9 of 10 selected core cases reported OK before abort; whole run failed and remaining stages skipped"
     }
-  ]
+  ],
+  "upstream_deletion_source": "https://github.com/organicmaps/organicmaps/commit/01e8b634df68750ce15b86aec19ceed4362eb24e"
 }

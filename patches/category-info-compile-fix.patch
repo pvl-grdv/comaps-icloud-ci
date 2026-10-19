@@ -1,0 +1,44 @@
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift
+index 5d39fc3..0f232b2 100644
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift
+@@ -44,2 +44,13 @@ final class BookmarksListPresenter {
+ 
++  private func updateInfo() {
++    view.setTitle(bookmarkGroup.title)
++    let info = BookmarksListInfo(title: bookmarkGroup.title,
++                                 description: bookmarkGroup.detailedAnnotation,
++                                 hasDescription: bookmarkGroup.hasDescription,
++                                 isHtmlDescription: bookmarkGroup.isHtmlDescription,
++                                 imageUrl: bookmarkGroup.imageUrl,
++                                 hasLogo: false)
++    view.setInfo(info)
++  }
++
+   private func reload() {
+@@ -297,3 +308,2 @@ extension BookmarksListPresenter: IBookmarksListPresenter {
+     reload()
+-    view.setTitle(bookmarkGroup.title)
+     view.setMoreItemTitle(L("placepage_more_button"))
+@@ -301,9 +311,3 @@ extension BookmarksListPresenter: IBookmarksListPresenter {
+ 
+-    let info = BookmarksListInfo(title: bookmarkGroup.title,
+-                                 description: bookmarkGroup.detailedAnnotation,
+-                                 hasDescription: bookmarkGroup.hasDescription,
+-                                 isHtmlDescription: bookmarkGroup.isHtmlDescription,
+-                                 imageUrl: bookmarkGroup.imageUrl,
+-                                 hasLogo: false)
+-    view.setInfo(info)
++    updateInfo()
+   }
+@@ -491,9 +495,3 @@ extension BookmarksListPresenter: CategorySettingsViewControllerDelegate {
+   func categorySettingsController(_ viewController: CategorySettingsViewController, didEndEditing categoryId: MWMMarkGroupID) {
+-    let info = BookmarksListInfo(title: bookmarkGroup.title,
+-                                 description: bookmarkGroup.detailedAnnotation,
+-                                 hasDescription: bookmarkGroup.hasDescription,
+-                                 isHtmlDescription: bookmarkGroup.isHtmlDescription,
+-                                 imageUrl: bookmarkGroup.imageUrl,
+-                                 hasLogo: false)
+-    view.setInfo(info)
++    updateInfo()
+     viewController.goBack()

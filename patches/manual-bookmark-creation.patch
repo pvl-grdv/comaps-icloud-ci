@@ -1,0 +1,82 @@
+diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
+index 738c7f7..e673d0f 100644
+--- a/libs/map/bookmark_manager.cpp
++++ b/libs/map/bookmark_manager.cpp
+@@ -326,6 +326,8 @@ Bookmark * BookmarkManager::CreateBookmark(kml::BookmarkData && bmData, kml::Mar
+   CHECK_THREAD_CHECKER(m_threadChecker, ());
+ 
+   Bookmark * bookmark;
++  auto const previousGroupId = m_recentlyDeletedBookmark ? m_recentlyDeletedBookmark->GetGroupId()
++                                                         : kml::kInvalidMarkGroupId;
+ 
+   // Recover the bookmark from the recently deleted.
+   // The recently deleted bookmark exists only when it was deleted from the Place Page screen.
+@@ -354,6 +356,8 @@ Bookmark * BookmarkManager::CreateBookmark(kml::BookmarkData && bmData, kml::Mar
+   auto * group = GetBmCategory(groupId);
+   group->AttachUserMark(bookmark->GetId());
+   m_changesTracker.OnAttachBookmark(bookmark->GetId(), groupId);
++  if (previousGroupId != groupId)
++    AppendToManualItemOrder(groupId, bookmark->GetId(), std::nullopt);
+   group->SetIsVisible(true);
+ 
+   SetLastEditedBmCategory(groupId);
+diff --git a/libs/map/map_tests/bookmarks_test.cpp b/libs/map/map_tests/bookmarks_test.cpp
+index c39e625..8e63af7 100644
+--- a/libs/map/map_tests/bookmarks_test.cpp
++++ b/libs/map/map_tests/bookmarks_test.cpp
+@@ -1793,6 +1793,55 @@ UNIT_CLASS_TEST(Runner, ManualItemOrder_AppendsNewMovedItemsAndHandlesDeletion)
+   TEST_EQUAL(GetManualItemNames(manager, reloaded), expected, ());
+ }
+ 
++UNIT_CLASS_TEST(Runner, ManualItemOrder_AppendsNormallyCreatedBookmarks)
++{
++  BookmarkManager manager(BM_CALLBACKS);
++  manager.EnableTestMode(true);
++  df::VisualParams::Init(1.0, 1024);
++  auto const category = CreateManualItemsCategory(manager, "manual normal creation", 2, 0);
++  auto const filePath = manager.GetCategoryFileName(category.m_groupId);
++  SCOPE_GUARD(fileDeleter, [&]() { (void)base::DeleteFileX(filePath); });
++  TEST(manager.SetManualItemOrder(category.m_groupId, category.m_bookmarks, {}), ());
++  for (size_t i = 0; i < 2; ++i)
++  {
++    auto session = manager.GetEditSession();
++    kml::BookmarkData data;
++    kml::SetDefaultStr(data.m_name, "NewBookmark" + std::to_string(i));
++    data.m_point = m2::PointD(0, 0);
++    auto const * bookmark = session.CreateBookmark(std::move(data), category.m_groupId);
++    auto const property = bookmark->GetData().m_properties.find("comaps:itemOrder");
++    TEST(property != bookmark->GetData().m_properties.end(), ());
++    TEST_EQUAL(property->second, std::to_string(i + 2), ());
++  }
++  auto const expected = ManualItemNames{{"Bookmark0", "Bookmark1", "NewBookmark0", "NewBookmark1"}, {}};
++  TEST_EQUAL(GetManualItemNames(manager, category.m_groupId), expected, ());
++  auto const reloaded = LoadManualItemsFile(manager, filePath);
++  TEST_EQUAL(GetManualItemNames(manager, reloaded), expected, ());
++}
++
++UNIT_CLASS_TEST(Runner, ManualItemOrder_UndoKeepsOriginalBookmarkPosition)
++{
++  BookmarkManager manager(BM_CALLBACKS);
++  manager.EnableTestMode(true);
++  df::VisualParams::Init(1.0, 1024);
++  auto const category = CreateManualItemsCategory(manager, "manual undo position", 2, 0);
++  auto const filePath = manager.GetCategoryFileName(category.m_groupId);
++  SCOPE_GUARD(fileDeleter, [&]() { (void)base::DeleteFileX(filePath); });
++  TEST(manager.SetManualItemOrder(category.m_groupId, category.m_bookmarks, {}), ());
++  {
++    auto session = manager.GetEditSession();
++    session.DeleteBookmark(category.m_bookmarks.front());
++  }
++  {
++    auto session = manager.GetEditSession();
++    auto const * recovered = session.CreateBookmark(kml::BookmarkData{}, category.m_groupId);
++    TEST_EQUAL(recovered->GetId(), category.m_bookmarks.front(), ());
++    TEST_EQUAL(recovered->GetData().m_properties.at("comaps:itemOrder"), "0", ());
++  }
++  auto const expected = ManualItemNames{{"Bookmark0", "Bookmark1"}, {}};
++  TEST_EQUAL(GetManualItemNames(manager, category.m_groupId), expected, ());
++}
++
+ UNIT_CLASS_TEST(Runner, Bookmarks_AutoSave)
+ {
+   BookmarkManager bmManager(BM_CALLBACKS);

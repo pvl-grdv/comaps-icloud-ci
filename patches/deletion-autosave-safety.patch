@@ -1,0 +1,572 @@
+diff --git a/android/app/src/main/java/app/organicmaps/bookmarks/BookmarkCategoriesFragment.java b/android/app/src/main/java/app/organicmaps/bookmarks/BookmarkCategoriesFragment.java
+--- a/android/app/src/main/java/app/organicmaps/bookmarks/BookmarkCategoriesFragment.java
++++ b/android/app/src/main/java/app/organicmaps/bookmarks/BookmarkCategoriesFragment.java
+@@ -515,7 +515,8 @@
+ 
+   private void onDeleteActionSelected(@NonNull BookmarkCategory category)
+   {
+-    BookmarkManager.INSTANCE.deleteCategory(category.getId());
++    if (!BookmarkManager.INSTANCE.tryDeleteCategory(category.getId()))
++      Logger.w(TAG, "Failed to delete the list " + category.getName());
+     getAdapter().notifyDataSetChanged();
+   }
+ 
+diff --git a/android/sdk/src/main/java/app/organicmaps/sdk/bookmarks/data/BookmarkManager.java b/android/sdk/src/main/java/app/organicmaps/sdk/bookmarks/data/BookmarkManager.java
+--- a/android/sdk/src/main/java/app/organicmaps/sdk/bookmarks/data/BookmarkManager.java
++++ b/android/sdk/src/main/java/app/organicmaps/sdk/bookmarks/data/BookmarkManager.java
+@@ -311,6 +311,11 @@
+     nativeDeleteCategory(catId);
+   }
+ 
++  public boolean tryDeleteCategory(long catId)
++  {
++    return nativeDeleteCategory(catId);
++  }
++
+   public void deleteTrack(long trackId)
+   {
+     nativeDeleteTrack(trackId);
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
+@@ -68,7 +68,7 @@
+ - (void)loadBookmarks;
+ - (void)loadBookmarkFile:(NSURL *)url;
+ - (void)reloadCategoryAtFilePath:(NSString *)filePath;
+-- (void)deleteCategoryAtFilePath:(NSString *)filePath;
++- (BOOL)deleteCategoryAtFilePath:(NSString *)filePath;
+ 
+ - (BOOL)areAllCategoriesEmpty;
+ - (BOOL)isCategoryEmpty:(MWMMarkGroupID)groupId;
+@@ -94,7 +94,7 @@
+ - (BOOL)isCategoryVisible:(MWMMarkGroupID)groupId;
+ - (void)setCategory:(MWMMarkGroupID)groupId isVisible:(BOOL)isVisible;
+ - (void)setUserCategoriesVisible:(BOOL)isVisible;
+-- (void)deleteCategory:(MWMMarkGroupID)groupId;
++- (BOOL)deleteCategory:(MWMMarkGroupID)groupId;
+ - (BOOL)checkCategoryName:(NSString *)name;
+ - (BOOL)hasCategory:(MWMMarkGroupID)groupId;
+ - (BOOL)hasBookmark:(MWMMarkID)bookmarkId;
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+@@ -240,11 +240,12 @@
+   self.bm.ReloadBookmark(filePath.UTF8String);
+ }
+ 
+-- (void)deleteCategoryAtFilePath:(NSString *)filePath
++- (BOOL)deleteCategoryAtFilePath:(NSString *)filePath
+ {
+   auto const groupId = self.bm.GetCategoryByFileName(filePath.UTF8String);
+-  if (groupId)
+-    [self deleteCategory:groupId];
++  if (groupId == kml::kInvalidMarkGroupId)
++    return !Platform::IsFileExistsByFullPath(filePath.UTF8String);
++  return [self deleteCategory:groupId];
+ }
+ 
+ #pragma mark - Categories
+@@ -389,13 +390,15 @@
+   self.bm.SetAllCategoriesVisibility(isVisible);
+ }
+ 
+-- (void)deleteCategory:(MWMMarkGroupID)groupId
+-{
+-  self.bm.GetEditSession().DeleteBmCategory(groupId, false /* move to the Trash */);
++- (BOOL)deleteCategory:(MWMMarkGroupID)groupId
++{
++  if (!self.bm.GetEditSession().DeleteBmCategory(groupId, false))
++    return NO;
+   [self loopObservers:^(id<MWMBookmarksObserver> observer) {
+     if ([observer respondsToSelector:@selector(onBookmarksCategoryDeleted:)])
+       [observer onBookmarksCategoryDeleted:groupId];
+   }];
++  return YES;
+ }
+ 
+ - (BOOL)checkCategoryName:(NSString *)name
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift
+@@ -182,7 +182,9 @@
+   }
+ 
+   func deleteBookmarksGroup() {
+-    bookmarksManager.deleteCategory(markGroupId)
++    if !bookmarksManager.deleteCategory(markGroupId) {
++      LOG(.warning, "Failed to delete the category \(markGroupId)")
++    }
+   }
+ 
+   func canDeleteGroup() -> Bool {
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift
+--- a/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift
++++ b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift
+@@ -186,7 +186,10 @@
+     let category = categories[index]
+     categories.remove(at: index)
+     view?.delete(at: [IndexPath(row: index, section: section)])
+-    manager.deleteCategory(category.categoryId)
++    if !manager.deleteCategory(category.categoryId) {
++      LOG(.warning, "Failed to delete the category \(category.categoryId)")
++      reloadData()
++    }
+   }
+ 
+   func checkCategory(name: String) -> Bool {
+diff --git a/iphone/Maps/Bookmarks/Categories/Category settings/CategorySettingsViewController.swift b/iphone/Maps/Bookmarks/Categories/Category settings/CategorySettingsViewController.swift
+--- a/iphone/Maps/Bookmarks/Categories/Category settings/CategorySettingsViewController.swift
++++ b/iphone/Maps/Bookmarks/Categories/Category settings/CategorySettingsViewController.swift
+@@ -133,7 +133,10 @@
+ 
+ extension CategorySettingsViewController: MWMButtonCellDelegate {
+   func cellDidPressButton(_ cell: UITableViewCell) {
+-    BookmarksManager.shared().deleteCategory(bookmarkGroup.categoryId)
++    guard BookmarksManager.shared().deleteCategory(bookmarkGroup.categoryId) else {
++      LOG(.warning, "Failed to delete the category \(bookmarkGroup.categoryId)")
++      return
++    }
+     delegate?.categorySettingsController(self, didDelete: bookmarkGroup.categoryId)
+   }
+ }
+diff --git a/iphone/Maps/Core/iCloud/SynchronizaionManager.swift b/iphone/Maps/Core/iCloud/SynchronizaionManager.swift
+--- a/iphone/Maps/Core/iCloud/SynchronizaionManager.swift
++++ b/iphone/Maps/Core/iCloud/SynchronizaionManager.swift
+@@ -262,7 +262,11 @@
+       case .reloadCategoriesAtURLs(let urls):
+         urls.forEach { self.bookmarksManager.reloadCategory(atFilePath: $0.path) }
+       case .deleteCategoriesAtURLs(let urls):
+-        urls.forEach { self.bookmarksManager.deleteCategory(atFilePath: $0.path) }
++        urls.forEach { url in
++          if !self.bookmarksManager.deleteCategory(atFilePath: url.path) {
++            LOG(.warning, "Local category deletion was deferred or failed at \(url.path)")
++          }
++        }
+       case .failure(let error):
+         self.processError(error)
+       }
+diff --git a/libs/map/bookmark.hpp b/libs/map/bookmark.hpp
+--- a/libs/map/bookmark.hpp
++++ b/libs/map/bookmark.hpp
+@@ -17,6 +17,9 @@
+ #include "geometry/point2d.hpp"
+ #include "geometry/rect2d.hpp"
+ 
++#include <atomic>
++#include <memory>
++#include <mutex>
+ #include <string>
+ #include <vector>
+ 
+@@ -140,6 +143,13 @@
+   friend class BookmarkManager;
+ 
+ private:
++  struct FileSaveState
++  {
++    std::mutex m_mutex;
++    std::atomic<size_t> m_pendingCount = 0;
++    bool m_cancelled = false;
++  };
++  std::shared_ptr<FileSaveState> m_fileSaveState = std::make_shared<FileSaveState>();
+   // Stores file name from which bookmarks were loaded.
+   std::string m_file;
+   bool m_autoSave = true;
+diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
+--- a/libs/map/bookmark_manager.cpp
++++ b/libs/map/bookmark_manager.cpp
+@@ -1868,6 +1868,12 @@
+ {
+   CHECK_THREAD_CHECKER(m_threadChecker, ());
+   return GetBmCategory(categoryId)->GetFileName();
++}
++
++bool BookmarkManager::IsCategorySaving(kml::MarkGroupId categoryId) const
++{
++  CHECK_THREAD_CHECKER(m_threadChecker, ());
++  return GetBmCategory(categoryId)->m_fileSaveState->m_pendingCount != 0;
+ }
+ 
+ kml::MarkGroupId BookmarkManager::GetCategoryByFileName(std::string const & fileName) const
+@@ -2913,7 +2919,9 @@
+   ClearGroup(groupId);
+   DeleteCompilations(it->second->GetCategoryData().m_compilationIds);
+   data.m_id = groupId;
++  auto const fileSaveState = it->second->m_fileSaveState;
+   it->second = std::make_unique<BookmarkCategory>(std::move(data), autoSave);
++  it->second->m_fileSaveState = fileSaveState;
+   m_changesTracker.OnAddGroup(groupId);
+ }
+ 
+@@ -2958,36 +2966,46 @@
+   if (it == m_categories.end())
+     return false;
+ 
++  auto const fileSaveState = it->second->m_fileSaveState;
++  std::lock_guard const saveLock(fileSaveState->m_mutex);
++  if (!permanently && !SaveBookmarkCategory(groupId))
++    return false;
++
++  auto const filePath = it->second->GetFileName();
++  if (Platform::IsFileExistsByFullPath(filePath))
++  {
++    if (permanently)
++    {
++      if (!base::DeleteFileX(filePath))
++      {
++        LOG(LERROR, ("Failed to delete the category at", filePath));
++        return false;
++      }
++      LOG(LINFO, ("Category at", filePath, "is deleted"));
++    }
++    else
++    {
++      auto const trashedFilePath = GenerateValidAndUniqueTrashedFilePath(base::FileNameFromFullPath(filePath));
++      if (!base::MoveFileX(filePath, trashedFilePath))
++      {
++        LOG(LERROR, ("Failed to move", filePath, "into the trash at", trashedFilePath));
++        return false;
++      }
++      LOG(LINFO, ("Category at", filePath, "is trashed to the", trashedFilePath));
++    }
++  }
++
++  fileSaveState->m_cancelled = true;
+   ClearGroup(groupId);
+   m_changesTracker.OnDeleteGroup(groupId);
+-
+-  auto const & filePath = it->second->GetFileName();
+-  // Remove from custom order.
+   auto & catOrder = m_metadata.m_categoryOrder;
+   auto orderIt = std::find(catOrder.begin(), catOrder.end(), base::FileNameFromFullPath(filePath));
+   if (orderIt != catOrder.end())
+-  {
+     catOrder.erase(orderIt);
+-    SaveMetadata();
+-  }
+-
+-  if (permanently)
+-  {
+-    base::DeleteFileX(filePath);
+-    LOG(LINFO, ("Category at", filePath, "is deleted"));
+-  }
+-  else
+-  {
+-    auto const trashedFilePath = GenerateValidAndUniqueTrashedFilePath(base::FileNameFromFullPath(filePath));
+-    if (base::MoveFileX(filePath, trashedFilePath))
+-      LOG(LINFO, ("Category at", filePath, "is trashed to the", trashedFilePath));
+-    else
+-      LOG(LERROR, ("Failed to move", filePath, "into the trash at", trashedFilePath));
+-  }
+-
+   DeleteCompilations(it->second->GetCategoryData().m_compilationIds);
+   m_categories.erase(it);
+   UpdateBmGroupIdList();
++  SaveMetadata();
+   return true;
+ }
+ 
+@@ -3397,10 +3415,28 @@
+     return;
+   }
+ 
+-  GetPlatform().RunTask(Platform::Thread::File, [kmlDataCollection = std::move(kmlDataCollection)]()
+-  {
+-    for (auto const & kmlItem : *kmlDataCollection)
++  std::vector<std::shared_ptr<BookmarkCategory::FileSaveState>> fileSaveStates;
++  fileSaveStates.reserve(groupIdCollection.size());
++  for (auto const groupId : groupIdCollection)
++  {
++    auto const state = GetBmCategory(groupId)->m_fileSaveState;
++    ++state->m_pendingCount;
++    fileSaveStates.push_back(state);
++  }
++  CHECK_EQUAL(fileSaveStates.size(), kmlDataCollection->size(), ());
++  GetPlatform().RunTask(Platform::Thread::File,
++                        [kmlDataCollection = std::move(kmlDataCollection), fileSaveStates = std::move(fileSaveStates)]()
++  {
++    for (size_t i = 0; i < kmlDataCollection->size(); ++i)
++    {
++      auto const & state = fileSaveStates[i];
++      std::lock_guard const saveLock(state->m_mutex);
++      SCOPE_GUARD(pendingCountGuard, [&]() { --state->m_pendingCount; });
++      if (state->m_cancelled)
++        continue;
++      auto const & kmlItem = (*kmlDataCollection)[i];
+       SaveKmlFileByExt(*kmlItem.second, kmlItem.first);
++    }
+   });
+ }
+ 
+diff --git a/libs/map/bookmark_manager.hpp b/libs/map/bookmark_manager.hpp
+--- a/libs/map/bookmark_manager.hpp
++++ b/libs/map/bookmark_manager.hpp
+@@ -312,6 +312,7 @@
+ 
+   std::string GetCategoryName(kml::MarkGroupId categoryId) const;
+   std::string GetCategoryFileName(kml::MarkGroupId categoryId) const;
++  bool IsCategorySaving(kml::MarkGroupId categoryId) const;
+   kml::MarkGroupId GetCategoryByFileName(std::string const & fileName) const;
+   m2::RectD GetCategoryRect(kml::MarkGroupId categoryId, bool addIconsSize) const;
+   kml::CategoryData const & GetCategoryData(kml::MarkGroupId categoryId) const;
+diff --git a/libs/map/map_tests/bookmarks_test.cpp b/libs/map/map_tests/bookmarks_test.cpp
+--- a/libs/map/map_tests/bookmarks_test.cpp
++++ b/libs/map/map_tests/bookmarks_test.cpp
+@@ -27,6 +27,7 @@
+ #include <cstring>  // strlen
+ #include <ctime>
+ #include <filesystem>
++#include <future>
+ #include <map>
+ #include <numeric>  // std::reduce
+ #include <set>
+@@ -2128,6 +2129,249 @@
+   TEST(!Platform::IsFileExistsByFullPath(deletedFilePath), ());
+ }
+ 
++namespace
++{
++kml::MarkGroupId CreateDeletionSafetyCategory(BookmarkManager & manager)
++{
++  auto data = LoadKmlData(MemReader(kmlString, std::strlen(kmlString)), KmlFileType::Text);
++  TEST(data, ());
++  kml::SetDefaultStr(data->m_categoryData.m_name, "Deletion safety test");
++  data->m_categoryData.m_properties["comaps:itemSorting"] = "Manual";
++  kml::CategoryData compilation;
++  compilation.m_compilationId = 42;
++  compilation.m_type = kml::CompilationType::Collection;
++  kml::SetDefaultStr(compilation.m_name, "Preserved child");
++  data->m_compilationsData.push_back(std::move(compilation));
++  TEST(!data->m_bookmarksData.empty(), ());
++  data->m_bookmarksData.front().m_compilations.push_back(42);
++  for (size_t i = 0; i < data->m_bookmarksData.size(); ++i)
++    data->m_bookmarksData[i].m_properties["comaps:itemOrder"] = std::to_string(i);
++  kml::TrackData track;
++  kml::SetDefaultStr(track.m_name, "Preserved track");
++  track.m_layers.emplace_back();
++  track.m_geometry.AddLine({{{0.0, 0.0}, 1}, {{1.0, 0.0}, 2}});
++  track.m_geometry.AddTimestamps({});
++  track.m_properties["comaps:itemOrder"] = "0";
++  data->m_tracksData.push_back(std::move(track));
++  BookmarkManager::KMLDataCollection collection;
++  collection.emplace_back("", std::move(data));
++  manager.CreateCategories(std::move(collection), true);
++  TEST_EQUAL(manager.GetBmGroupsCount(), 1, ());
++  return manager.GetUnsortedBmGroupsIdList().front();
++}
++
++bool DeleteWithBlockedTrash(BookmarkManager & manager, kml::MarkGroupId groupId)
++{
++  auto const trash = std::filesystem::path(GetTrashDirectory());
++  auto backup = trash;
++  backup += ".deletion-test-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
++  std::filesystem::rename(trash, backup);
++  SCOPE_GUARD(restoreTrash, [&]()
++  {
++    (void)base::DeleteFileX(trash.string());
++    std::filesystem::rename(backup, trash);
++  });
++  { FileWriter blocker(trash.string()); blocker.Write("block", 5); }
++  return manager.GetEditSession().DeleteBmCategory(groupId, false);
++}
++
++void DeleteCategoryWithQueuedSave(bool permanently, bool blockTrash)
++{
++  BookmarkManager manager(BM_CALLBACKS);
++  manager.EnableTestMode(true);
++  auto const groupId = CreateDeletionSafetyCategory(manager);
++  auto const filePath = manager.GetCategoryFileName(groupId);
++  SCOPE_GUARD(fileGuard, [&]() { (void)base::DeleteFileX(filePath); });
++  auto const blocked = std::make_shared<std::promise<void>>();
++  auto const released = std::make_shared<std::promise<void>>();
++  auto const releaseFuture = released->get_future().share();
++  auto blockedFuture = blocked->get_future();
++  bool didRelease = false;
++  SCOPE_GUARD(releaseGuard, [&]() { if (!didRelease) released->set_value(); });
++  GetPlatform().RunTask(Platform::Thread::File, [blocked, releaseFuture]()
++  {
++    blocked->set_value();
++    releaseFuture.wait();
++  });
++  TEST(blockedFuture.wait_for(std::chrono::seconds(10)) == std::future_status::ready, ());
++  manager.EnableTestMode(false);
++  manager.GetEditSession().SetCategoryName(groupId, "Edited before deletion");
++  auto const hadPendingSave = manager.IsCategorySaving(groupId);
++  bool const deleted = blockTrash ? DeleteWithBlockedTrash(manager, groupId)
++                                  : manager.GetEditSession().DeleteBmCategory(groupId, permanently);
++  auto const drained = std::make_shared<std::promise<void>>();
++  auto drainedFuture = drained->get_future();
++  GetPlatform().RunTask(Platform::Thread::File, [drained]() { drained->set_value(); });
++  didRelease = true;
++  released->set_value();
++  TEST(drainedFuture.wait_for(std::chrono::seconds(10)) == std::future_status::ready, ());
++  manager.EnableTestMode(true);
++  TEST(hadPendingSave, ());
++  TEST_EQUAL(deleted, !blockTrash, ());
++  TEST_EQUAL(manager.HasBmCategory(groupId), blockTrash, ());
++  TEST_EQUAL(Platform::IsFileExistsByFullPath(filePath), blockTrash, ());
++  if (blockTrash)
++  {
++    TEST(!manager.IsCategorySaving(groupId), ());
++    auto const data = LoadKmlFile(filePath, KmlFileType::Text);
++    TEST(data, ());
++    TEST_EQUAL(kml::GetDefaultStr(data->m_categoryData.m_name), "Edited before deletion", ());
++  }
++  else if (!permanently)
++  {
++    auto const categories = manager.GetRecentlyDeletedCategories();
++    std::string trashedPath;
++    for (auto const & [path, data] : *categories)
++      if (kml::GetDefaultStr(data->m_categoryData.m_name) == "Edited before deletion")
++        trashedPath = path;
++    TEST(!trashedPath.empty(), ());
++    SCOPE_GUARD(trashGuard, [&]() { (void)base::DeleteFileX(trashedPath); });
++    auto const data = LoadKmlFile(trashedPath, KmlFileType::Text);
++    TEST(data, ());
++    TEST_EQUAL(data->m_categoryData.m_properties.at("comaps:itemSorting"), "Manual", ());
++    TEST_EQUAL(data->m_tracksData.size(), 1, ());
++    TEST_EQUAL(data->m_tracksData.front().m_properties.at("comaps:itemOrder"), "0", ());
++    TEST_EQUAL(data->m_compilationsData.size(), 1, ());
++  }
++}
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_DeletionFailurePreservesCategoryAndChildren)
++{
++  BookmarkManager manager(BM_CALLBACKS);
++  manager.EnableTestMode(true);
++  auto const groupId = CreateDeletionSafetyCategory(manager);
++  auto const filePath = std::filesystem::path(manager.GetCategoryFileName(groupId));
++  auto const bookmarkIds = manager.GetUserMarkIds(groupId);
++  auto const trackIds = manager.GetTrackIds(groupId);
++  auto const children = manager.GetChildrenCollections(groupId);
++  TEST_EQUAL(children.size(), 1, ());
++  auto const order = manager.GetSortedBmGroupIdList();
++  auto backup = filePath;
++  backup += ".original";
++  std::filesystem::rename(filePath, backup);
++  SCOPE_GUARD(restoreFile, [&]()
++  {
++    std::filesystem::remove_all(filePath);
++    std::filesystem::rename(backup, filePath);
++    (void)base::DeleteFileX(filePath.string());
++  });
++  std::filesystem::create_directory(filePath);
++  { FileWriter blocker((filePath / "blocker").string()); blocker.Write("block", 5); }
++  TEST(!manager.GetEditSession().DeleteBmCategory(groupId, true), ());
++  TEST(manager.HasBmCategory(groupId), ());
++  TEST_EQUAL(manager.GetUserMarkIds(groupId), bookmarkIds, ());
++  TEST_EQUAL(manager.GetTrackIds(groupId), trackIds, ());
++  TEST_EQUAL(manager.GetChildrenCollections(groupId), children, ());
++  for (auto child : children)
++    TEST(manager.HasBmCategory(child), ());
++  TEST_EQUAL(manager.GetSortedBmGroupIdList(), order, ());
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_TrashFailurePreservesCategory)
++{
++  BookmarkManager manager(BM_CALLBACKS);
++  manager.EnableTestMode(true);
++  auto const groupId = CreateDeletionSafetyCategory(manager);
++  auto const filePath = manager.GetCategoryFileName(groupId);
++  SCOPE_GUARD(fileGuard, [&]() { (void)base::DeleteFileX(filePath); });
++  auto const bookmarkIds = manager.GetUserMarkIds(groupId);
++  auto const trackIds = manager.GetTrackIds(groupId);
++  auto const children = manager.GetChildrenCollections(groupId);
++  TEST(!DeleteWithBlockedTrash(manager, groupId), ());
++  TEST(manager.HasBmCategory(groupId), ());
++  TEST_EQUAL(manager.GetUserMarkIds(groupId), bookmarkIds, ());
++  TEST_EQUAL(manager.GetTrackIds(groupId), trackIds, ());
++  TEST_EQUAL(manager.GetChildrenCollections(groupId), children, ());
++  TEST(Platform::IsFileExistsByFullPath(filePath), ());
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_QueuedSaveDoesNotRecreateDeletedFile)
++{
++  DeleteCategoryWithQueuedSave(true, false);
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_TrashPreservesQueuedEdits)
++{
++  DeleteCategoryWithQueuedSave(false, false);
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_FailedDeletionKeepsQueuedSaveActive)
++{
++  DeleteCategoryWithQueuedSave(false, true);
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_TrashPreservesUncommittedEditSession)
++{
++  BookmarkManager manager(BM_CALLBACKS);
++  manager.EnableTestMode(true);
++  auto const groupId = CreateDeletionSafetyCategory(manager);
++  auto const filePath = manager.GetCategoryFileName(groupId);
++  SCOPE_GUARD(fileGuard, [&]() { (void)base::DeleteFileX(filePath); });
++  {
++    auto session = manager.GetEditSession();
++    session.SetCategoryName(groupId, "Uncommitted memory in trash");
++    TEST(!manager.IsCategorySaving(groupId), ());
++    TEST(session.DeleteBmCategory(groupId, false), ());
++  }
++  std::string trashedPath;
++  auto const categories = manager.GetRecentlyDeletedCategories();
++  TEST(categories, ());
++  for (auto const & [path, data] : *categories)
++    if (kml::GetDefaultStr(data->m_categoryData.m_name) == "Uncommitted memory in trash")
++      trashedPath = path;
++  TEST(!trashedPath.empty(), ());
++  SCOPE_GUARD(trashGuard, [&]() { (void)base::DeleteFileX(trashedPath); });
++  TEST(!manager.HasBmCategory(groupId), ());
++  TEST(!Platform::IsFileExistsByFullPath(filePath), ());
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_TrashPreservesMemoryAfterFailedAutosave)
++{
++  BookmarkManager manager(BM_CALLBACKS);
++  manager.EnableTestMode(true);
++  auto const groupId = CreateDeletionSafetyCategory(manager);
++  auto const filePath = std::filesystem::path(manager.GetCategoryFileName(groupId));
++  auto backup = filePath;
++  backup += ".before-failed-save";
++  std::filesystem::rename(filePath, backup);
++  std::filesystem::create_directory(filePath);
++  { FileWriter blocker((filePath / "blocker").string()); blocker.Write("block", 5); }
++  bool restored = false;
++  SCOPE_GUARD(restoreFile, [&]()
++  {
++    if (!restored)
++    {
++      std::filesystem::remove_all(filePath);
++      std::filesystem::rename(backup, filePath);
++    }
++    (void)base::DeleteFileX(filePath.string());
++  });
++  manager.EnableTestMode(false);
++  manager.GetEditSession().SetCategoryName(groupId, "Failed autosave memory in trash");
++  auto const drained = std::make_shared<std::promise<void>>();
++  auto future = drained->get_future();
++  GetPlatform().RunTask(Platform::Thread::File, [drained]() { drained->set_value(); });
++  TEST(future.wait_for(std::chrono::seconds(10)) == std::future_status::ready, ());
++  TEST(!manager.IsCategorySaving(groupId), ());
++  manager.EnableTestMode(true);
++  std::filesystem::remove_all(filePath);
++  std::filesystem::rename(backup, filePath);
++  restored = true;
++  auto const oldData = LoadKmlFile(filePath.string(), KmlFileType::Text);
++  TEST(oldData, ());
++  TEST_EQUAL(kml::GetDefaultStr(oldData->m_categoryData.m_name), "Deletion safety test", ());
++  TEST(manager.GetEditSession().DeleteBmCategory(groupId, false), ());
++  std::string trashedPath;
++  auto const categories = manager.GetRecentlyDeletedCategories();
++  TEST(categories, ());
++  for (auto const & [path, data] : *categories)
++    if (kml::GetDefaultStr(data->m_categoryData.m_name) == "Failed autosave memory in trash")
++      trashedPath = path;
++  TEST(!trashedPath.empty(), ());
++  SCOPE_GUARD(trashGuard, [&]() { (void)base::DeleteFileX(trashedPath); });
++}
++
+ UNIT_CLASS_TEST(Runner, Bookmarks_TestSaveRoute)
+ {
+   BookmarkManager bmManager(BM_CALLBACKS);

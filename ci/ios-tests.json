@@ -22,5 +22,13 @@
   {
     "className": "BookmarkItemOrderBridgeTests",
     "expectedTests": 4
+  },
+  {
+    "className": "SharedFolderOrderCoordinatorTests",
+    "expectedTests": 20
+  },
+  {
+    "className": "HostedBookmarksUISmokeTests",
+    "expectedTests": 1
   }
 ]

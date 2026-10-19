@@ -37,7 +37,8 @@ zero executed tests or an unexpected crash cannot satisfy the checks.
 It then builds the iOS app and runs five initial-conflict CoMapsTests cases
 in an iOS simulator. An unsigned Release archive build follows. CI logs and
 the job summary are the result; no large artifacts or DerivedData caches are
-uploaded. See the actual Actions run for status. Feature branches extend this patch series as described below.
+uploaded. The expanded feature branch keeps only small simulator images
+and their attachment manifest for visual review. See the actual Actions run for status. Feature branches extend this patch series as described below.
 
 These checks do not reproduce live synchronization across real Apple devices.
 Passing cases verify the narrow byte-equality guard, not the complete absence
@@ -71,13 +72,34 @@ The ios-saved-items branch extends all-folder search to both bookmarks and
 tracks using explicit typed identities and the existing tokenizer/ranker.
 It adds manual item ordering with separate Points and Tracks sections, KML
 rank properties, and a KML sort-mode property. The full candidate test plan
-requires 10 native map regressions, 10 native search tests, 1 legacy automatic
-sort test, and 40 simulator XCTest cases. New API tests cannot compile on
+requires 20 native map regressions, 10 native search tests, 1 legacy automatic
+sort test, and 61 simulator XCTest cases. New API tests cannot compile on
 the original revision, so this branch does not run that negative control.
 Native builds and test outcomes are pending until the Actions run reports
 success. Local syntax checks and extracted model tests are not app validation.
 
-Folder-list order is still local in this run; the production cross-device
-preference adapter is a separate work in progress. Item order travels with
-KML, subject to the existing unresolved file-conflict limitations. No claim
-of complete or live three-device synchronization is made.
+Folder-list order uses one atomic iCloud preference with a version, mode and
+opaque folder tokens. The system selects a winning complete order after
+concurrent edits and queues signed-in offline writes. There is no custom
+clock, writer identifier, pending queue, or account cache. An ephemeral
+account-token check prevents a drag begun under one account publishing into
+another account. Remote apply updates local bm.json without rewriting KML.
+Twenty native coordinator tests cover this layer; their full runtime is
+pending CI. Missing folders keep their slots until their KML arrives.
+
+The deletion/autosave safety patch separately adapts Organic Maps commit
+01e8b634df68750ce15b86aec19ceed4362eb24e. Seven core cases cover queued-save
+resurrection, failure-preserving deletion and latest-memory trash contents.
+Before moving a file to trash it serializes current memory synchronously;
+large collections can briefly delay the interface. The future deferred-delete
+reconciler prerequisite is excluded. Android SDK's existing void method ABI
+is preserved; the app uses an additive boolean method for failure handling.
+
+One hosted UIKit test loads the actual favorites screen, exercises folder
+movement and global point/track search, and attaches three small screenshots.
+It checks screen/data-source integration; physical drag gestures and live
+three-device iCloud synchronization are not verified by these tests.
+
+Item order travels with KML, subject to unresolved file-conflict limitations.
+This series does not merge existing copies or import the full Organic Maps
+13232 reconciliation proposal. No complete-duplicate-fix claim is made.

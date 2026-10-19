@@ -1,0 +1,1031 @@
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
+@@ -171,6 +171,10 @@
+ 
+ - (NSArray<MWMBookmarkGroup *> *)sortedUserCategories;
+ - (MWMBookmarkCategorySortingType)categorySortingType;
++- (NSArray<NSString *> *)categoryFileNames;
++- (NSArray<NSString *> *)manualCategoryFileNames;
++- (BOOL)applyCategorySortingType:(MWMBookmarkCategorySortingType)sortingType
++                manualFileNames:(NSArray<NSString *> *)fileNames NS_SWIFT_NAME(applyCategorySortingType(_:manualFileNames:));
+ - (BOOL)setCategorySortingType:(MWMBookmarkCategorySortingType)sortingType NS_SWIFT_NAME(setCategorySortingType(_:));
+ - (BOOL)moveCategory:(MWMMarkGroupID)groupId toPosition:(NSInteger)position NS_SWIFT_NAME(moveCategory(_:toPosition:));
+ - (size_t)userCategoriesCount;
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+@@ -14,6 +14,7 @@
+ 
+ #include "coding/internal/file_data.hpp"
+ 
++#include "base/file_name_utils.hpp"
+ #include "base/stl_helpers.hpp"
+ #include "base/string_utils.hpp"
+ 
+@@ -852,6 +853,46 @@
+   }
+ }
+ 
++- (NSArray<NSString *> *)categoryFileNames {
++  NSMutableArray<NSString *> * result = [NSMutableArray array];
++  for (auto const groupId : self.bm.GetSortedBmGroupIdList()) {
++    auto const fileName = base::FileNameFromFullPath(self.bm.GetCategoryFileName(groupId));
++    if (!fileName.empty())
++      [result addObject:@(fileName.c_str())];
++  }
++  return result;
++}
++
++- (NSArray<NSString *> *)manualCategoryFileNames {
++  NSMutableArray<NSString *> * result = [NSMutableArray array];
++  for (auto const & fileName : self.bm.GetManualCategoryOrder())
++    [result addObject:@(base::FileNameFromFullPath(fileName).c_str())];
++  return result;
++}
++
++- (BOOL)applyCategorySortingType:(MWMBookmarkCategorySortingType)sortingType
++                manualFileNames:(NSArray<NSString *> *)fileNames {
++  BookmarkManager::CategorySortType type;
++  switch (sortingType) {
++    case MWMBookmarkCategorySortingTypeByLastModified:
++      type = BookmarkManager::CategorySortType::ByLastModified;
++      break;
++    case MWMBookmarkCategorySortingTypeByName:
++      type = BookmarkManager::CategorySortType::ByName;
++      break;
++    case MWMBookmarkCategorySortingTypeManual:
++      type = BookmarkManager::CategorySortType::Manual;
++      break;
++    default:
++      return NO;
++  }
++  std::vector<std::string> order;
++  order.reserve(fileNames.count);
++  for (NSString * fileName in fileNames)
++    order.emplace_back(fileName.UTF8String);
++  return self.bm.ApplyCategoryOrder(type, order);
++}
++
+ - (BOOL)setCategorySortingType:(MWMBookmarkCategorySortingType)sortingType {
+   BookmarkManager::CategorySortType type;
+   switch (sortingType) {
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift b/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
+--- a/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
++++ b/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
+@@ -76,6 +76,11 @@
+     viewModel.reloadData()
+   }
+ 
++  override func viewWillDisappear(_ animated: Bool) {
++    if isEditing { setEditing(false, animated: false) }
++    super.viewWillDisappear(animated)
++  }
++
+   override func viewDidDisappear(_ animated: Bool) {
+     super.viewDidDisappear(animated)
+     viewModel.removeFromObserverList()
+@@ -92,8 +97,10 @@
+                                                           text: L("dialog_routing_try_again"))
+       return
+     }
++    let wasEditing = isEditing
+     super.setEditing(editing, animated: animated)
+     tableView.setEditing(editing, animated: animated)
++    if wasEditing && !editing { viewModel.finishCategoryReordering() }
+     updateReorderingButton()
+   }
+ 
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift
+--- a/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift
++++ b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift
+@@ -7,6 +7,7 @@
+ 
+ final class BMCDefaultViewModel: NSObject {
+   private let manager = BookmarksManager.shared()
++  private var folderOrderObserver: NSObjectProtocol?
+ 
+   weak var view: BMCView?
+ 
+@@ -24,7 +25,15 @@
+ 
+   override init() {
+     super.init()
+-    reloadData()
++    folderOrderObserver = NotificationCenter.default.addObserver(forName: .bookmarkFolderOrderDidApply,
++                                                                object: nil, queue: .main) { [weak self] _ in
++      self?.reloadData()
++    }
++    reloadData()
++  }
++
++  deinit {
++    if let folderOrderObserver { NotificationCenter.default.removeObserver(folderOrderObserver) }
+   }
+ 
+   private func getCategories() -> [BookmarkGroup] {
+@@ -103,6 +112,7 @@
+   @discardableResult
+   func sortCategories(_ sortingType: BookmarkCategorySortingType) -> Bool {
+     guard manager.setCategorySortingType(sortingType) else { return false }
++    BookmarkFolderOrderSynchronization.shared.localOrderChanged()
+     reloadData()
+     return true
+   }
+@@ -117,9 +127,14 @@
+ 
+   func beginCategoryReordering() -> Bool {
+     guard canBeginCategoryReordering, manager.setCategorySortingType(.manual) else { return false }
++    BookmarkFolderOrderSynchronization.shared.beginEditing()
+     categories = getCategories()
+     view?.update(sections: [])
+     return true
++  }
++
++  func finishCategoryReordering() {
++    BookmarkFolderOrderSynchronization.shared.endEditing()
+   }
+ 
+   @discardableResult
+diff --git a/iphone/Maps/Core/iCloud/BookmarkFolderOrderSynchronization.swift b/iphone/Maps/Core/iCloud/BookmarkFolderOrderSynchronization.swift
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Core/iCloud/BookmarkFolderOrderSynchronization.swift
+@@ -0,0 +1,121 @@
++import Foundation
++import UIKit
++
++extension Notification.Name {
++  static let bookmarkFolderOrderDidApply = Notification.Name("comaps.folder-order.did-apply")
++}
++
++private final class BookmarksFolderOrderLibrary: NSObject, FolderOrderLibrary, BookmarksObserver {
++  let manager: BookmarksManager
++  var didChange: (() -> Void)?
++
++  init(manager: BookmarksManager = .shared()) {
++    self.manager = manager
++    super.init()
++  }
++
++  func snapshot() -> FolderOrderLibrarySnapshot {
++    FolderOrderLibrarySnapshot(isLoaded: manager.areBookmarksLoaded(),
++                               mode: SharedFolderSort(manager.categorySortingType()),
++                               manualFileNames: manager.manualCategoryFileNames(),
++                               fileNames: manager.categoryFileNames())
++  }
++
++  func apply(mode: SharedFolderSort, manualFileNames: [String]) -> Bool {
++    manager.applyCategorySortingType(mode.categorySortingType, manualFileNames: manualFileNames)
++  }
++
++  func onBookmarksLoadFinished() { didChange?() }
++  func onBookmarksFileLoadSuccess() { didChange?() }
++  func onBookmarksCategoryDeleted(_ groupId: MWMMarkGroupID) { didChange?() }
++}
++
++private extension SharedFolderSort {
++  init(_ type: BookmarkCategorySortingType) {
++    switch type {
++    case .byLastModified: self = .date
++    case .byName: self = .name
++    case .manual: self = .manual
++    @unknown default: self = .date
++    }
++  }
++
++  var categorySortingType: BookmarkCategorySortingType {
++    switch self {
++    case .date: return .byLastModified
++    case .name: return .byName
++    case .manual: return .manual
++    }
++  }
++}
++
++final class BookmarkFolderOrderSynchronization {
++  static let shared = BookmarkFolderOrderSynchronization()
++
++  private let library = BookmarksFolderOrderLibrary()
++  private var observers: [NSObjectProtocol] = []
++  private var isStarted = false
++  private lazy var coordinator = FolderOrderCoordinator(
++    library: library,
++    storeFactory: { UbiquitousFolderOrderStore(store: .default) },
++    isEnabled: { Settings.shouldSync },
++    accountIdentity: { FileManager.default.ubiquityIdentityToken },
++    didApply: { NotificationCenter.default.post(name: .bookmarkFolderOrderDidApply, object: nil) },
++    onError: { LOG(.error, $0.localizedDescription) })
++
++  private init() {}
++
++  func start() {
++    guard !isStarted else { return }
++    isStarted = true
++    library.didChange = { [weak self] in self?.coordinator.bookmarksChanged() }
++    library.manager.add(library)
++    observe(UIApplication.didBecomeActiveNotification) { $0.coordinator.startOrForeground() }
++    observe(UIApplication.didEnterBackgroundNotification) { $0.coordinator.background() }
++    observe(UIApplication.protectedDataDidBecomeAvailableNotification) { $0.coordinator.startOrForeground() }
++    observe(NSNotification.iCloudSynchronizationDidChangeEnabledState) { $0.coordinator.settingsChanged() }
++    observe(.NSUbiquityIdentityDidChange) { $0.coordinator.externalChange(.account) }
++    observeCloud()
++    coordinator.startOrForeground()
++  }
++
++  func beginEditing() {
++    if isStarted { coordinator.beginEditing() }
++  }
++
++  func endEditing() {
++    if isStarted { coordinator.endEditing() }
++  }
++
++  func localOrderChanged() {
++    if isStarted { coordinator.localOrderChanged() }
++  }
++
++  private func observeCloud() {
++    observers.append(NotificationCenter.default.addObserver(
++      forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification, object: nil, queue: .main
++    ) { [weak self] notification in
++      guard let self,
++            let reason = notification.userInfo?[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int else { return }
++      switch reason {
++      case NSUbiquitousKeyValueStoreServerChange:
++        self.coordinator.externalChange(.server)
++      case NSUbiquitousKeyValueStoreInitialSyncChange:
++        self.coordinator.externalChange(.initial)
++      case NSUbiquitousKeyValueStoreQuotaViolationChange:
++        self.coordinator.externalChange(.quota)
++      case NSUbiquitousKeyValueStoreAccountChange:
++        self.coordinator.externalChange(.account)
++      default: break
++      }
++    })
++  }
++
++  private func observe(_ name: Notification.Name,
++                       handler: @escaping (BookmarkFolderOrderSynchronization) -> Void) {
++    observers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
++      guard let self else { return }
++      handler(self)
++    })
++  }
++}
+diff --git a/iphone/Maps/Core/iCloud/FolderOrderCoordinator.swift b/iphone/Maps/Core/iCloud/FolderOrderCoordinator.swift
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Core/iCloud/FolderOrderCoordinator.swift
+@@ -0,0 +1,143 @@
++import Foundation
++
++struct FolderOrderLibrarySnapshot: Equatable {
++  var isLoaded: Bool
++  var mode: SharedFolderSort
++  var manualFileNames: [String]
++  var fileNames: [String]
++}
++
++protocol FolderOrderLibrary: AnyObject {
++  func snapshot() -> FolderOrderLibrarySnapshot
++  @discardableResult func apply(mode: SharedFolderSort, manualFileNames: [String]) -> Bool
++}
++
++enum FolderOrderExternalChange {
++  case server, initial, quota, account
++}
++
++final class FolderOrderCoordinator {
++  private let library: FolderOrderLibrary
++  private let storeFactory: () -> SharedFolderOrderStore
++  private let isEnabled: () -> Bool
++  private let accountIdentity: () -> NSObjectProtocol?
++  private let didApply: () -> Void
++  private let onError: (Error) -> Void
++  private var store: SharedFolderOrderStore?
++  private(set) var isEditing = false
++  private var editingAccountIdentity: NSObjectProtocol?
++
++  init(library: FolderOrderLibrary, storeFactory: @escaping () -> SharedFolderOrderStore,
++       isEnabled: @escaping () -> Bool, accountIdentity: @escaping () -> NSObjectProtocol?,
++       didApply: @escaping () -> Void = {}, onError: @escaping (Error) -> Void = { _ in }) {
++    self.library = library
++    self.storeFactory = storeFactory
++    self.isEnabled = isEnabled
++    self.accountIdentity = accountIdentity
++    self.didApply = didApply
++    self.onError = onError
++  }
++
++  func startOrForeground() {
++    guard let store = availableStore() else { return }
++    store.synchronize()
++    if !isEditing { applyRemote() }
++  }
++
++  func settingsChanged() { startOrForeground() }
++
++  func bookmarksChanged() {
++    if !isEditing { applyRemote() }
++  }
++
++  func beginEditing() {
++    isEditing = true
++    editingAccountIdentity = accountIdentity()
++  }
++
++  func endEditing() {
++    guard isEditing else { return }
++    guard editingAccountMatchesCurrent() else {
++      cancelEditing()
++      return
++    }
++    isEditing = false
++    editingAccountIdentity = nil
++    localOrderChanged()
++  }
++
++  func background() {
++    guard isEditing else { return }
++    guard editingAccountMatchesCurrent() else {
++      cancelEditing()
++      return
++    }
++    localOrderChanged()
++  }
++
++  private func editingAccountMatchesCurrent() -> Bool {
++    guard let original = editingAccountIdentity, let current = accountIdentity() else { return false }
++    return original.isEqual(current)
++  }
++
++  private func cancelEditing() {
++    isEditing = false
++    editingAccountIdentity = nil
++    applyRemote()
++  }
++
++  func localOrderChanged() {
++    let snapshot = library.snapshot()
++    guard snapshot.isLoaded, let store = availableStore() else { return }
++    do {
++      let tokens = try snapshot.manualFileNames.map(SharedFolderOrder.token(forFileName:))
++      guard Set(tokens).count == tokens.count else { throw SharedFolderOrderError.invalidIdentity }
++      let previous = SharedFolderOrder.decode(store.data)
++      let record = SharedFolderOrderRecord(version: 1, mode: snapshot.mode,
++        tokens: SharedFolderOrder.replacingVisibleOrder(tokens, in: previous))
++      guard record != previous else { return }
++      store.set(try SharedFolderOrder.encode(record))
++      store.synchronize()
++    } catch {
++      onError(error)
++    }
++  }
++
++  func externalChange(_ reason: FolderOrderExternalChange) {
++    guard isEnabled() else { return }
++    if reason == .account, isEditing, !editingAccountMatchesCurrent() {
++      cancelEditing()
++      return
++    }
++    guard accountIdentity() != nil else { return }
++    if reason == .quota {
++      onError(SharedFolderOrderError.quotaExceeded)
++      return
++    }
++    if !isEditing { applyRemote() }
++  }
++
++  private func availableStore() -> SharedFolderOrderStore? {
++    guard isEnabled(), accountIdentity() != nil else { return nil }
++    if store == nil { store = storeFactory() }
++    return store
++  }
++
++  private func applyRemote() {
++    guard let store = availableStore(), let record = SharedFolderOrder.decode(store.data) else { return }
++    let snapshot = library.snapshot()
++    guard snapshot.isLoaded else { return }
++    do {
++      let pairs = try snapshot.fileNames.map { (try SharedFolderOrder.token(forFileName: $0), $0) }
++      guard Set(pairs.map(\.0)).count == pairs.count else { throw SharedFolderOrderError.invalidIdentity }
++      let namesByToken = Dictionary(uniqueKeysWithValues: pairs)
++      let order = SharedFolderOrder.projectedOrder(record, availableTokens: pairs.map(\.0))
++      let names = order.compactMap { namesByToken[$0] }
++      if snapshot.mode != record.mode || snapshot.manualFileNames != names {
++        if library.apply(mode: record.mode, manualFileNames: names) { didApply() }
++      }
++    } catch {
++      onError(error)
++    }
++  }
++}
+diff --git a/iphone/Maps/Core/iCloud/SharedFolderOrder.swift b/iphone/Maps/Core/iCloud/SharedFolderOrder.swift
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Core/iCloud/SharedFolderOrder.swift
+@@ -0,0 +1,80 @@
++import Foundation
++import CryptoKit
++
++enum SharedFolderSort: Int, Codable {
++  case date, name, manual
++}
++
++enum SharedFolderOrderError: Error {
++  case invalidIdentity, invalidRecord, recordTooLarge, quotaExceeded
++}
++
++struct SharedFolderOrderRecord: Codable, Equatable {
++  let version: Int
++  let mode: SharedFolderSort
++  let tokens: [String]
++}
++
++protocol SharedFolderOrderStore: AnyObject {
++  var data: Data? { get }
++  func set(_ data: Data)
++  func synchronize()
++}
++
++final class UbiquitousFolderOrderStore: SharedFolderOrderStore {
++  private let store: NSUbiquitousKeyValueStore
++  private let key = "comaps.folder-order.preference.v1"
++
++  init(store: NSUbiquitousKeyValueStore) { self.store = store }
++  var data: Data? { store.data(forKey: key) }
++  func set(_ data: Data) { store.set(data, forKey: key) }
++  func synchronize() { store.synchronize() }
++}
++
++enum SharedFolderOrder {
++  static let maximumRecordBytes = 65_536
++
++  static func token(forFileName fileName: String) throws -> String {
++    guard !fileName.isEmpty,
++          fileName == (fileName as NSString).lastPathComponent,
++          !fileName.contains("\0"),
++          fileName.lowercased().hasSuffix(".kml") else { throw SharedFolderOrderError.invalidIdentity }
++    let canonical = fileName.precomposedStringWithCanonicalMapping
++    return SHA256.hash(data: Data(("comaps.folder-identity.v1\0" + canonical).utf8))
++      .map { String(format: "%02x", $0) }.joined()
++  }
++
++  static func encode(_ record: SharedFolderOrderRecord) throws -> Data {
++    guard record.version == 1, Set(record.tokens).count == record.tokens.count,
++          record.tokens.allSatisfy({ token in
++            token.utf8.count == 64 && token.utf8.allSatisfy { (48...57).contains($0) || (97...102).contains($0) }
++          }) else { throw SharedFolderOrderError.invalidRecord }
++    let encoder = PropertyListEncoder()
++    encoder.outputFormat = .binary
++    let data = try encoder.encode(record)
++    guard data.count <= maximumRecordBytes else { throw SharedFolderOrderError.recordTooLarge }
++    return data
++  }
++
++  static func decode(_ data: Data?) -> SharedFolderOrderRecord? {
++    guard let data, data.count <= maximumRecordBytes,
++          let record = try? PropertyListDecoder().decode(SharedFolderOrderRecord.self, from: data),
++          (try? encode(record)) != nil else { return nil }
++    return record
++  }
++
++  static func projectedOrder(_ record: SharedFolderOrderRecord, availableTokens: [String]) -> [String] {
++    let available = Set(availableTokens)
++    let ordered = record.tokens.filter { available.contains($0) }
++    let known = Set(ordered)
++    return ordered + availableTokens.filter { !known.contains($0) }.sorted()
++  }
++
++  static func replacingVisibleOrder(_ visibleOrder: [String], in previous: SharedFolderOrderRecord?) -> [String] {
++    let visible = Set(visibleOrder)
++    var iterator = visibleOrder.makeIterator()
++    var order = (previous?.tokens ?? []).map { visible.contains($0) ? iterator.next()! : $0 }
++    while let token = iterator.next() { order.append(token) }
++    return order
++  }
++}
+diff --git a/iphone/Maps/Core/iCloud/SynchronizaionManager.swift b/iphone/Maps/Core/iCloud/SynchronizaionManager.swift
+--- a/iphone/Maps/Core/iCloud/SynchronizaionManager.swift
++++ b/iphone/Maps/Core/iCloud/SynchronizaionManager.swift
+@@ -50,6 +50,7 @@
+   private let cloudDirectoryMonitor: CloudDirectoryMonitor
+   private let settings: SettingsBridge.Type
+   private let bookmarksManager: BookmarksManager
++  private let startsFolderOrderSynchronization: Bool
+   private var synchronizationStateManager: SynchronizationStateResolver
+   private var fileWriter: SynchronizationFileWriter?
+   private var observers = [ObjectIdentifier: iCloudSynchronizaionManager.Observation]()
+@@ -78,7 +79,8 @@
+                                                            bookmarksManager: BookmarksManager.shared(),
+                                                            cloudDirectoryMonitor: cloudDirectoryMonitor,
+                                                            localDirectoryMonitor: localDirectoryMonitor,
+-                                                           synchronizationStateManager: synchronizationStateManager)
++                                                           synchronizationStateManager: synchronizationStateManager,
++                                                           startsFolderOrderSynchronization: true)
+       return clodStorageManager
+     } catch {
+       fatalError("Failed to create shared iCloud storage manager with error: \(error)")
+@@ -91,7 +93,9 @@
+        bookmarksManager: BookmarksManager,
+        cloudDirectoryMonitor: CloudDirectoryMonitor,
+        localDirectoryMonitor: LocalDirectoryMonitor,
+-       synchronizationStateManager: SynchronizationStateResolver) {
++       synchronizationStateManager: SynchronizationStateResolver,
++       startsFolderOrderSynchronization: Bool = false) {
++    self.startsFolderOrderSynchronization = startsFolderOrderSynchronization
+     self.fileManager = fileManager
+     self.settings = settings
+     self.bookmarksManager = bookmarksManager
+@@ -103,6 +107,7 @@
+ 
+   // MARK: - Public
+   @objc func start() {
++    if startsFolderOrderSynchronization { BookmarkFolderOrderSynchronization.shared.start() }
+     subscribeToSettingsNotifications()
+     subscribeToApplicationLifecycleNotifications()
+     cloudDirectoryMonitor.delegate = self
+diff --git a/iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift b/iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift
+@@ -0,0 +1,296 @@
++import Foundation
++import XCTest
++@testable import CoMaps__Debug_
++
++private final class FolderOrderTestIdentity: NSObject {
++  let value: String
++  init(_ value: String) { self.value = value }
++  override func isEqual(_ object: Any?) -> Bool { (object as? FolderOrderTestIdentity)?.value == value }
++  override var hash: Int { value.hashValue }
++}
++
++private final class FolderOrderTestStore: SharedFolderOrderStore {
++  var data: Data?
++  var writes: [Data] = []
++  var synchronizationRequests = 0
++  func set(_ data: Data) { self.data = data; writes.append(data) }
++  func synchronize() { synchronizationRequests += 1 }
++}
++
++private final class FolderOrderTestLibrary: FolderOrderLibrary {
++  var value = FolderOrderLibrarySnapshot(isLoaded: true, mode: .manual,
++                                       manualFileNames: ["A.kml", "B.kml", "C.kml"],
++                                       fileNames: ["A.kml", "B.kml", "C.kml"])
++  var applications = 0
++  func snapshot() -> FolderOrderLibrarySnapshot { value }
++  func apply(mode: SharedFolderSort, manualFileNames: [String]) -> Bool {
++    value.mode = mode
++    value.manualFileNames = manualFileNames
++    applications += 1
++    return true
++  }
++}
++
++final class SharedFolderOrderCoordinatorTests: XCTestCase {
++  private var library: FolderOrderTestLibrary!
++  private var store: FolderOrderTestStore!
++  private var enabled = true
++  private var signedIn = true
++  private var identity = FolderOrderTestIdentity("A")
++  private var storeCreations = 0
++  private var applies = 0
++  private var errors = 0
++  private var coordinator: FolderOrderCoordinator!
++
++  override func setUp() {
++    super.setUp()
++    library = FolderOrderTestLibrary(); store = FolderOrderTestStore()
++    identity = FolderOrderTestIdentity("A")
++    enabled = true; signedIn = true; storeCreations = 0; applies = 0; errors = 0
++    coordinator = makeCoordinator()
++  }
++
++  private func makeCoordinator() -> FolderOrderCoordinator {
++    FolderOrderCoordinator(library: library,
++                           storeFactory: { [unowned self] in self.storeCreations += 1; return self.store },
++                           isEnabled: { [unowned self] in self.enabled },
++                           accountIdentity: { [unowned self] in self.signedIn ? self.identity : nil },
++                           didApply: { [unowned self] in self.applies += 1 },
++                           onError: { [unowned self] _ in self.errors += 1 })
++  }
++
++  private func payload(_ names: [String], mode: SharedFolderSort = .manual) throws -> Data {
++    try SharedFolderOrder.encode(SharedFolderOrderRecord(version: 1, mode: mode,
++      tokens: names.map(SharedFolderOrder.token(forFileName:))))
++  }
++
++  func testDisabledDoesNotCreateCloudStoreOrApplyChanges() throws {
++    enabled = false
++    store.data = try payload(["C.kml", "B.kml", "A.kml"])
++    coordinator.startOrForeground(); coordinator.localOrderChanged(); coordinator.bookmarksChanged()
++    coordinator.externalChange(.server)
++    XCTAssertEqual(storeCreations, 0)
++    XCTAssertEqual(library.applications, 0); XCTAssertTrue(store.writes.isEmpty)
++  }
++
++  func testMissingAccountKeepsLocalOrderWithoutWritingCloud() throws {
++    signedIn = false
++    store.data = try payload(["C.kml", "B.kml", "A.kml"])
++    coordinator.startOrForeground(); coordinator.localOrderChanged(); coordinator.externalChange(.server)
++    XCTAssertEqual(storeCreations, 0); XCTAssertTrue(store.writes.isEmpty)
++    XCTAssertEqual(library.value.manualFileNames, ["A.kml", "B.kml", "C.kml"])
++  }
++
++  func testInitialEmptyCloudDoesNotPublishExistingLocalOrder() {
++    coordinator.startOrForeground()
++    XCTAssertEqual(storeCreations, 1); XCTAssertEqual(store.synchronizationRequests, 1)
++    XCTAssertTrue(store.writes.isEmpty); XCTAssertEqual(library.applications, 0)
++  }
++
++  func testRemoteOrderWaitsForBookmarkLoadAndDoesNotEcho() throws {
++    library.value.isLoaded = false
++    store.data = try payload(["C.kml", "B.kml", "A.kml"])
++    coordinator.startOrForeground()
++    XCTAssertEqual(library.applications, 0)
++    library.value.isLoaded = true
++    coordinator.bookmarksChanged(); coordinator.bookmarksChanged()
++    XCTAssertEqual(library.value.manualFileNames, ["C.kml", "B.kml", "A.kml"])
++    XCTAssertEqual(library.applications, 1); XCTAssertEqual(applies, 1); XCTAssertTrue(store.writes.isEmpty)
++  }
++
++  func testReorderingWaitsUntilDoneAndPublishesOneSnapshot() throws {
++    coordinator.startOrForeground(); coordinator.beginEditing()
++    library.value.manualFileNames = ["B.kml", "A.kml", "C.kml"]
++    store.data = try payload(["C.kml", "B.kml", "A.kml"])
++    coordinator.externalChange(.server)
++    XCTAssertTrue(store.writes.isEmpty); XCTAssertEqual(library.applications, 0)
++    coordinator.endEditing(); coordinator.endEditing()
++    XCTAssertEqual(store.writes.count, 1)
++    XCTAssertEqual(SharedFolderOrder.decode(store.data)?.tokens,
++                   try library.value.manualFileNames.map(SharedFolderOrder.token(forFileName:)))
++  }
++
++  func testAutomaticModesKeepSavedManualSequence() throws {
++    coordinator.startOrForeground()
++    library.value.manualFileNames = ["C.kml", "A.kml", "B.kml"]
++    let tokens = try library.value.manualFileNames.map(SharedFolderOrder.token(forFileName:))
++    for mode in [SharedFolderSort.name, .date, .manual] {
++      library.value.mode = mode
++      coordinator.localOrderChanged()
++      XCTAssertEqual(SharedFolderOrder.decode(store.data)?.mode, mode)
++      XCTAssertEqual(SharedFolderOrder.decode(store.data)?.tokens, tokens)
++    }
++    XCTAssertEqual(store.writes.count, 3)
++  }
++
++  func testRemoteAutomaticModeRestoresManualSequenceWithoutPublishing() throws {
++    store.data = try payload(["C.kml", "A.kml", "B.kml"], mode: .name)
++    coordinator.startOrForeground()
++    XCTAssertEqual(library.value.mode, .name)
++    XCTAssertEqual(library.value.manualFileNames, ["C.kml", "A.kml", "B.kml"])
++    XCTAssertTrue(store.writes.isEmpty)
++  }
++
++  func testMissingKMLAppearsInItsSavedPosition() throws {
++    library.value.fileNames = ["A.kml", "C.kml"]
++    store.data = try payload(["C.kml", "B.kml", "A.kml"])
++    coordinator.startOrForeground()
++    XCTAssertEqual(library.value.manualFileNames, ["C.kml", "A.kml"])
++    library.value.fileNames.append("B.kml"); coordinator.bookmarksChanged()
++    XCTAssertEqual(library.value.manualFileNames, ["C.kml", "B.kml", "A.kml"])
++    XCTAssertTrue(store.writes.isEmpty)
++  }
++
++  func testPartialDeviceMoveRetainsMissingRemoteFolder() throws {
++    library.value.fileNames = ["A.kml", "C.kml"]
++    store.data = try payload(["C.kml", "B.kml", "A.kml"])
++    coordinator.startOrForeground()
++    library.value.manualFileNames = ["A.kml", "C.kml"]
++    coordinator.localOrderChanged()
++    XCTAssertEqual(store.data, try payload(["A.kml", "B.kml", "C.kml"]))
++  }
++
++  func testNewImportedFolderIsProjectedWithoutUpdatingCloud() throws {
++    store.data = try payload(["B.kml", "A.kml"])
++    coordinator.startOrForeground()
++    XCTAssertEqual(library.value.manualFileNames, ["B.kml", "A.kml", "C.kml"])
++    XCTAssertTrue(store.writes.isEmpty)
++  }
++
++  func testSignedInEditUsesSystemCacheWithoutWaitingForDelivery() throws {
++    coordinator.startOrForeground()
++    library.value.manualFileNames.reverse(); coordinator.localOrderChanged()
++    let queued = try XCTUnwrap(store.data)
++    XCTAssertEqual(store.writes, [queued]); XCTAssertEqual(store.synchronizationRequests, 2)
++    coordinator = makeCoordinator(); coordinator.startOrForeground()
++    XCTAssertEqual(library.value.manualFileNames, ["C.kml", "B.kml", "A.kml"])
++    XCTAssertEqual(store.writes, [queued])
++  }
++
++  func testSystemSelectedConcurrentSnapshotConvergesOnThreeDevices() throws {
++    let candidates = [["A.kml", "B.kml", "C.kml"], ["B.kml", "C.kml", "A.kml"], ["C.kml", "A.kml", "B.kml"]]
++    for selected in candidates {
++      let chosen = try payload(selected)
++      for local in candidates {
++        let deviceLibrary = FolderOrderTestLibrary()
++        deviceLibrary.value.manualFileNames = local
++        let deviceStore = FolderOrderTestStore()
++        let device = FolderOrderCoordinator(library: deviceLibrary, storeFactory: { deviceStore },
++                                            isEnabled: { true }, accountIdentity: { FolderOrderTestIdentity("A") })
++        device.startOrForeground(); device.localOrderChanged()
++        let writesBeforeDelivery = deviceStore.writes.count
++        deviceStore.data = chosen
++        device.externalChange(.server); device.externalChange(.server)
++        XCTAssertEqual(deviceLibrary.value.manualFileNames, selected)
++        XCTAssertEqual(deviceStore.writes.count, writesBeforeDelivery)
++      }
++    }
++  }
++
++  func testAccountChangeUsesReplacedStoreWithoutCopyingLocalOrder() throws {
++    store.data = try payload(["C.kml", "B.kml", "A.kml"])
++    coordinator.startOrForeground()
++    signedIn = false
++    library.value.manualFileNames = ["B.kml", "A.kml", "C.kml"]
++    coordinator.localOrderChanged()
++    XCTAssertTrue(store.writes.isEmpty)
++    store.data = nil
++    signedIn = true
++    coordinator.externalChange(.account)
++    XCTAssertTrue(store.writes.isEmpty)
++    XCTAssertEqual(library.value.manualFileNames, ["B.kml", "A.kml", "C.kml"])
++    store.data = try payload(["A.kml", "C.kml", "B.kml"])
++    coordinator.externalChange(.initial)
++    XCTAssertEqual(library.value.manualFileNames, ["A.kml", "C.kml", "B.kml"])
++    XCTAssertTrue(store.writes.isEmpty)
++  }
++
++  func testAccountSwitchCancelsDragAndUsesIdentityEqualityForNextDrag() throws {
++    coordinator.startOrForeground(); coordinator.beginEditing()
++    library.value.manualFileNames.reverse()
++    identity = FolderOrderTestIdentity("B")
++    store.data = try payload(["B.kml", "A.kml", "C.kml"])
++    coordinator.endEditing()
++    XCTAssertFalse(coordinator.isEditing)
++    XCTAssertTrue(store.writes.isEmpty)
++    XCTAssertEqual(library.value.manualFileNames, ["B.kml", "A.kml", "C.kml"])
++    coordinator.beginEditing()
++    identity = FolderOrderTestIdentity("B")
++    library.value.manualFileNames = ["C.kml", "A.kml", "B.kml"]
++    coordinator.endEditing()
++    XCTAssertEqual(store.writes.count, 1)
++    XCTAssertEqual(store.data, try payload(["C.kml", "A.kml", "B.kml"]))
++    coordinator.beginEditing()
++    identity = FolderOrderTestIdentity("C")
++    store.data = try payload(["A.kml", "C.kml", "B.kml"])
++    coordinator.externalChange(.account)
++    coordinator.endEditing()
++    XCTAssertFalse(coordinator.isEditing)
++    XCTAssertEqual(store.writes.count, 1)
++    XCTAssertEqual(library.value.manualFileNames, ["A.kml", "C.kml", "B.kml"])
++  }
++
++  func testAccountDisappearanceCancelsBackgroundEditWithoutLaterUpload() throws {
++    coordinator.startOrForeground(); coordinator.beginEditing()
++    library.value.manualFileNames.reverse()
++    signedIn = false
++    coordinator.background()
++    XCTAssertFalse(coordinator.isEditing)
++    XCTAssertTrue(store.writes.isEmpty)
++    identity = FolderOrderTestIdentity("B"); signedIn = true
++    store.data = try payload(["B.kml", "A.kml", "C.kml"])
++    coordinator.endEditing()
++    coordinator.externalChange(.account)
++    XCTAssertTrue(store.writes.isEmpty)
++    XCTAssertEqual(library.value.manualFileNames, ["B.kml", "A.kml", "C.kml"])
++  }
++
++  func testQuotaNotificationPreservesLocalOrderWithoutRetryLoop() {
++    coordinator.startOrForeground()
++    library.value.manualFileNames.reverse(); coordinator.localOrderChanged()
++    coordinator.externalChange(.quota)
++    XCTAssertEqual(errors, 1)
++    XCTAssertEqual(library.value.manualFileNames, ["C.kml", "B.kml", "A.kml"])
++    XCTAssertEqual(store.writes.count, 1)
++  }
++
++  func testMalformedFutureDuplicateAndOversizedPayloadsAreIgnored() throws {
++    let token = try SharedFolderOrder.token(forFileName: "A.kml")
++    let invalidRecords = [SharedFolderOrderRecord(version: 99, mode: .manual, tokens: [token]),
++                          SharedFolderOrderRecord(version: 1, mode: .manual, tokens: [token, token]),
++                          SharedFolderOrderRecord(version: 1, mode: .manual, tokens: ["invalid"])]
++    var invalid = try invalidRecords.map { try PropertyListEncoder().encode($0) }
++    invalid.append(Data("malformed".utf8))
++    invalid.append(Data(repeating: 0, count: SharedFolderOrder.maximumRecordBytes + 1))
++    for data in invalid {
++      store.data = data; coordinator.externalChange(.server)
++      XCTAssertEqual(library.applications, 0); XCTAssertTrue(store.writes.isEmpty)
++    }
++  }
++
++  func testBackgroundAndDoneDoNotPublishDuplicateSnapshot() {
++    coordinator.startOrForeground(); coordinator.beginEditing()
++    library.value.manualFileNames.reverse()
++    coordinator.background(); coordinator.background(); coordinator.endEditing()
++    XCTAssertEqual(store.writes.count, 1)
++  }
++
++  func testDisabledRemoteEventsWaitForExplicitReenable() throws {
++    coordinator.startOrForeground(); enabled = false; coordinator.settingsChanged()
++    store.data = try payload(["B.kml", "C.kml", "A.kml"])
++    coordinator.externalChange(.server)
++    XCTAssertEqual(library.applications, 0)
++    enabled = true; coordinator.settingsChanged()
++    XCTAssertEqual(library.value.manualFileNames, ["B.kml", "C.kml", "A.kml"])
++    XCTAssertTrue(store.writes.isEmpty)
++  }
++
++  func testOpaqueIdentityCanonicalizesUnicodeAndRejectsPaths() throws {
++    XCTAssertEqual(try SharedFolderOrder.token(forFileName: "Café.kml"),
++                   try SharedFolderOrder.token(forFileName: "Cafe\u{301}.kml"))
++    XCTAssertNil(try? SharedFolderOrder.token(forFileName: "../A.kml"))
++    XCTAssertNil(try? SharedFolderOrder.token(forFileName: "A.json"))
++    let encoded = try payload(["Private folder.kml"])
++    XCTAssertFalse(String(decoding: encoded, as: UTF8.self).contains("Private folder"))
++  }
++}
+diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
+--- a/libs/map/bookmark_manager.cpp
++++ b/libs/map/bookmark_manager.cpp
+@@ -2775,6 +2775,40 @@
+   return sortedList;
+ }
+ 
++std::vector<std::string> const & BookmarkManager::GetManualCategoryOrder() const
++{
++  CHECK_THREAD_CHECKER(m_threadChecker, ());
++  return m_metadata.m_categoryOrder;
++}
++
++bool BookmarkManager::ApplyCategoryOrder(CategorySortType sortType, std::vector<std::string> const & fileNames)
++{
++  CHECK_THREAD_CHECKER(m_threadChecker, ());
++  std::vector<std::string> order;
++  std::set<std::string> included;
++  for (auto const & fileName : fileNames)
++  {
++    if (!fileName.empty() && fileName == base::FileNameFromFullPath(fileName) &&
++        GetCategoryByFileName(fileName) != kml::kInvalidMarkGroupId && included.insert(fileName).second)
++      order.push_back(fileName);
++  }
++  for (auto const groupId : GetSortedBmGroupIdList())
++  {
++    auto const fileName = base::FileNameFromFullPath(GetCategoryFileName(groupId));
++    if (!fileName.empty() && included.insert(fileName).second)
++      order.push_back(fileName);
++  }
++  sortType = NormalizeCategorySortType(sortType);
++  if (m_metadata.m_categorySortType == sortType && m_metadata.m_categoryOrder == order)
++    return false;
++  m_metadata.m_categorySortType = sortType;
++  m_metadata.m_categoryOrder = std::move(order);
++  SaveMetadata();
++  NotifyBookmarksChanged();
++  NotifyCategoriesChanged();
++  return true;
++}
++
+ void BookmarkManager::MoveCategoryToPosition(kml::MarkGroupId categoryId, size_t targetPos)
+ {
+   CHECK_THREAD_CHECKER(m_threadChecker, ());
+diff --git a/libs/map/bookmark_manager.hpp b/libs/map/bookmark_manager.hpp
+--- a/libs/map/bookmark_manager.hpp
++++ b/libs/map/bookmark_manager.hpp
+@@ -323,6 +323,8 @@
+   kml::GroupIdCollection const & GetUnsortedBmGroupsIdList() const { return m_unsortedBmGroupsIdList; }
+   kml::GroupIdCollection GetSortedBmGroupIdList() const;
+   void MoveCategoryToPosition(kml::MarkGroupId categoryId, size_t targetPos);
++  std::vector<std::string> const & GetManualCategoryOrder() const;
++  bool ApplyCategoryOrder(CategorySortType sortType, std::vector<std::string> const & fileNames);
+   CategorySortType GetCategorySortType() const;
+   void SetCategorySortType(CategorySortType sortType);
+   size_t GetBmGroupsCount() const { return m_unsortedBmGroupsIdList.size(); }
+diff --git a/libs/map/map_tests/bookmarks_test.cpp b/libs/map/map_tests/bookmarks_test.cpp
+--- a/libs/map/map_tests/bookmarks_test.cpp
++++ b/libs/map/map_tests/bookmarks_test.cpp
+@@ -2471,4 +2471,61 @@
+   TEST(Platform::IsFileExistsByFullPath(bmManager.GetCategoryFileName(groupId)), ());
+ }
+ 
++
++UNIT_CLASS_TEST(Runner, Bookmarks_ApplySharedFolderOrderPreservesSavedManualOrderAndKML)
++{
++  BookmarkManager bmManager(BM_CALLBACKS);
++  bmManager.EnableTestMode(true);
++  auto const first = bmManager.CreateBookmarkCategory("Shared order A", false);
++  auto const second = bmManager.CreateBookmarkCategory("Shared order B", false);
++  TEST(bmManager.SaveBookmarkCategory(first), ());
++  TEST(bmManager.SaveBookmarkCategory(second), ());
++  auto const firstFile = bmManager.GetCategoryFileName(first);
++  auto const secondFile = bmManager.GetCategoryFileName(second);
++  SCOPE_GUARD(filesDeleter, [&]()
++  {
++    (void)base::DeleteFileX(firstFile);
++    (void)base::DeleteFileX(secondFile);
++  });
++  std::filesystem::last_write_time(firstFile,
++                                  std::filesystem::file_time_type::clock::now() - std::chrono::hours(24));
++  std::filesystem::last_write_time(secondFile,
++                                  std::filesystem::file_time_type::clock::now() - std::chrono::hours(24));
++  auto const firstModified = Platform::GetFileModificationTime(firstFile);
++  auto const secondModified = Platform::GetFileModificationTime(secondFile);
++  std::string firstContents, secondContents;
++  FileReader(firstFile).ReadAsString(firstContents);
++  FileReader(secondFile).ReadAsString(secondContents);
++  std::vector<std::string> const manualOrder = {base::FileNameFromFullPath(secondFile),
++                                               base::FileNameFromFullPath(firstFile)};
++  TEST(bmManager.ApplyCategoryOrder(BookmarkManager::CategorySortType::ByName, manualOrder), ());
++  TEST_EQUAL(bmManager.GetManualCategoryOrder(), manualOrder, ());
++  kml::GroupIdCollection const nameIds = {first, second};
++  TEST_EQUAL(bmManager.GetSortedBmGroupIdList(), nameIds, ());
++  TEST(!bmManager.ApplyCategoryOrder(BookmarkManager::CategorySortType::ByName, manualOrder), ());
++  TEST(bmManager.ApplyCategoryOrder(BookmarkManager::CategorySortType::ByLastModified, manualOrder), ());
++  TEST_EQUAL(bmManager.GetManualCategoryOrder(), manualOrder, ());
++  TEST(bmManager.ApplyCategoryOrder(BookmarkManager::CategorySortType::Manual, manualOrder), ());
++  kml::GroupIdCollection const manualIds = {second, first};
++  TEST_EQUAL(bmManager.GetSortedBmGroupIdList(), manualIds, ());
++  TEST_EQUAL(bmManager.GetCategoryData(first).m_id, first, ());
++  TEST_EQUAL(bmManager.GetCategoryData(second).m_id, second, ());
++  TEST_EQUAL(Platform::GetFileModificationTime(firstFile), firstModified, ());
++  TEST_EQUAL(Platform::GetFileModificationTime(secondFile), secondModified, ());
++  std::string firstAfter, secondAfter;
++  FileReader(firstFile).ReadAsString(firstAfter);
++  FileReader(secondFile).ReadAsString(secondAfter);
++  TEST_EQUAL(firstAfter, firstContents, ());
++  TEST_EQUAL(secondAfter, secondContents, ());
++  std::string metadata;
++  FileReader(base::JoinPath(GetPlatform().WritableDir(), "bm.json")).ReadAsString(metadata);
++  auto const orderPosition = metadata.find("categoryOrder");
++  TEST_NOT_EQUAL(orderPosition, std::string::npos, ());
++  auto const firstPosition = metadata.find(manualOrder[0], orderPosition);
++  auto const secondPosition = metadata.find(manualOrder[1], orderPosition);
++  TEST_NOT_EQUAL(firstPosition, std::string::npos, ());
++  TEST_NOT_EQUAL(secondPosition, std::string::npos, ());
++  TEST_LESS(firstPosition, secondPosition, ());
++}
++
+ }  // namespace bookmarks_test
+diff --git a/iphone/Maps/Maps.xcodeproj/project.pbxproj b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+--- a/iphone/Maps/Maps.xcodeproj/project.pbxproj
++++ b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+@@ -698,6 +698,10 @@
+ 		A421ABC30000000000000101 /* HostedBookmarksUISmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC30000000000000201 /* HostedBookmarksUISmokeTests.swift */; };
+ 		A421ABC00000000000000106 /* BookmarkItemOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000206 /* BookmarkItemOrder.swift */; };
+ 		A421ABC00000000000000107 /* BookmarkItemOrderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000207 /* BookmarkItemOrderTests.swift */; };
++		A421ABC20000000000000101 /* SharedFolderOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC20000000000000201 /* SharedFolderOrder.swift */; };
++		A421ABC20000000000000102 /* FolderOrderCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC20000000000000202 /* FolderOrderCoordinator.swift */; };
++		A421ABC20000000000000104 /* BookmarkFolderOrderSynchronization.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC20000000000000204 /* BookmarkFolderOrderSynchronization.swift */; };
++		A421ABC20000000000000105 /* SharedFolderOrderCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC20000000000000205 /* SharedFolderOrderCoordinatorTests.swift */; };
+ /* End PBXBuildFile section */
+ 
+ /* Begin PBXContainerItemProxy section */
+@@ -1848,6 +1852,10 @@
+ 		A421ABC30000000000000201 /* HostedBookmarksUISmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostedBookmarksUISmokeTests.swift; sourceTree = "<group>"; };
+ 		A421ABC00000000000000206 /* BookmarkItemOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkItemOrder.swift; sourceTree = "<group>"; };
+ 		A421ABC00000000000000207 /* BookmarkItemOrderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkItemOrderTests.swift; sourceTree = "<group>"; };
++		A421ABC20000000000000201 /* SharedFolderOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedFolderOrder.swift; sourceTree = "<group>"; };
++		A421ABC20000000000000202 /* FolderOrderCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderOrderCoordinator.swift; sourceTree = "<group>"; };
++		A421ABC20000000000000204 /* BookmarkFolderOrderSynchronization.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkFolderOrderSynchronization.swift; sourceTree = "<group>"; };
++		A421ABC20000000000000205 /* SharedFolderOrderCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedFolderOrderCoordinatorTests.swift; sourceTree = "<group>"; };
+ /* End PBXFileReference section */
+ 
+ /* Begin PBXFrameworksBuildPhase section */
+@@ -3396,6 +3404,9 @@
+ 				ED79A5CB2BDF8D6100952D1F /* SynchronizaionManager.swift */,
+ 				EDF838812C00B640007E4E67 /* SynchronizationFileWriter.swift */,
+ 				ED79A5CF2BDF8D6100952D1F /* SynchronizationStateResolver.swift */,
++				A421ABC20000000000000204 /* BookmarkFolderOrderSynchronization.swift */,
++				A421ABC20000000000000202 /* FolderOrderCoordinator.swift */,
++				A421ABC20000000000000201 /* SharedFolderOrder.swift */,
+ 				ED79A5CE2BDF8D6100952D1F /* CloudDirectoryMonitor.swift */,
+ 				ED79A5D02BDF8D6100952D1F /* LocalDirectoryMonitor.swift */,
+ 				ED79A5CC2BDF8D6100952D1F /* MetadataItem.swift */,
+@@ -3498,6 +3509,7 @@
+ 			children = (
+ 				EDF838AC2C00B9C7007E4E67 /* DefaultLocalDirectoryMonitorTests */,
+ 				EDF838AF2C00B9C7007E4E67 /* SynchronizationStateManagerTests.swift */,
++				A421ABC20000000000000205 /* SharedFolderOrderCoordinatorTests.swift */,
+ 				EDF838B02C00B9C7007E4E67 /* iCloudDirectoryMonitorTests */,
+ 				EDF838B42C00B9C7007E4E67 /* MetadataItemStubs.swift */,
+ 			);
+@@ -4848,6 +4860,9 @@
+ 				34763EE71F2F392300F4D2D3 /* MWMTextToSpeech.mm in Sources */,
+ 				F6E2FE221E097BA00083EBEC /* MWMOpeningHoursEditorViewController.mm in Sources */,
+ 				ED79A5D72BDF8D6100952D1F /* SynchronizationStateResolver.swift in Sources */,
++				A421ABC20000000000000104 /* BookmarkFolderOrderSynchronization.swift in Sources */,
++				A421ABC20000000000000102 /* FolderOrderCoordinator.swift in Sources */,
++				A421ABC20000000000000101 /* SharedFolderOrder.swift in Sources */,
+ 				999FC12B23ABB4B800B0E6F9 /* FontStyleSheet.swift in Sources */,
+ 				47CA68DA2500469400671019 /* BookmarksListBuilder.swift in Sources */,
+ 				34D3AFE21E376F7E004100F9 /* UITableView+Updates.swift in Sources */,
+@@ -4979,6 +4994,7 @@
+ 				A421ABC00000000000000105 /* SavedItemsSearchTests.swift in Sources */,
+ 				A421ABC30000000000000101 /* HostedBookmarksUISmokeTests.swift in Sources */,
+ 				A421ABC00000000000000107 /* BookmarkItemOrderTests.swift in Sources */,
++				A421ABC20000000000000105 /* SharedFolderOrderCoordinatorTests.swift in Sources */,
+ 				4B4153B52BF9695500EE4B02 /* MWMTextToSpeechTests.mm in Sources */,
+ 				EDF838C42C00B9D6007E4E67 /* FileManagerMock.swift in Sources */,
+ 			);

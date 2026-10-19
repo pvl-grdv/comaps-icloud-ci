@@ -1,0 +1,167 @@
+diff --git a/iphone/Maps/Maps.xcodeproj/project.pbxproj b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+--- a/iphone/Maps/Maps.xcodeproj/project.pbxproj
++++ b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+@@ -695,6 +695,7 @@
+ 		A421ABC00000000000000103 /* BMCSearchViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000203 /* BMCSearchViewModelTests.swift */; };
+ 		A421ABC00000000000000104 /* BMCSavedItemsSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000204 /* BMCSavedItemsSearchService.swift */; };
+ 		A421ABC00000000000000105 /* SavedItemsSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000205 /* SavedItemsSearchTests.swift */; };
++		A421ABC30000000000000101 /* HostedBookmarksUISmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC30000000000000201 /* HostedBookmarksUISmokeTests.swift */; };
+ 		A421ABC00000000000000106 /* BookmarkItemOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000206 /* BookmarkItemOrder.swift */; };
+ 		A421ABC00000000000000107 /* BookmarkItemOrderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000207 /* BookmarkItemOrderTests.swift */; };
+ /* End PBXBuildFile section */
+@@ -1844,6 +1845,7 @@
+ 		A421ABC00000000000000203 /* BMCSearchViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMCSearchViewModelTests.swift; sourceTree = "<group>"; };
+ 		A421ABC00000000000000204 /* BMCSavedItemsSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMCSavedItemsSearchService.swift; sourceTree = "<group>"; };
+ 		A421ABC00000000000000205 /* SavedItemsSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedItemsSearchTests.swift; sourceTree = "<group>"; };
++		A421ABC30000000000000201 /* HostedBookmarksUISmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostedBookmarksUISmokeTests.swift; sourceTree = "<group>"; };
+ 		A421ABC00000000000000206 /* BookmarkItemOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkItemOrder.swift; sourceTree = "<group>"; };
+ 		A421ABC00000000000000207 /* BookmarkItemOrderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkItemOrderTests.swift; sourceTree = "<group>"; };
+ /* End PBXFileReference section */
+@@ -3458,6 +3460,7 @@
+ 				A421ABC00000000000000203 /* BMCSearchViewModelTests.swift */,
+ 				A421ABC10000000000000201 /* BookmarkFolderOrderTests.swift */,
+ 				A421ABC00000000000000205 /* SavedItemsSearchTests.swift */,
++				A421ABC30000000000000201 /* HostedBookmarksUISmokeTests.swift */,
+ 				A421ABC00000000000000207 /* BookmarkItemOrderTests.swift */,
+ 			);
+ 			path = Categories;
+@@ -4974,6 +4977,7 @@
+ 				A421ABC00000000000000103 /* BMCSearchViewModelTests.swift in Sources */,
+ 				A421ABC10000000000000101 /* BookmarkFolderOrderTests.swift in Sources */,
+ 				A421ABC00000000000000105 /* SavedItemsSearchTests.swift in Sources */,
++				A421ABC30000000000000101 /* HostedBookmarksUISmokeTests.swift in Sources */,
+ 				A421ABC00000000000000107 /* BookmarkItemOrderTests.swift in Sources */,
+ 				4B4153B52BF9695500EE4B02 /* MWMTextToSpeechTests.mm in Sources */,
+ 				EDF838C42C00B9D6007E4E67 /* FileManagerMock.swift in Sources */,
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift
+@@ -0,0 +1,127 @@
++import UIKit
++import XCTest
++@testable import CoMaps__Debug_
++
++final class HostedBookmarksUISmokeTests: XCTestCase, BookmarksObserver {
++  private var pendingLoad: XCTestExpectation?
++
++  func onBookmarksLoadFinished() { pendingLoad?.fulfill() }
++
++  @MainActor
++  func testHostedLibraryOrderingAndSearchScreens() async throws {
++    let manager = BookmarksManager.shared()
++    manager.add(self)
++    defer { manager.remove(self) }
++    if !manager.areBookmarksLoaded() {
++      pendingLoad = expectation(description: "Load bookmarks")
++      manager.loadBookmarks()
++      await fulfillment(of: [pendingLoad!], timeout: 30)
++      pendingLoad = nil
++    }
++    let originalMode = manager.categorySortingType()
++    let originalOrder = manager.manualCategoryFileNames()
++    var categoryIds: [MWMMarkGroupID] = []
++    var files: [URL] = []
++    defer {
++      categoryIds.forEach { if manager.hasCategory($0) { manager.deleteCategory($0) } }
++      files.forEach { try? FileManager.default.removeItem(at: $0) }
++      _ = manager.applyCategorySortingType(originalMode, manualFileNames: originalOrder)
++    }
++    let query = "smoke" + UUID().uuidString.replacingOccurrences(of: "-", with: "").prefix(8).lowercased()
++    for suffix in ["A", "B"] {
++      let title = "Fixture \(suffix) \(query)"
++      let file = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString + ".kml")
++      files.append(file)
++      let kml = """
++      <kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>\(title)</name>
++      <Placemark><name>\(query) Point \(suffix)</name><Point><coordinates>0,0</coordinates></Point></Placemark>
++      <Placemark><name>\(query) Track \(suffix)</name><LineString><coordinates>0,0,0 0.001,0.001,0</coordinates></LineString></Placemark>
++      </Document></kml>
++      """
++      try Data(kml.utf8).write(to: file)
++      pendingLoad = expectation(description: "Import fixture \(suffix)")
++      manager.loadBookmarkFile(file)
++      await fulfillment(of: [pendingLoad!], timeout: 30)
++      pendingLoad = nil
++      categoryIds.append(try XCTUnwrap(manager.sortedUserCategories().first { $0.title == title }).categoryId)
++    }
++
++    let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
++      .first { $0.activationState == .foregroundActive })
++    let previousWindow = scene.windows.first { $0.isKeyWindow }
++    let controller = BMCViewController(coordinator: nil)
++    controller.title = "Bookmarks and tracks"
++    let window = UIWindow(windowScene: scene)
++    window.frame = scene.coordinateSpace.bounds
++    window.rootViewController = UINavigationController(rootViewController: controller)
++    window.makeKeyAndVisible()
++    defer {
++      controller.setEditing(false, animated: false)
++      controller.navigationItem.searchController?.isActive = false
++      window.isHidden = true
++      window.rootViewController = nil
++      previousWindow?.makeKeyAndVisible()
++    }
++    let animationsWereEnabled = UIView.areAnimationsEnabled
++    UIView.setAnimationsEnabled(false)
++    defer { UIView.setAnimationsEnabled(animationsWereEnabled) }
++    controller.loadViewIfNeeded()
++    window.layoutIfNeeded()
++    let table = try XCTUnwrap(descendants(of: controller.view).compactMap { $0 as? UITableView }.first)
++    XCTAssertEqual(table.numberOfRows(inSection: 0), manager.sortedUserCategories().count)
++    XCTAssertGreaterThan(table.visibleCells.count, 0)
++    attachScreen(window, name: "01-library")
++
++    controller.setEditing(true, animated: false)
++    XCTAssertTrue(controller.isEditing)
++    XCTAssertTrue(table.isEditing)
++    let ids = manager.sortedUserCategories().map(\.categoryId)
++    let source = IndexPath(row: try XCTUnwrap(ids.firstIndex(of: categoryIds[1])), section: 0)
++    let target = IndexPath(row: 0, section: 0)
++    XCTAssertTrue(controller.tableView(table, canMoveRowAt: source))
++    table.moveRow(at: source, to: target)
++    controller.tableView(table, moveRowAt: source, to: target)
++    XCTAssertEqual(manager.sortedUserCategories().first?.categoryId, categoryIds[1])
++    window.layoutIfNeeded()
++    attachScreen(window, name: "02-folder-order")
++    controller.setEditing(false, animated: false)
++
++    let search = try XCTUnwrap(controller.navigationItem.searchController)
++    search.isActive = true
++    search.searchBar.text = query
++    search.searchResultsUpdater?.updateSearchResults(for: search)
++    let results = try XCTUnwrap(search.searchResultsController as? BMCSearchResultsViewController)
++    results.loadViewIfNeeded()
++    var resultCount = 0
++    for _ in 0..<300 {
++      resultCount = (0..<results.tableView.numberOfSections).reduce(0) {
++        $0 + results.tableView.numberOfRows(inSection: $1)
++      }
++      if resultCount == 4 { break }
++      try await Task.sleep(nanoseconds: 100_000_000)
++    }
++    XCTAssertEqual(resultCount, 4)
++    XCTAssertEqual(results.tableView.numberOfSections, 2)
++    XCTAssertFalse(controller.tableView(table, canMoveRowAt: target))
++    window.layoutIfNeeded()
++    XCTAssertTrue(results.view.window === window)
++    XCTAssertGreaterThan(results.tableView.visibleCells.count, 0)
++    attachScreen(window, name: "03-global-points-and-tracks-search")
++  }
++
++  @MainActor
++  private func descendants(of view: UIView) -> [UIView] {
++    view.subviews + view.subviews.flatMap { descendants(of: $0) }
++  }
++
++  @MainActor
++  private func attachScreen(_ window: UIWindow, name: String) {
++    let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
++      XCTAssertTrue(window.drawHierarchy(in: window.bounds, afterScreenUpdates: true))
++    }
++    let attachment = XCTAttachment(image: image)
++    attachment.name = name
++    attachment.lifetime = .keepAlways
++    add(attachment)
++  }
++}

@@ -8,3 +8,12 @@ typed-saved-items-ios.patch
 manual-item-order.patch
 ios-manual-item-order.patch
 typed-search-cancellation.patch
+manual-bookmark-creation.patch
+invalidate-default-sort.patch
+hosted-bookmarks-ui-smoke.patch
+deletion-autosave-safety.patch
+shared-folder-order.patch
+category-info-compile-fix.patch
+save-open-failure.patch
+show-reorder-controls.patch
+search-viewport-test-setup.patch

@@ -1,0 +1,125 @@
+diff --git a/iphone/Maps/Maps.xcodeproj/project.pbxproj b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+index 57811a2..171435b 100644
+--- a/iphone/Maps/Maps.xcodeproj/project.pbxproj
++++ b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+@@ -696,6 +696,7 @@
+ 		A421ABC00000000000000104 /* BMCSavedItemsSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000204 /* BMCSavedItemsSearchService.swift */; };
+ 		A421ABC00000000000000105 /* SavedItemsSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000205 /* SavedItemsSearchTests.swift */; };
+ 		A421ABC30000000000000101 /* HostedBookmarksUISmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC30000000000000201 /* HostedBookmarksUISmokeTests.swift */; };
++		A421ABC40000000000000101 /* SavedItemsSearchTestSupport.mm in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC40000000000000201 /* SavedItemsSearchTestSupport.mm */; };
+ 		A421ABC00000000000000106 /* BookmarkItemOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000206 /* BookmarkItemOrder.swift */; };
+ 		A421ABC00000000000000107 /* BookmarkItemOrderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000207 /* BookmarkItemOrderTests.swift */; };
+ 		A421ABC20000000000000101 /* SharedFolderOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC20000000000000201 /* SharedFolderOrder.swift */; };
+@@ -1850,6 +1851,9 @@
+ 		A421ABC00000000000000204 /* BMCSavedItemsSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMCSavedItemsSearchService.swift; sourceTree = "<group>"; };
+ 		A421ABC00000000000000205 /* SavedItemsSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedItemsSearchTests.swift; sourceTree = "<group>"; };
+ 		A421ABC30000000000000201 /* HostedBookmarksUISmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostedBookmarksUISmokeTests.swift; sourceTree = "<group>"; };
++		A421ABC40000000000000201 /* SavedItemsSearchTestSupport.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = SavedItemsSearchTestSupport.mm; sourceTree = "<group>"; };
++		A421ABC40000000000000202 /* SavedItemsSearchTestSupport.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SavedItemsSearchTestSupport.h; sourceTree = "<group>"; };
++		A421ABC40000000000000203 /* Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Bridging-Header.h"; sourceTree = "<group>"; };
+ 		A421ABC00000000000000206 /* BookmarkItemOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkItemOrder.swift; sourceTree = "<group>"; };
+ 		A421ABC00000000000000207 /* BookmarkItemOrderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkItemOrderTests.swift; sourceTree = "<group>"; };
+ 		A421ABC20000000000000201 /* SharedFolderOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedFolderOrder.swift; sourceTree = "<group>"; };
+@@ -3322,6 +3326,7 @@
+ 		ED1ADA312BC6B19E0029209F /* Tests */ = {
+ 			isa = PBXGroup;
+ 			children = (
++				A421ABC40000000000000203 /* Bridging-Header.h */,
+ 				ED810EC02D566E6F00ECDE2C /* UI */,
+ 				EDC4E3442C5D1BD3009286A2 /* Bookmarks */,
+ 				4B4153B82BF970B800EE4B02 /* Classes */,
+@@ -3472,6 +3477,8 @@
+ 				A421ABC10000000000000201 /* BookmarkFolderOrderTests.swift */,
+ 				A421ABC00000000000000205 /* SavedItemsSearchTests.swift */,
+ 				A421ABC30000000000000201 /* HostedBookmarksUISmokeTests.swift */,
++				A421ABC40000000000000201 /* SavedItemsSearchTestSupport.mm */,
++				A421ABC40000000000000202 /* SavedItemsSearchTestSupport.h */,
+ 				A421ABC00000000000000207 /* BookmarkItemOrderTests.swift */,
+ 			);
+ 			path = Categories;
+@@ -4993,6 +5000,7 @@
+ 				A421ABC10000000000000101 /* BookmarkFolderOrderTests.swift in Sources */,
+ 				A421ABC00000000000000105 /* SavedItemsSearchTests.swift in Sources */,
+ 				A421ABC30000000000000101 /* HostedBookmarksUISmokeTests.swift in Sources */,
++				A421ABC40000000000000101 /* SavedItemsSearchTestSupport.mm in Sources */,
+ 				A421ABC00000000000000107 /* BookmarkItemOrderTests.swift in Sources */,
+ 				A421ABC20000000000000105 /* SharedFolderOrderCoordinatorTests.swift in Sources */,
+ 				4B4153B52BF9695500EE4B02 /* MWMTextToSpeechTests.mm in Sources */,
+@@ -5331,6 +5339,7 @@
+ 			baseConfigurationReference = 347526FA1DC0B00F00918CF5 /* common-debug.xcconfig */;
+ 			buildSettings = {
+ 				BUNDLE_LOADER = "$(TEST_HOST)";
++				SWIFT_OBJC_BRIDGING_HEADER = "Tests/Bridging-Header.h";
+ 				CODE_SIGN_IDENTITY = "Apple Development";
+ 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+ 				CODE_SIGN_STYLE = Automatic;
+@@ -5346,6 +5355,7 @@
+ 			baseConfigurationReference = 347526FB1DC0B00F00918CF5 /* common-release.xcconfig */;
+ 			buildSettings = {
+ 				BUNDLE_LOADER = "$(TEST_HOST)";
++				SWIFT_OBJC_BRIDGING_HEADER = "Tests/Bridging-Header.h";
+ 				CODE_SIGN_IDENTITY = "Apple Development";
+ 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+ 				CODE_SIGN_STYLE = Automatic;
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift
+index 1a9ff19..4945bda 100644
+--- a/iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift
++++ b/iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift
+@@ -9,6 +9,7 @@ final class HostedBookmarksUISmokeTests: XCTestCase, BookmarksObserver {
+ 
+   @MainActor
+   func testHostedLibraryOrderingAndSearchScreens() async throws {
++    SavedItemsSearchTestSupport.prepareSearchViewport()
+     let manager = BookmarksManager.shared()
+     manager.add(self)
+     defer { manager.remove(self) }
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h
+new file mode 100644
+index 0000000..c054940
+--- /dev/null
++++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h
+@@ -0,0 +1,5 @@
++#import <Foundation/Foundation.h>
++
++@interface SavedItemsSearchTestSupport : NSObject
+++ (void)prepareSearchViewport;
++@end
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm
+new file mode 100644
+index 0000000..98affff
+--- /dev/null
++++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm
+@@ -0,0 +1,13 @@
++#import "SavedItemsSearchTestSupport.h"
++
++#include "iphone/CoreApi/CoreApi/Framework/Framework.h"
++#include "map/search_api.hpp"
++
++@implementation SavedItemsSearchTestSupport
++
+++ (void)prepareSearchViewport
++{
++  GetFramework().GetSearchAPI().OnViewportChanged(m2::RectD(-1.0, -1.0, 1.0, 1.0));
++}
++
++@end
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift
+index a1de545..4461dd9 100644
+--- a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift
++++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift
+@@ -15,6 +15,7 @@ final class SavedItemsSearchTests: XCTestCase, BookmarksObserver {
+ 
+   @MainActor
+   private func prepareFixtures() async throws {
++    SavedItemsSearchTestSupport.prepareSearchViewport()
+     manager.add(self)
+     if !manager.areBookmarksLoaded() {
+       loading = expectation(description: "Bookmark loading")
+diff --git a/iphone/Maps/Tests/Bridging-Header.h b/iphone/Maps/Tests/Bridging-Header.h
+new file mode 100644
+index 0000000..cdc1cf2
+--- /dev/null
++++ b/iphone/Maps/Tests/Bridging-Header.h
+@@ -0,0 +1,2 @@
++#import "../Bridging-Header.h"
++#import "Bookmarks/Categories/SavedItemsSearchTestSupport.h"

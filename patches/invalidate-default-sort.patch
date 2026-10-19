@@ -1,0 +1,12 @@
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+index 4868e87..e15b21f 100644
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+@@ -504,6 +504,7 @@ - (MWMBookmarksSortingType)lastSortingType:(MWMMarkGroupID)groupId {
+ }
+ 
+ - (void)resetLastSortingType:(MWMMarkGroupID)groupId {
++  ++self.lastSortId;
+   self.bm.ResetLastSortingType(groupId);
+ }
+ 

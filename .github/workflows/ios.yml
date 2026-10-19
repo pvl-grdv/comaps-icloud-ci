@@ -78,6 +78,27 @@ jobs:
         run: bash ci/test-search.sh
       - name: Build iOS and execute the new regression tests
         run: bash ci/test-ios.sh
+      - name: Export hosted simulator screen images
+        if: always() && github.ref_name == 'ios-saved-items'
+        continue-on-error: true
+        run: |
+          if [ -d results/CoMaps-Debug-Tests.xcresult ]; then
+            xcrun xcresulttool export attachments \
+              --path results/CoMaps-Debug-Tests.xcresult \
+              --output-path results/ui-attachments
+          fi
+      - name: Keep only small simulator images
+        if: always() && github.ref_name == 'ios-saved-items'
+        uses: actions/upload-artifact@v7
+        with:
+          name: bookmarks-ui-smoke
+          path: |
+            results/ui-attachments/**/*.png
+            results/ui-attachments/**/*.jpg
+            results/ui-attachments/**/*.jpeg
+            results/ui-attachments/manifest.json
+          if-no-files-found: warn
+          retention-days: 7
       - name: Build an unsigned Release archive
         if: github.event_name != 'workflow_dispatch' || inputs.release
         working-directory: comaps

@@ -1,0 +1,41 @@
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift b/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
+--- a/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
++++ b/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
+@@ -297,8 +297,10 @@
+ 
+     switch viewModel.sectionType(section: indexPath.section) {
+     case .categories:
+-      return dequeCell(BMCCategoryCell.self).config(category: viewModel.category(at: indexPath.row),
+-                                                    delegate: self)
++      let cell = dequeCell(BMCCategoryCell.self).config(category: viewModel.category(at: indexPath.row),
++                                                        delegate: self)
++      cell.showsReorderControl = true
++      return cell
+     case .actions:
+       return dequeCell(BMCActionsCell.self).config(model: viewModel.action(at: indexPath.row))
+     case .recentlyDeleted:
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift
+@@ -132,7 +132,9 @@
+ 
+   func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+     guard let section = sections?[indexPath.section] else { fatalError() }
+-    return cellStrategy.tableCell(tableView, for: section, at: indexPath)
++    let cell = cellStrategy.tableCell(tableView, for: section, at: indexPath)
++    cell.showsReorderControl = section is IBookmarksSectionViewModel || section is ITracksSectionViewModel
++    return cell
+   }
+ }
+ 
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift
+--- a/iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift
++++ b/iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift
+@@ -75,6 +75,7 @@
+     controller.setEditing(true, animated: false)
+     XCTAssertTrue(controller.isEditing)
+     XCTAssertTrue(table.isEditing)
++    XCTAssertTrue(table.visibleCells.contains { $0.showsReorderControl })
+     let ids = manager.sortedUserCategories().map(\.categoryId)
+     let source = IndexPath(row: try XCTUnwrap(ids.firstIndex(of: categoryIds[1])), section: 0)
+     let target = IndexPath(row: 0, section: 0)

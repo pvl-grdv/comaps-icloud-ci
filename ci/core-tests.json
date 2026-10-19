@@ -8,5 +8,15 @@
   "ManualItemOrder_RejectsStaleForeignAndDuplicateIds",
   "ManualItemOrder_InvalidRanksAndNewItems",
   "ManualItemOrder_SharedModeAndDefault",
-  "ManualItemOrder_AppendsNewMovedItemsAndHandlesDeletion"
+  "ManualItemOrder_AppendsNewMovedItemsAndHandlesDeletion",
+  "ManualItemOrder_AppendsNormallyCreatedBookmarks",
+  "ManualItemOrder_UndoKeepsOriginalBookmarkPosition",
+  "Bookmarks_ApplySharedFolderOrderPreservesSavedManualOrderAndKML",
+  "Bookmarks_DeletionFailurePreservesCategoryAndChildren",
+  "Bookmarks_TrashFailurePreservesCategory",
+  "Bookmarks_QueuedSaveDoesNotRecreateDeletedFile",
+  "Bookmarks_TrashPreservesQueuedEdits",
+  "Bookmarks_FailedDeletionKeepsQueuedSaveActive",
+  "Bookmarks_TrashPreservesUncommittedEditSession",
+  "Bookmarks_TrashPreservesMemoryAfterFailedAutosave"
 ]
