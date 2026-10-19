@@ -3,3 +3,8 @@ category-reload.patch
 track-rename.patch
 global-bookmark-search.patch
 ios-folder-order.patch
+typed-saved-items-search.patch
+typed-saved-items-ios.patch
+manual-item-order.patch
+ios-manual-item-order.patch
+typed-search-cancellation.patch

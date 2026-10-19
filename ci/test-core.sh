@@ -5,6 +5,7 @@ experiment_dir=$(pwd)
 upstream_dir="$experiment_dir/comaps"
 build_dir="${RUNNER_TEMP:?RUNNER_TEMP is required}/comaps-core-debug"
 jobs="${CORE_BUILD_JOBS:-3}"
+baseline_required="${CORE_CHECK_BASELINE:-1}"
 qt_prefix=$(brew --prefix qt)
 mkdir -p "$experiment_dir/results"
 
@@ -26,17 +27,19 @@ restore_candidate() {
 finish() {
   local exit_code=$?
   restore_candidate
-  python3 - "$experiment_dir/results" "$exit_code" <<'PY_SUMMARY'
+  python3 - "$experiment_dir/results" "$exit_code" "$baseline_required" <<'PY_SUMMARY'
 import json
 import sys
 from pathlib import Path
 
 results_dir = Path(sys.argv[1])
 exit_code = int(sys.argv[2])
+baseline_required = sys.argv[3] == "1"
 summary = {
     "scope": "synthetic CoMaps map_tests regressions; no live iCloud",
     "ci_exit_code": exit_code,
     "candidate_sources_restored": True,
+    "baseline_required": baseline_required,
     "baseline": None,
     "candidate": None,
 }
@@ -44,9 +47,10 @@ for mode in ("baseline", "candidate"):
     path = results_dir / f"core-{mode}-tests.json"
     if path.is_file():
         summary[mode] = json.loads(path.read_text())
+required_modes = ("baseline", "candidate") if baseline_required else ("candidate",)
 summary["passed"] = exit_code == 0 and all(
     summary[mode] and summary[mode].get("expected_result_confirmed")
-    for mode in ("baseline", "candidate")
+    for mode in required_modes
 )
 (results_dir / "core-summary.json").write_text(json.dumps(summary, indent=2) + "\n")
 PY_SUMMARY
@@ -55,9 +59,11 @@ trap finish EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-for relative_path in "${product_files[@]}"; do
-  git -C "$upstream_dir" show "HEAD:$relative_path" > "$upstream_dir/$relative_path"
-done
+if [ "$baseline_required" = 1 ]; then
+  for relative_path in "${product_files[@]}"; do
+    git -C "$upstream_dir" show "HEAD:$relative_path" > "$upstream_dir/$relative_path"
+  done
+fi
 
 cmake -S "$upstream_dir" -B "$build_dir" -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug \
@@ -136,13 +142,15 @@ print(json.dumps(report))
 PY_CHECK
 }
 
-run_regressions baseline
-restore_candidate
+if [ "$baseline_required" = 1 ]; then
+  run_regressions baseline
+  restore_candidate
+fi
 run_regressions candidate
 
 if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
   printf '%s\n' \
-    "CoMaps map_tests: all ${#expected_tests[@]} synthetic regressions fail by assertion on the original core and pass with the candidate." \
+    "CoMaps map_tests: ${#expected_tests[@]} candidate regressions passed; baseline control required=$baseline_required." \
     'Tests cover category reload identity, metadata, compilations, and track rename persistence.' \
     'Real multi-device iCloud synchronization is not exercised.' \
     >> "$GITHUB_STEP_SUMMARY"

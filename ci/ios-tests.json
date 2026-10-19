@@ -10,5 +10,17 @@
   {
     "className": "BookmarkFolderOrderTests",
     "expectedTests": 6
+  },
+  {
+    "className": "SavedItemsSearchTests",
+    "expectedTests": 8
+  },
+  {
+    "className": "BookmarkItemOrderModelTests",
+    "expectedTests": 6
+  },
+  {
+    "className": "BookmarkItemOrderBridgeTests",
+    "expectedTests": 4
   }
 ]

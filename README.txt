@@ -29,15 +29,15 @@ License: Apache-2.0; retain LICENSE and NOTICE.
 GitHub Actions first runs the standalone Foundation file-pipeline scenarios,
 then downloads the pinned CoMaps checkout on an ephemeral Mac, configures its
 documented dependencies, and applies patches/series.txt in order. It builds
-the actual map_tests target with three new persistence regressions. The tests
-must fail by assertion on the original core and pass with the candidate;
+the actual map_tests target with selected persistence regressions. The om-reuse-regressions and
+ios-library-features branches compare original and candidate core behavior;
+the expanded ios-saved-items branch tests new APIs on candidate code only;
 zero executed tests or an unexpected crash cannot satisfy the checks.
 
 It then builds the iOS app and runs five initial-conflict CoMapsTests cases
 in an iOS simulator. An unsigned Release archive build follows. CI logs and
 the job summary are the result; no large artifacts or DerivedData caches are
-uploaded. See the actual Actions run for status. Search and ordering features
-are separate work and are not part of this patch series.
+uploaded. See the actual Actions run for status. Feature branches extend this patch series as described below.
 
 These checks do not reproduce live synchronization across real Apple devices.
 Passing cases verify the narrow byte-equality guard, not the complete absence
@@ -66,3 +66,18 @@ Folder order in this branch is local bm.json state. The requested shared
 order across devices, track search, and manual bookmark/track ordering are
 separate layers still in development. This branch does not claim those
 features or live iCloud validation.
+
+The ios-saved-items branch extends all-folder search to both bookmarks and
+tracks using explicit typed identities and the existing tokenizer/ranker.
+It adds manual item ordering with separate Points and Tracks sections, KML
+rank properties, and a KML sort-mode property. The full candidate test plan
+requires 10 native map regressions, 10 native search tests, 1 legacy automatic
+sort test, and 40 simulator XCTest cases. New API tests cannot compile on
+the original revision, so this branch does not run that negative control.
+Native builds and test outcomes are pending until the Actions run reports
+success. Local syntax checks and extracted model tests are not app validation.
+
+Folder-list order is still local in this run; the production cross-device
+preference adapter is a separate work in progress. Item order travels with
+KML, subject to the existing unresolved file-conflict limitations. No claim
+of complete or live three-device synchronization is made.

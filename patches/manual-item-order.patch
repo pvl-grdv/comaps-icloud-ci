@@ -1,0 +1,702 @@
+diff --git a/android/sdk/src/main/cpp/app/organicmaps/sdk/bookmarks/data/BookmarkManager.cpp b/android/sdk/src/main/cpp/app/organicmaps/sdk/bookmarks/data/BookmarkManager.cpp
+--- a/android/sdk/src/main/cpp/app/organicmaps/sdk/bookmarks/data/BookmarkManager.cpp
++++ b/android/sdk/src/main/cpp/app/organicmaps/sdk/bookmarks/data/BookmarkManager.cpp
+@@ -649,7 +649,8 @@
+ {
+   auto const & bm = frm()->GetBookmarkManager();
+   BookmarkManager::SortingType type;
+-  return static_cast<jboolean>(bm.GetLastSortingType(static_cast<kml::MarkGroupId>(catId), type));
++  return static_cast<jboolean>(bm.GetLastSortingType(static_cast<kml::MarkGroupId>(catId), type) &&
++                               type != BookmarkManager::SortingType::Manual);
+ }
+ 
+ JNIEXPORT jint JNICALL Java_app_organicmaps_sdk_bookmarks_data_BookmarkManager_nativeGetLastSortingType(JNIEnv *,
+@@ -661,6 +662,8 @@
+   auto const hasType = bm.GetLastSortingType(static_cast<kml::MarkGroupId>(catId), type);
+   ASSERT(hasType, ());
+   UNUSED_VALUE(hasType);
++  if (type == BookmarkManager::SortingType::Manual)
++    type = BookmarkManager::SortingType::ByType;
+   return static_cast<jint>(type);
+ }
+ 
+diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
+--- a/libs/map/bookmark_manager.cpp
++++ b/libs/map/bookmark_manager.cpp
+@@ -35,6 +35,7 @@
+ 
+ #include <algorithm>
+ #include <chrono>
++#include <charconv>
+ #include <limits>
+ #include <sstream>
+ 
+@@ -46,6 +47,8 @@
+ std::string const kLastEditedBookmarkColor = "LastBookmarkColor";
+ std::string const kMetadataFileName = "bm.json";
+ std::string const kSortingTypeProperty = "sortingType";
++std::string const kItemOrderProperty = "comaps:itemOrder";
++std::string const kItemSortingProperty = "comaps:itemSorting";
+ std::string const kLargestBookmarkSymbolName = "bookmark-default-m";
+ size_t constexpr kMinCommonTypesCount = 3;
+ double constexpr kNearDistanceInMeters = 20 * 1000.0;
+@@ -220,6 +223,7 @@
+   case BookmarkManager::SortingType::ByType: return "ByType";
+   case BookmarkManager::SortingType::ByDistance: return "ByDistance";
+   case BookmarkManager::SortingType::ByName: return "ByName";
++  case BookmarkManager::SortingType::Manual: return "Manual";
+   }
+   UNREACHABLE();
+ }
+@@ -234,6 +238,8 @@
+     type = BookmarkManager::SortingType::ByDistance;
+   else if (typeStr == ToString(BookmarkManager::SortingType::ByName))
+     type = BookmarkManager::SortingType::ByName;
++  else if (typeStr == ToString(BookmarkManager::SortingType::Manual))
++    type = BookmarkManager::SortingType::Manual;
+   else
+     return false;
+   return true;
+@@ -383,6 +389,7 @@
+   GetBookmarkForEdit(bmId)->Attach(catId);
+   GetGroup(catId)->AttachUserMark(bmId);
+   m_changesTracker.OnAttachBookmark(bmId, catId);
++  AppendToManualItemOrder(catId, bmId, std::nullopt);
+ }
+ 
+ void BookmarkManager::DetachBookmark(kml::MarkId bmId, kml::MarkGroupId catId)
+@@ -505,6 +512,9 @@
+ void BookmarkManager::MoveTrack(kml::TrackId trackID, kml::MarkGroupId curGroupID, kml::MarkGroupId newGroupID)
+ {
+   CHECK_THREAD_CHECKER(m_threadChecker, ());
++  if (curGroupID == newGroupID)
++    return;
++  GetTrackForEdit(trackID)->RemoveCustomProperty(kItemOrderProperty);
+   DetachTrack(trackID, curGroupID);
+   AttachTrack(trackID, newGroupID);
+ }
+@@ -515,6 +525,7 @@
+   auto it = m_tracks.find(trackId);
+   it->second->Attach(groupId);
+   GetBmCategory(groupId)->AttachTrack(trackId);
++  AppendToManualItemOrder(groupId, std::nullopt, trackId);
+ }
+ 
+ void BookmarkManager::DetachTrack(kml::TrackId trackId, kml::MarkGroupId groupId)
+@@ -653,6 +664,17 @@
+ bool BookmarkManager::GetLastSortingType(kml::MarkGroupId groupId, SortingType & sortingType) const
+ {
+   CHECK_THREAD_CHECKER(m_threadChecker, ());
++  if (CanSetManualItemOrder(groupId))
++  {
++    auto const & properties = GetCategoryData(groupId).m_properties;
++    if (auto const it = properties.find(kItemSortingProperty); it != properties.end())
++    {
++      if (it->second == "Default")
++        return false;
++      if (GetSortingType(it->second, sortingType))
++        return true;
++    }
++  }
+   auto const entryName = GetMetadataEntryName(groupId);
+   if (entryName.empty())
+     return false;
+@@ -670,6 +692,9 @@
+   if (entryName.empty())
+     return;
+ 
++  auto editSession = GetEditSession();
++  if (CanSetManualItemOrder(groupId))
++    editSession.SetCategoryCustomProperty(groupId, kItemSortingProperty, ToString(sortingType));
+   m_metadata.m_entriesProperties[entryName].m_values[kSortingTypeProperty] = ToString(sortingType);
+   SaveMetadata();
+ }
+@@ -681,8 +706,56 @@
+   if (entryName.empty())
+     return;
+ 
++  auto editSession = GetEditSession();
++  if (CanSetManualItemOrder(groupId))
++    editSession.SetCategoryCustomProperty(groupId, kItemSortingProperty, "Default");
+   m_metadata.m_entriesProperties[entryName].m_values.erase(kSortingTypeProperty);
+   SaveMetadata();
++}
++
++bool BookmarkManager::CanSetManualItemOrder(kml::MarkGroupId groupId) const
++{
++  CHECK_THREAD_CHECKER(m_threadChecker, ());
++  return m_categories.find(groupId) != m_categories.end();
++}
++
++bool BookmarkManager::SetManualItemOrder(kml::MarkGroupId groupId,
++                                           std::vector<kml::MarkId> const & bookmarkIds,
++                                           std::vector<kml::TrackId> const & trackIds)
++{
++  CHECK_THREAD_CHECKER(m_threadChecker, ());
++  auto const category = m_categories.find(groupId);
++  if (category == m_categories.end())
++    return false;
++  auto const & currentBookmarks = category->second->GetUserMarks();
++  auto const & currentTracks = category->second->GetUserLines();
++  if (bookmarkIds.size() != currentBookmarks.size() || trackIds.size() != currentTracks.size() ||
++      kml::MarkIdSet(bookmarkIds.begin(), bookmarkIds.end()) != currentBookmarks ||
++      kml::TrackIdSet(trackIds.begin(), trackIds.end()) != currentTracks)
++    return false;
++
++  auto editSession = GetEditSession();
++  for (size_t i = 0; i < bookmarkIds.size(); ++i)
++  {
++    auto data = GetBookmark(bookmarkIds[i])->GetData();
++    auto const rank = std::to_string(i);
++    auto const property = data.m_properties.find(kItemOrderProperty);
++    if (property != data.m_properties.end() && property->second == rank)
++      continue;
++    data.m_properties[kItemOrderProperty] = rank;
++    editSession.GetBookmarkForEdit(bookmarkIds[i])->SetData(data);
++  }
++  for (size_t i = 0; i < trackIds.size(); ++i)
++  {
++    auto const & data = GetTrack(trackIds[i])->GetData();
++    auto const rank = std::to_string(i);
++    auto const property = data.m_properties.find(kItemOrderProperty);
++    if (property != data.m_properties.end() && property->second == rank)
++      continue;
++    editSession.GetTrackForEdit(trackIds[i])->SetCustomProperty(kItemOrderProperty, rank);
++  }
++  editSession.SetCategoryCustomProperty(groupId, kItemSortingProperty, ToString(SortingType::Manual));
++  return true;
+ }
+ 
+ std::vector<BookmarkManager::SortingType> BookmarkManager::GetAvailableSortingTypes(kml::MarkGroupId groupId,
+@@ -1497,6 +1570,125 @@
+   sortedBlocks.push_back(bookmarkBlock);
+ }
+ 
++void BookmarkManager::AppendToManualItemOrder(kml::MarkGroupId groupId,
++                                                 std::optional<kml::MarkId> bookmarkId,
++                                                 std::optional<kml::TrackId> trackId)
++{
++  if (m_categories.find(groupId) == m_categories.end())
++    return;
++  SortingType mode;
++  if (!GetLastSortingType(groupId, mode) || mode != SortingType::Manual)
++    return;
++  std::set<uint64_t> ranks;
++  uint64_t maxRank = 0;
++  bool normalize = false;
++  auto inspect = [&](kml::Properties const & properties)
++  {
++    auto const rank = ParseManualItemOrder(properties);
++    if (!rank || !ranks.insert(*rank).second || *rank == std::numeric_limits<uint64_t>::max())
++    {
++      normalize = true;
++      return;
++    }
++    maxRank = std::max(maxRank, *rank);
++  };
++  if (bookmarkId)
++  {
++    for (auto const id : GetUserMarkIds(groupId))
++      if (id != *bookmarkId)
++        inspect(GetBookmark(id)->GetData().m_properties);
++  }
++  if (trackId)
++  {
++    for (auto const id : GetTrackIds(groupId))
++      if (id != *trackId)
++        inspect(GetTrack(id)->GetData().m_properties);
++  }
++  if (!normalize)
++  {
++    auto const rank = std::to_string(ranks.empty() ? 0 : maxRank + 1);
++    if (bookmarkId)
++    {
++      auto data = GetBookmark(*bookmarkId)->GetData();
++      data.m_properties[kItemOrderProperty] = rank;
++      GetBookmarkForEdit(*bookmarkId)->SetData(data);
++    }
++    if (trackId)
++      GetTrackForEdit(*trackId)->SetCustomProperty(kItemOrderProperty, rank);
++    return;
++  }
++  std::vector<SortBookmarkData> bookmarkData;
++  for (auto const id : GetUserMarkIds(groupId))
++  {
++    auto const * bookmark = GetBookmark(id);
++    bookmarkData.emplace_back(bookmark->GetData(), bookmark->GetAddress());
++  }
++  std::vector<SortTrackData> trackData;
++  for (auto const id : GetTrackIds(groupId))
++    trackData.emplace_back(GetTrack(id)->GetData());
++  SortedBlocksCollection blocks;
++  SortByManual(bookmarkData, trackData, blocks);
++  std::vector<kml::MarkId> bookmarks;
++  std::vector<kml::TrackId> tracks;
++  for (auto const & block : blocks)
++  {
++    bookmarks.insert(bookmarks.end(), block.m_markIds.begin(), block.m_markIds.end());
++    tracks.insert(tracks.end(), block.m_trackIds.begin(), block.m_trackIds.end());
++  }
++  if (bookmarkId)
++  {
++    std::erase(bookmarks, *bookmarkId);
++    bookmarks.push_back(*bookmarkId);
++  }
++  if (trackId)
++  {
++    std::erase(tracks, *trackId);
++    tracks.push_back(*trackId);
++  }
++  SetManualItemOrder(groupId, bookmarks, tracks);
++}
++
++std::optional<uint64_t> BookmarkManager::ParseManualItemOrder(kml::Properties const & properties)
++{
++  auto const it = properties.find(kItemOrderProperty);
++  if (it == properties.end() || it->second.empty())
++    return {};
++  uint64_t rank = 0;
++  auto const * begin = it->second.data();
++  auto const * end = begin + it->second.size();
++  auto const parsed = std::from_chars(begin, end, rank);
++  if (parsed.ec != std::errc{} || parsed.ptr != end)
++    return {};
++  return rank;
++}
++
++void BookmarkManager::SortByManual(std::vector<SortBookmarkData> const & bookmarksForSort,
++                                   std::vector<SortTrackData> const & tracksForSort,
++                                   SortedBlocksCollection & sortedBlocks)
++{
++  auto compare = [](auto const & left, auto const & right)
++  {
++    if (left.m_manualOrder.has_value() != right.m_manualOrder.has_value())
++      return left.m_manualOrder.has_value();
++    if (left.m_manualOrder && right.m_manualOrder)
++      return *left.m_manualOrder < *right.m_manualOrder;
++    return false;
++  };
++  auto sortedTracks = tracksForSort;
++  std::stable_sort(sortedTracks.begin(), sortedTracks.end(), compare);
++  AddTracksSortedBlock(sortedTracks, sortedBlocks);
++  auto sortedBookmarks = bookmarksForSort;
++  std::stable_sort(sortedBookmarks.begin(), sortedBookmarks.end(), compare);
++  if (!sortedBookmarks.empty())
++  {
++    SortedBlock block;
++    block.m_blockName = GetBookmarksSortedBlockName();
++    for (auto const & bookmark : sortedBookmarks)
++      block.m_markIds.push_back(bookmark.m_id);
++    sortedBlocks.push_back(std::move(block));
++  }
++}
++
+ void BookmarkManager::GetSortedCategoryImpl(SortParams const & params,
+                                             std::vector<SortBookmarkData> const & bookmarksForSort,
+                                             std::vector<SortTrackData> const & tracksForSort,
+@@ -1511,6 +1703,7 @@
+   case SortingType::ByTime: SortByTime(bookmarksForSort, tracksForSort, sortedBlocks); return;
+   case SortingType::ByType: SortByType(bookmarksForSort, tracksForSort, sortedBlocks); return;
+   case SortingType::ByName: SortByName(bookmarksForSort, tracksForSort, sortedBlocks); return;
++  case SortingType::Manual: SortByManual(bookmarksForSort, tracksForSort, sortedBlocks); return;
+   }
+   UNREACHABLE();
+ }
+@@ -1536,6 +1729,14 @@
+   {
+     auto const * track = GetTrack(trackId);
+     tracksForSort.emplace_back(track->GetData());
++  }
++
++  if (params.m_sortingType == SortingType::Manual)
++  {
++    SortedBlocksCollection sortedBlocks;
++    SortByManual(bookmarksForSort, tracksForSort, sortedBlocks);
++    params.m_onResults(std::move(sortedBlocks), SortParams::Status::Completed);
++    return;
+   }
+ 
+   if (m_testModeEnabled)
+@@ -2297,6 +2498,13 @@
+ void BookmarkManager::MoveBookmark(kml::MarkId bmID, kml::MarkGroupId curGroupID, kml::MarkGroupId newGroupID)
+ {
+   CHECK_THREAD_CHECKER(m_threadChecker, ());
++  if (curGroupID == newGroupID)
++    return;
++  {
++    auto data = GetBookmark(bmID)->GetData();
++    if (data.m_properties.erase(kItemOrderProperty) != 0)
++      GetBookmarkForEdit(bmID)->SetData(data);
++  }
+   DetachBookmark(bmID, curGroupID);
+   AttachBookmark(bmID, newGroupID);
+ 
+diff --git a/libs/map/bookmark_manager.hpp b/libs/map/bookmark_manager.hpp
+--- a/libs/map/bookmark_manager.hpp
++++ b/libs/map/bookmark_manager.hpp
+@@ -238,7 +238,8 @@
+     ByType,
+     ByDistance,
+     ByTime,
+-    ByName
++    ByName,
++    Manual
+   };
+ 
+   enum class CategorySortType
+@@ -294,6 +295,9 @@
+   bool GetLastSortingType(kml::MarkGroupId groupId, SortingType & sortingType) const;
+   void SetLastSortingType(kml::MarkGroupId groupId, SortingType sortingType);
+   void ResetLastSortingType(kml::MarkGroupId groupId);
++  bool CanSetManualItemOrder(kml::MarkGroupId groupId) const;
++  bool SetManualItemOrder(kml::MarkGroupId groupId, std::vector<kml::MarkId> const & bookmarkIds,
++                          std::vector<kml::TrackId> const & trackIds);
+ 
+   void PrepareForSearch(std::optional<kml::MarkGroupId> groupId = std::nullopt);
+   void ReleaseSearch();
+@@ -706,6 +710,7 @@
+       , m_type(GetBookmarkBaseType(bmData.m_featureTypes))
+       , m_timestamp(bmData.m_timestamp)
+       , m_address(address)
++      , m_manualOrder(ParseManualItemOrder(bmData.m_properties))
+     {}
+ 
+     kml::MarkId m_id;
+@@ -714,6 +719,7 @@
+     BookmarkBaseType m_type;
+     kml::Timestamp m_timestamp;
+     search::ReverseGeocoder::RegionAddress m_address;
++    std::optional<uint64_t> m_manualOrder;
+   };
+ 
+   struct SortTrackData
+@@ -722,12 +728,20 @@
+       : m_id(trackData.m_id)
+       , m_name(GetPreferredBookmarkStr(trackData.m_name))
+       , m_timestamp(trackData.m_timestamp)
++      , m_manualOrder(ParseManualItemOrder(trackData.m_properties))
+     {}
+ 
+     kml::TrackId m_id;
+     std::string m_name;
+     kml::Timestamp m_timestamp;
+-  };
++    std::optional<uint64_t> m_manualOrder;
++  };
++
++  void AppendToManualItemOrder(kml::MarkGroupId groupId, std::optional<kml::MarkId> bookmarkId,
++                                std::optional<kml::TrackId> trackId);
++  static std::optional<uint64_t> ParseManualItemOrder(kml::Properties const & properties);
++  static void SortByManual(std::vector<SortBookmarkData> const & bookmarksForSort,
++                           std::vector<SortTrackData> const & tracksForSort, SortedBlocksCollection & sortedBlocks);
+ 
+   void GetSortedCategoryImpl(SortParams const & params, std::vector<SortBookmarkData> const & bookmarksForSort,
+                              std::vector<SortTrackData> const & tracksForSort, SortedBlocksCollection & sortedBlocks);
+diff --git a/libs/map/map_tests/bookmarks_test.cpp b/libs/map/map_tests/bookmarks_test.cpp
+--- a/libs/map/map_tests/bookmarks_test.cpp
++++ b/libs/map/map_tests/bookmarks_test.cpp
+@@ -21,6 +21,7 @@
+ #include "base/file_name_utils.hpp"
+ #include "base/scope_guard.hpp"
+ 
++#include <algorithm>
+ #include <array>
+ #include <chrono>
+ #include <cstring>  // strlen
+@@ -1539,6 +1540,259 @@
+ }
+ 
+ 
++namespace
++{
++struct ManualItemsCategory
++{
++  kml::MarkGroupId m_groupId;
++  std::vector<kml::MarkId> m_bookmarks;
++  std::vector<kml::TrackId> m_tracks;
++};
++
++ManualItemsCategory CreateManualItemsCategory(BookmarkManager & manager, std::string const & name,
++                                               size_t bookmarkCount = 2, size_t trackCount = 2)
++{
++  ManualItemsCategory result{manager.CreateBookmarkCategory(name), {}, {}};
++  auto editSession = manager.GetEditSession();
++  for (size_t i = 0; i < bookmarkCount; ++i)
++  {
++    kml::BookmarkData data;
++    kml::SetDefaultStr(data.m_name, "Bookmark" + std::to_string(i));
++    data.m_point = m2::PointD(0, 0);
++    data.m_properties["unrelated"] = "retained bookmark value";
++    auto const id = editSession.CreateBookmark(std::move(data))->GetId();
++    editSession.AttachBookmark(id, result.m_groupId);
++    result.m_bookmarks.push_back(id);
++  }
++  for (size_t i = 0; i < trackCount; ++i)
++  {
++    kml::TrackData data;
++    kml::SetDefaultStr(data.m_name, "Track" + std::to_string(i));
++    data.m_layers.emplace_back();
++    data.m_geometry.AddLine({{{0.0, 0.0}, 1}, {{1.0, 0.0}, 2}});
++    data.m_geometry.AddTimestamps({});
++    data.m_properties["unrelated"] = "retained track value";
++    auto const id = editSession.CreateTrack(std::move(data))->GetId();
++    editSession.AttachTrack(id, result.m_groupId);
++    result.m_tracks.push_back(id);
++  }
++  return result;
++}
++
++using ManualItemNames = std::pair<std::vector<std::string>, std::vector<std::string>>;
++
++ManualItemNames GetManualItemNames(BookmarkManager & manager, kml::MarkGroupId groupId)
++{
++  ManualItemNames result;
++  bool completed = false;
++  BookmarkManager::SortParams params;
++  params.m_groupId = groupId;
++  params.m_sortingType = BookmarkManager::SortingType::Manual;
++  params.m_onResults = [&](BookmarkManager::SortedBlocksCollection && blocks, BookmarkManager::SortParams::Status status)
++  {
++    TEST(status == BookmarkManager::SortParams::Status::Completed, ());
++    for (auto const & block : blocks)
++    {
++      for (auto const id : block.m_markIds)
++        result.first.push_back(kml::GetDefaultStr(manager.GetBookmark(id)->GetName()));
++      for (auto const id : block.m_trackIds)
++        result.second.push_back(manager.GetTrack(id)->GetName());
++    }
++    completed = true;
++  };
++  manager.GetSortedCategory(params);
++  TEST(completed, ());
++  return result;
++}
++
++kml::MarkGroupId LoadManualItemsFile(BookmarkManager & manager, std::string const & filePath)
++{
++  auto data = LoadKmlFile(filePath, KmlFileType::Text);
++  TEST(data, ());
++  BookmarkManager::KMLDataCollection collection;
++  collection.emplace_back(filePath, std::move(data));
++  manager.CreateCategories(std::move(collection));
++  return manager.GetCategoryByFileName(filePath);
++}
++}
++
++UNIT_CLASS_TEST(Runner, ManualItemOrder_PersistenceAfterReload)
++{
++  std::string filePath;
++  SCOPE_GUARD(fileDeleter, [&]() { if (!filePath.empty()) (void)base::DeleteFileX(filePath); });
++  std::vector<kml::MarkId> originalBookmarks;
++  std::vector<kml::TrackId> originalTracks;
++  auto const expected = ManualItemNames{{"Bookmark1", "Bookmark0"}, {"Track1", "Track0"}};
++  {
++    BookmarkManager manager(BM_CALLBACKS);
++    manager.EnableTestMode(true);
++    auto category = CreateManualItemsCategory(manager, "manual item persistence");
++    originalBookmarks = category.m_bookmarks;
++    originalTracks = category.m_tracks;
++    filePath = manager.GetCategoryFileName(category.m_groupId);
++    std::reverse(category.m_bookmarks.begin(), category.m_bookmarks.end());
++    std::reverse(category.m_tracks.begin(), category.m_tracks.end());
++    TEST(manager.SetManualItemOrder(category.m_groupId, category.m_bookmarks, category.m_tracks), ());
++    TEST_EQUAL(GetManualItemNames(manager, category.m_groupId), expected, ());
++    manager.SetLastSortingType(category.m_groupId, BookmarkManager::SortingType::ByName);
++    auto data = LoadKmlFile(filePath, KmlFileType::Text);
++    TEST(data, ());
++    TEST_EQUAL(data->m_categoryData.m_properties.at("comaps:itemSorting"), "ByName", ());
++    TEST_EQUAL(data->m_bookmarksData.front().m_properties.at("unrelated"), "retained bookmark value", ());
++    TEST_EQUAL(data->m_tracksData.front().m_properties.at("unrelated"), "retained track value", ());
++    TEST_EQUAL(data->m_tracksData.front().m_geometry.m_lines.front().size(), 2, ());
++    manager.SetLastSortingType(category.m_groupId, BookmarkManager::SortingType::Manual);
++    auto const time = std::filesystem::file_time_type::clock::now() - std::chrono::hours(24);
++    std::filesystem::last_write_time(filePath, time);
++    auto const before = std::filesystem::last_write_time(filePath);
++    TEST(manager.SetManualItemOrder(category.m_groupId, category.m_bookmarks, category.m_tracks), ());
++    TEST(std::filesystem::last_write_time(filePath) == before, ());
++  }
++  {
++    BookmarkManager manager(BM_CALLBACKS);
++    manager.EnableTestMode(true);
++    auto const groupId = LoadManualItemsFile(manager, filePath);
++    BookmarkManager::SortingType mode;
++    TEST(manager.GetLastSortingType(groupId, mode), ());
++    TEST(mode == BookmarkManager::SortingType::Manual, ());
++    TEST_EQUAL(GetManualItemNames(manager, groupId), expected, ());
++    for (auto id : manager.GetUserMarkIds(groupId))
++      TEST(std::find(originalBookmarks.begin(), originalBookmarks.end(), id) == originalBookmarks.end(), ());
++    for (auto id : manager.GetTrackIds(groupId))
++      TEST(std::find(originalTracks.begin(), originalTracks.end(), id) == originalTracks.end(), ());
++  }
++}
++
++UNIT_CLASS_TEST(Runner, ManualItemOrder_RejectsStaleForeignAndDuplicateIds)
++{
++  BookmarkManager manager(BM_CALLBACKS);
++  manager.EnableTestMode(true);
++  auto const category = CreateManualItemsCategory(manager, "manual item validation");
++  auto const other = CreateManualItemsCategory(manager, "foreign manual items");
++  TEST(manager.CanSetManualItemOrder(category.m_groupId), ());
++  TEST(!manager.CanSetManualItemOrder(kml::kInvalidMarkGroupId), ());
++  kml::CategoryData compilation;
++  compilation.m_compilationId = 42;
++  kml::SetDefaultStr(compilation.m_name, "Child collection");
++  auto const compilationId = manager.CreateBookmarkCompilation(std::move(compilation))->GetID();
++  TEST(!manager.CanSetManualItemOrder(compilationId), ());
++  TEST(!manager.SetManualItemOrder(compilationId, {}, {}), ());
++  auto const filePath = manager.GetCategoryFileName(category.m_groupId);
++  auto const otherPath = manager.GetCategoryFileName(other.m_groupId);
++  SCOPE_GUARD(fileDeleter, [&]() { (void)base::DeleteFileX(filePath); (void)base::DeleteFileX(otherPath); });
++  TEST(manager.SetManualItemOrder(category.m_groupId, category.m_bookmarks, category.m_tracks), ());
++  std::string contents;
++  FileReader(filePath).ReadAsString(contents);
++  std::filesystem::last_write_time(filePath,
++                                  std::filesystem::file_time_type::clock::now() - std::chrono::hours(24));
++  auto const time = std::filesystem::last_write_time(filePath);
++  TEST(!manager.SetManualItemOrder(category.m_groupId,
++                                    {category.m_bookmarks.front(), category.m_bookmarks.front()}, category.m_tracks), ());
++  TEST(!manager.SetManualItemOrder(category.m_groupId, {category.m_bookmarks.front()}, category.m_tracks), ());
++  TEST(!manager.SetManualItemOrder(category.m_groupId,
++                                    {category.m_bookmarks.front(), other.m_bookmarks.front()}, category.m_tracks), ());
++  TEST(!manager.SetManualItemOrder(category.m_groupId, category.m_bookmarks,
++                                    {category.m_tracks.front(), other.m_tracks.front()}), ());
++  TEST(!manager.SetManualItemOrder(kml::kInvalidMarkGroupId, category.m_bookmarks, category.m_tracks), ());
++  TEST(std::filesystem::last_write_time(filePath) == time, ());
++  std::string after;
++  FileReader(filePath).ReadAsString(after);
++  TEST_EQUAL(after, contents, ());
++  auto const groupId = LoadManualItemsFile(manager, filePath);
++  TEST(!manager.SetManualItemOrder(groupId, category.m_bookmarks, category.m_tracks), ());
++  TEST(std::filesystem::last_write_time(filePath) == time, ());
++}
++
++UNIT_CLASS_TEST(Runner, ManualItemOrder_InvalidRanksAndNewItems)
++{
++  BookmarkManager manager(BM_CALLBACKS);
++  manager.EnableTestMode(true);
++  auto const category = CreateManualItemsCategory(manager, "manual invalid ranks", 7, 0);
++  auto const filePath = manager.GetCategoryFileName(category.m_groupId);
++  SCOPE_GUARD(fileDeleter, [&]() { (void)base::DeleteFileX(filePath); });
++  std::vector<std::string> ranks = {"1", "0", "1", "-1", "unknown", "18446744073709551616", ""};
++  {
++    auto session = manager.GetEditSession();
++    for (size_t i = 0; i < ranks.size(); ++i)
++    {
++      auto data = manager.GetBookmark(category.m_bookmarks[i])->GetData();
++      if (!ranks[i].empty())
++        data.m_properties["comaps:itemOrder"] = ranks[i];
++      session.GetBookmarkForEdit(category.m_bookmarks[i])->SetData(data);
++    }
++  }
++  auto const expected = std::vector<std::string>{"Bookmark1", "Bookmark2", "Bookmark0", "Bookmark6",
++                                                 "Bookmark5", "Bookmark4", "Bookmark3"};
++  TEST_EQUAL(GetManualItemNames(manager, category.m_groupId).first, expected, ());
++  auto const reloaded = LoadManualItemsFile(manager, filePath);
++  TEST_EQUAL(GetManualItemNames(manager, reloaded).first, expected, ());
++}
++
++UNIT_CLASS_TEST(Runner, ManualItemOrder_SharedModeAndDefault)
++{
++  BookmarkManager manager(BM_CALLBACKS);
++  manager.EnableTestMode(true);
++  auto const category = CreateManualItemsCategory(manager, "manual shared mode");
++  auto const filePath = manager.GetCategoryFileName(category.m_groupId);
++  SCOPE_GUARD(fileDeleter, [&]() { (void)base::DeleteFileX(filePath); });
++  manager.SetLastSortingType(category.m_groupId, BookmarkManager::SortingType::ByName);
++  manager.GetEditSession().SetCategoryCustomProperty(category.m_groupId, "comaps:itemSorting", "FutureMode");
++  BookmarkManager::SortingType mode;
++  TEST(manager.GetLastSortingType(category.m_groupId, mode), ());
++  TEST(mode == BookmarkManager::SortingType::ByName, ());
++  manager.GetEditSession().SetCategoryCustomProperty(category.m_groupId, "comaps:itemSorting", "Default");
++  TEST(!manager.GetLastSortingType(category.m_groupId, mode), ());
++  TEST(manager.SetManualItemOrder(category.m_groupId, category.m_bookmarks, category.m_tracks), ());
++  manager.ResetLastSortingType(category.m_groupId);
++  auto data = LoadKmlFile(filePath, KmlFileType::Text);
++  TEST(data, ());
++  TEST_EQUAL(data->m_categoryData.m_properties.at("comaps:itemSorting"), "Default", ());
++  TEST(!manager.GetLastSortingType(category.m_groupId, mode), ());
++  TEST_EQUAL(data->m_bookmarksData.front().m_properties.at("comaps:itemOrder"), "0", ());
++}
++
++UNIT_CLASS_TEST(Runner, ManualItemOrder_AppendsNewMovedItemsAndHandlesDeletion)
++{
++  BookmarkManager manager(BM_CALLBACKS);
++  manager.EnableTestMode(true);
++  auto const destination = CreateManualItemsCategory(manager, "manual append destination");
++  auto const source = CreateManualItemsCategory(manager, "manual append source", 1, 1);
++  auto const filePath = manager.GetCategoryFileName(destination.m_groupId);
++  auto const sourcePath = manager.GetCategoryFileName(source.m_groupId);
++  SCOPE_GUARD(fileDeleter, [&]() { (void)base::DeleteFileX(filePath); (void)base::DeleteFileX(sourcePath); });
++  TEST(manager.SetManualItemOrder(destination.m_groupId, destination.m_bookmarks, destination.m_tracks), ());
++  TEST(manager.SetManualItemOrder(source.m_groupId, source.m_bookmarks, source.m_tracks), ());
++  {
++    auto session = manager.GetEditSession();
++    session.GetBookmarkForEdit(source.m_bookmarks.front())->SetName("IncomingBookmark", kml::kDefaultLangCode);
++    session.GetTrackForEdit(source.m_tracks.front())->SetName("IncomingTrack");
++    session.MoveBookmark(source.m_bookmarks.front(), source.m_groupId, destination.m_groupId);
++    session.MoveTrack(source.m_tracks.front(), source.m_groupId, destination.m_groupId);
++  }
++  auto expected = ManualItemNames{{"Bookmark0", "Bookmark1", "IncomingBookmark"},
++                                  {"Track0", "Track1", "IncomingTrack"}};
++  TEST_EQUAL(GetManualItemNames(manager, destination.m_groupId), expected, ());
++  {
++    auto session = manager.GetEditSession();
++    kml::BookmarkData data;
++    kml::SetDefaultStr(data.m_name, "NewBookmark");
++    auto const id = session.CreateBookmark(std::move(data))->GetId();
++    session.AttachBookmark(id, destination.m_groupId);
++  }
++  expected.first.push_back("NewBookmark");
++  TEST_EQUAL(GetManualItemNames(manager, destination.m_groupId), expected, ());
++  {
++    auto session = manager.GetEditSession();
++    session.DeleteBookmark(destination.m_bookmarks.front());
++    session.DeleteTrack(destination.m_tracks.front());
++  }
++  expected.first.erase(expected.first.begin());
++  expected.second.erase(expected.second.begin());
++  TEST_EQUAL(GetManualItemNames(manager, destination.m_groupId), expected, ());
++  auto const reloaded = LoadManualItemsFile(manager, filePath);
++  TEST_EQUAL(GetManualItemNames(manager, reloaded), expected, ());
++}
++
+ UNIT_CLASS_TEST(Runner, Bookmarks_AutoSave)
+ {
+   BookmarkManager bmManager(BM_CALLBACKS);
+diff --git a/libs/map/track.cpp b/libs/map/track.cpp
+--- a/libs/map/track.cpp
++++ b/libs/map/track.cpp
+@@ -89,6 +89,21 @@
+   kml::SetDefaultStr(m_data.m_name, name);
+ }
+ 
++void Track::SetCustomProperty(std::string const & key, std::string const & value)
++{
++  auto const it = m_data.m_properties.find(key);
++  if (it != m_data.m_properties.end() && it->second == value)
++    return;
++  m_isDirty = true;
++  m_data.m_properties[key] = value;
++}
++
++void Track::RemoveCustomProperty(std::string const & key)
++{
++  if (m_data.m_properties.erase(key) != 0)
++    m_isDirty = true;
++}
++
+ std::string Track::GetDescription() const
+ {
+   return GetPreferredBookmarkStr(m_data.m_description);
+diff --git a/libs/map/track.hpp b/libs/map/track.hpp
+--- a/libs/map/track.hpp
++++ b/libs/map/track.hpp
+@@ -31,6 +31,8 @@
+ 
+   std::string GetName() const;
+   void SetName(std::string const & name);
++  void SetCustomProperty(std::string const & key, std::string const & value);
++  void RemoveCustomProperty(std::string const & key);
+   std::string GetDescription() const;
+ 
+   m2::RectD GetLimitRect() const;

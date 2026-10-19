@@ -70,20 +70,36 @@
   },
   "purpose": "Independent AI-assisted CI experiments. Preserve upstream attribution; these CI bootstrap commits are not for submitting to CoMaps.",
   "pending_at_integration": [
-    "Full C++ map_tests compilation and execution",
-    "iOS application/test target build",
+    "Full 10-case native core suite for this expanded series",
+    "10 native search compatibility tests and legacy automatic sorting",
+    "iOS app build and all 40 selected XCTest cases",
     "unsigned Release archive",
-    "real-device iCloud validation"
+    "real-device multi-device iCloud validation"
   ],
   "not_included": [
     "Organic Maps proposed full reconciliation PR13232",
     "semantic deduplication or existing duplicate cleanup",
-    "typed track search integration under development",
-    "synchronized folder-order preferences under development",
-    "manual bookmark/track ordering under development"
+    "synchronized folder-order preferences (production adapter under development)"
   ],
   "feature_patches": {
     "global-bookmark-search.patch": "New AI-assisted UIKit/bridge UI exposing existing CoMaps all-groups bookmark search; 11 model tests.",
-    "ios-folder-order.patch": "New AI-assisted UIKit/bridge manual folder ordering plus two core edge fixes; six bridge tests and two core regressions. Stores order locally; cross-device preference layer is not included yet."
+    "ios-folder-order.patch": "New AI-assisted UIKit/bridge manual folder ordering plus two core edge fixes; six bridge tests and two core regressions. Stores order locally; cross-device preference layer is not included yet.",
+    "typed-saved-items-search.patch": "New AI-assisted explicit bookmark/track identity and snapshot adapter to existing CoMaps tokenizer/ranker; five new and three legacy search tests.",
+    "typed-saved-items-ios.patch": "Typed search bridge, current-folder and all-folders iOS search, stale result checks; eight asynchronous native tests.",
+    "manual-item-order.patch": "Separate point and track KML ranks and shared sort mode; five native core tests. Complete permutations validated before mutation; CoMaps compilation restrictions retained.",
+    "ios-manual-item-order.patch": "UIKit separate-section drag reorder mode, bridge and six model plus four native tests; existing child collection navigation retained.",
+    "typed-search-cancellation.patch": "Independent review fix for typed callback completion when cancelled before processing; two deterministic native processor regressions."
+  },
+  "patch_sha256": {
+    "initial-conflict.patch": "baebd78a4a6779fb07ea7a92173169d805cd2460dae0b0bb8b8375a28c0ca19e",
+    "category-reload.patch": "882f577c6693b1c29dd867ca8319c6b0207d34b0392cd19fc29c013fd6513355",
+    "track-rename.patch": "f8dc8de7b65e4312a4b94987ac742ec6ffc08a7e7a9495025f0ae265d6dcd4bf",
+    "global-bookmark-search.patch": "6536922417198e07249115db29ce075bb63bce3918ae2a5abe19df6bf941d87b",
+    "ios-folder-order.patch": "a8c3e9a003773d3bc992d04dd905a98aef45158313445da58e425b9dcebf78d6",
+    "typed-saved-items-search.patch": "690cfd324c15af1635fbf656dddbfd91f3e3f466b186fd254c91f282f7d38fed",
+    "typed-saved-items-ios.patch": "d571149cc42d1149a2c9c0464e11302d8ead145fe2f13f8300bf08df5fbde161",
+    "manual-item-order.patch": "fa2c0b1171e876a1d7a3af8fd4ddb2c3fd6cfcdf50f4c679c0559ea956c2c43b",
+    "ios-manual-item-order.patch": "f658c0fdc61e11663d024833e35c5c73721a82e74aa32c6c7b71b74281ab9196",
+    "typed-search-cancellation.patch": "a4a231c229e48897846f4c71d47ec57d0eb2f6d9ef7a0911368e83856d4a84e5"
   }
 }

@@ -1,0 +1,818 @@
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
+@@ -31,6 +31,23 @@
+ typedef void (^PingCompletionBlock)(BOOL success);
+ typedef void (^ElevationPointChangedBlock)(double distance);
+ typedef void (^SearchBookmarksCompletionBlock)(NSArray<MWMBookmark *> *bookmarks);
++
++typedef NS_ENUM(NSInteger, MWMSavedItemKind) {
++  MWMSavedItemKindBookmark,
++  MWMSavedItemKindTrack
++} NS_SWIFT_NAME(SavedItemKind);
++
++NS_SWIFT_NAME(SavedItemSearchResult)
++@interface MWMSavedItemSearchResult : NSObject
++@property(nonatomic, readonly) MWMSavedItemKind kind;
++@property(nonatomic, readonly) uint64_t itemId;
++@property(nonatomic, readonly) MWMMarkGroupID categoryId;
++- (instancetype)init NS_UNAVAILABLE;
++- (instancetype)initWithKind:(MWMSavedItemKind)kind itemId:(uint64_t)itemId categoryId:(MWMMarkGroupID)categoryId
++    NS_SWIFT_NAME(init(kind:itemId:categoryId:));
++@end
++
++typedef void (^SearchSavedItemsCompletionBlock)(NSArray<MWMSavedItemSearchResult *> *items);
+ typedef void (^SortBookmarksCompletionBlock)(NSArray<MWMBookmarksSection *> * _Nullable sortedSections);
+ typedef void (^SharingResultCompletionHandler)(MWMBookmarksShareStatus status, NSURL * _Nullable urlToALocalFile);
+ 
+@@ -105,6 +122,14 @@
+                   completion:(SearchBookmarksCompletionBlock)completion;
+ - (void)searchAllBookmarks:(NSString *)text
+                completion:(SearchBookmarksCompletionBlock)completion NS_SWIFT_NAME(searchAllBookmarks(_:completion:));
++- (void)searchSavedItemsInGroup:(MWMMarkGroupID)groupId
++                          text:(NSString *)text
++                    completion:(SearchSavedItemsCompletionBlock)completion NS_SWIFT_NAME(searchSavedItems(inGroup:text:completion:));
++- (void)searchAllSavedItems:(NSString *)text
++                completion:(SearchSavedItemsCompletionBlock)completion NS_SWIFT_NAME(searchAllSavedItems(_:completion:));
++- (void)cancelSavedItemsSearch NS_SWIFT_NAME(cancelSavedItemsSearch());
++- (BOOL)hasSavedItemKind:(MWMSavedItemKind)kind itemId:(uint64_t)itemId inGroup:(MWMMarkGroupID)groupId
++    NS_SWIFT_NAME(hasSavedItem(_:itemId:inGroup:));
+ 
+ - (MWMTrackIDCollection)trackIdsForCategory:(MWMMarkGroupID)categoryId;
+ 
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+@@ -10,6 +10,7 @@
+ #include "Framework.h"
+ 
+ #include "map/bookmarks_search_params.hpp"
++#include "map/saved_items_search_params.hpp"
+ 
+ #include "coding/internal/file_data.hpp"
+ 
+@@ -97,6 +98,21 @@
+   }
+ }
+ 
++@implementation MWMSavedItemSearchResult
++
++- (instancetype)initWithKind:(MWMSavedItemKind)kind itemId:(uint64_t)itemId categoryId:(MWMMarkGroupID)categoryId
++{
++  self = [super init];
++  if (self) {
++    _kind = kind;
++    _itemId = itemId;
++    _categoryId = categoryId;
++  }
++  return self;
++}
++
++@end
++
+ @interface MWMBookmarksManager ()
+ 
+ @property(nonatomic, readonly) BookmarkManager & bm;
+@@ -590,6 +606,103 @@
+   [self searchBookmarksGroup:kml::kInvalidMarkGroupId text:text completion:completion];
+ }
+ 
++- (void)searchSavedItemsInGroup:(MWMMarkGroupID)groupId
++                          text:(NSString *)text
++                    completion:(SearchSavedItemsCompletionBlock)completion
++{
++  auto const searchId = ++self.lastSearchId;
++  __weak auto weakSelf = self;
++  search::SavedItemsSearchParams params;
++  params.m_query = text.UTF8String;
++  params.m_groupId = groupId;
++  auto const groups = groupId == kml::kInvalidMarkGroupId
++      ? self.bm.GetSortedBmGroupIdList() : std::vector<kml::MarkGroupId>{groupId};
++  for (auto const categoryId : groups) {
++    if (!self.bm.HasBmCategory(categoryId))
++      continue;
++    for (auto const bookmarkId : self.bm.GetUserMarkIds(categoryId)) {
++      auto const * bookmark = self.bm.GetBookmark(bookmarkId);
++      if (bookmark)
++        params.m_documents.push_back({{search::bookmarks::ItemKind::Bookmark, bookmarkId}, categoryId,
++                                      search::bookmarks::Data(bookmark->GetData())});
++    }
++    for (auto const trackId : self.bm.GetTrackIds(categoryId)) {
++      auto const * track = self.bm.GetTrack(trackId);
++      if (track)
++        params.m_documents.push_back({{search::bookmarks::ItemKind::Track, trackId}, categoryId,
++                                      search::bookmarks::Data(track->GetData())});
++    }
++  }
++  params.m_onResults = [weakSelf, searchId, groupId, completion](search::bookmarks::ItemResults results,
++                                                             search::SavedItemsSearchParams::Status status) {
++    __strong auto self = weakSelf;
++    if (!self || searchId != self.lastSearchId)
++      return;
++    if (status == search::SavedItemsSearchParams::Status::Cancelled) {
++      completion(@[]);
++      return;
++    }
++    NSMutableArray<MWMSavedItemSearchResult *> * items = [NSMutableArray array];
++    for (auto const & result : results) {
++      auto const itemId = result.m_item.m_id;
++      kml::MarkGroupId categoryId;
++      MWMSavedItemKind kind;
++      if (result.m_item.m_kind == search::bookmarks::ItemKind::Bookmark) {
++        auto const * bookmark = self.bm.GetBookmark(itemId);
++        if (!bookmark)
++          continue;
++        categoryId = bookmark->GetGroupId();
++        kind = MWMSavedItemKindBookmark;
++      } else {
++        auto const * track = self.bm.GetTrack(itemId);
++        if (!track)
++          continue;
++        categoryId = track->GetGroupId();
++        kind = MWMSavedItemKindTrack;
++      }
++      if (groupId != kml::kInvalidMarkGroupId) {
++        if (!self.bm.HasBmCategory(groupId))
++          continue;
++        if (kind == MWMSavedItemKindBookmark && !self.bm.GetUserMarkIds(groupId).count(itemId))
++          continue;
++        if (kind == MWMSavedItemKindTrack && !self.bm.GetTrackIds(groupId).count(itemId))
++          continue;
++        categoryId = groupId;
++      }
++      if (!self.bm.HasBmCategory(categoryId))
++        continue;
++      [items addObject:[[MWMSavedItemSearchResult alloc] initWithKind:kind itemId:itemId categoryId:categoryId]];
++    }
++    completion(items);
++  };
++  if (!GetFramework().GetSearchAPI().SearchSavedItems(std::move(params)))
++    completion(@[]);
++}
++
++- (void)searchAllSavedItems:(NSString *)text completion:(SearchSavedItemsCompletionBlock)completion
++{
++  [self searchSavedItemsInGroup:kml::kInvalidMarkGroupId text:text completion:completion];
++}
++
++- (void)cancelSavedItemsSearch
++{
++  ++self.lastSearchId;
++  GetFramework().GetSearchAPI().CancelSearch(search::Mode::Bookmarks);
++}
++
++- (BOOL)hasSavedItemKind:(MWMSavedItemKind)kind itemId:(uint64_t)itemId inGroup:(MWMMarkGroupID)groupId
++{
++  if (!self.bm.HasBmCategory(groupId))
++    return NO;
++  switch (kind) {
++    case MWMSavedItemKindBookmark:
++      return self.bm.HasBookmark(itemId) && self.bm.GetUserMarkIds(groupId).count(itemId) != 0;
++    case MWMSavedItemKindTrack:
++      return self.bm.HasTrack(itemId) && self.bm.GetTrackIds(groupId).count(itemId) != 0;
++  }
++  return NO;
++}
++
+ 
+ #pragma mark - Tracks
+ 
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift
+@@ -18,17 +18,20 @@
+ final class BookmarksListInteractor: NSObject {
+   private var markGroupId: MWMMarkGroupID
+   private var bookmarksManager: BookmarksManager
++  private let searchModel: BMCSearchViewModel
+ 
+   var onCategoryReload: ((GroupReloadingResult) -> Void)?
+ 
+   init(markGroupId: MWMMarkGroupID) {
+     self.markGroupId = markGroupId
+     self.bookmarksManager = BookmarksManager.shared()
++    self.searchModel = BMCSearchViewModel(service: BMCSavedItemsSearchService(groupId: markGroupId))
+     super.init()
+     self.addToBookmarksManagerObserverList()
+   }
+ 
+   deinit {
++    searchModel.stop()
+     removeFromBookmarksManagerObserverList()
+   }
+ }
+@@ -43,13 +46,20 @@
+   }
+ 
+   func prepareForSearch() {
+-    bookmarksManager.prepare(forSearch: markGroupId)
+-  }
+-
+-  func search(_ text: String, completion: @escaping ([Bookmark]) -> Void) {
+-    bookmarksManager.searchBookmarksGroup(markGroupId, text: text) {
+-      completion($0)
+-    }
++    searchModel.start()
++  }
++
++  func stopSearching() {
++    searchModel.stop()
++  }
++
++  func search(_ text: String, completion: @escaping ([BMCSearchResult]) -> Void) {
++    searchModel.onChange = { [weak self] in
++      guard let self else { return }
++      completion(searchModel.sections.flatMap(\.results))
++    }
++    searchModel.start()
++    searchModel.search(text)
+   }
+ 
+   func availableSortingTypes(hasMyPosition: Bool) -> [BookmarksListSortingType] {
+@@ -75,12 +85,22 @@
+     FrameworkHelper.show(onMap: markGroupId)
+   }
+ 
+-  func viewBookmarkOnMap(_ bookmarkId: MWMMarkID) {
++  func viewBookmarkOnMap(_ bookmarkId: MWMMarkID) -> Bool {
++    guard bookmarksManager.hasSavedItem(.bookmark, itemId: bookmarkId, inGroup: markGroupId) else {
++      reloadCategory()
++      return false
++    }
+     FrameworkHelper.showBookmark(bookmarkId)
+-  }
+-
+-  func viewTrackOnMap(_ trackId: MWMTrackID) {
++    return true
++  }
++
++  func viewTrackOnMap(_ trackId: MWMTrackID) -> Bool {
++    guard bookmarksManager.hasSavedItem(.track, itemId: trackId, inGroup: markGroupId) else {
++      reloadCategory()
++      return false
++    }
+     FrameworkHelper.showTrack(trackId)
++    return true
+   }
+ 
+   func setGroup(_ groupId: MWMMarkGroupID, visible: Bool) {
+@@ -176,6 +196,14 @@
+ 
+ // MARK: - BookmarksObserver
+ extension BookmarksListInteractor: BookmarksObserver {
++  func onBookmarksFileLoadSuccess() {
++    reloadCategory()
++  }
++
++  func onBookmarkDeleted(_ bookmarkId: MWMMarkID) {
++    reloadCategory()
++  }
++
+   func onBookmarksLoadFinished() {
+     reloadCategory()
+   }
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift
+@@ -99,11 +99,12 @@
+   func getBookmarkGroup() -> BookmarkGroup
+   func hasDescription() -> Bool
+   func prepareForSearch()
+-  func search(_ text: String, completion: @escaping ([Bookmark]) -> Void)
++  func stopSearching()
++  func search(_ text: String, completion: @escaping ([BMCSearchResult]) -> Void)
+   func availableSortingTypes(hasMyPosition: Bool) -> [BookmarksListSortingType]
+   func viewOnMap()
+-  func viewBookmarkOnMap(_ bookmarkId: MWMMarkID)
+-  func viewTrackOnMap(_ trackId: MWMTrackID)
++  func viewBookmarkOnMap(_ bookmarkId: MWMMarkID) -> Bool
++  func viewTrackOnMap(_ trackId: MWMTrackID) -> Bool
+   func setGroup(_ groupId: MWMMarkGroupID, visible: Bool)
+   func sort(_ sortingType: BookmarksListSortingType,
+             location: CLLocation?,
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift
+@@ -4,6 +4,8 @@
+   private var interactor: IBookmarksListInteractor
+   private weak var delegate: UIViewController?
+   private var bookmarkGroup: BookmarkGroup
++  private var searchQuery: String?
++  private var searchGeneration = 0
+ 
+   private enum EditableItem {
+     case bookmark(MWMMarkID)
+@@ -38,6 +40,10 @@
+   }
+ 
+   private func reload() {
++    if let searchQuery, !searchQuery.isEmpty {
++      search(searchQuery)
++      return
++    }
+     guard let sortingType = interactor.lastSortingType() else {
+       setDefaultSections()
+       return
+@@ -100,6 +106,35 @@
+ 
+   private func formatDistance(_ distance: Double) -> String {
+     DistanceFormatter.distanceString(fromMeters: distance)
++  }
++
++  private func mapSearchResults(_ results: [BMCSearchResult]) -> [IBookmarksListSectionViewModel] {
++    let manager = BookmarksManager.shared()
++    var bookmarks: [Bookmark] = []
++    var tracks: [Track] = []
++    for result in results {
++      switch result.item {
++      case .bookmark(let id):
++        if manager.hasBookmark(id) { bookmarks.append(manager.bookmark(withId: id)) }
++      case .track(let id):
++        if manager.hasTrack(id) { tracks.append(manager.track(withId: id)) }
++      }
++    }
++    var sections: [IBookmarksListSectionViewModel] = []
++    if !tracks.isEmpty {
++      sections.append(TracksSectionViewModel(tracks: tracks.map { track in
++        TrackViewModel(track, formattedDistance: formatDistance(Double(track.trackLengthMeters)), colorDidTap: { [weak self] in
++          self?.view.showColorPicker(with: .defaultColorPicker(track.trackColor)) { color in
++            manager.updateTrack(track.trackId, setColor: color)
++            self?.reload()
++          }
++        })
++      }))
++    }
++    if !bookmarks.isEmpty {
++      sections.append(BookmarksSectionViewModel(title: L("bookmarks"), bookmarks: mapBookmarks(bookmarks)))
++    }
++    return sections
+   }
+ 
+   private func showSortMenu() {
+@@ -228,23 +263,30 @@
+   }
+ 
+   func activateSearch() {
++    if searchQuery == nil { searchQuery = "" }
+     interactor.prepareForSearch()
+   }
+ 
+   func deactivateSearch() {
+-
++    searchGeneration += 1
++    searchQuery = nil
++    interactor.stopSearching()
+   }
+ 
+   func cancelSearch() {
++    searchGeneration += 1
++    if searchQuery != nil { searchQuery = "" }
++    interactor.stopSearching()
+     reload()
+   }
+ 
+   func search(_ text: String) {
+-    interactor.search(text) { [weak self] in
+-      guard let self = self else { return }
+-      let bookmarks = self.mapBookmarks($0)
+-      self.view.setSections(bookmarks.isEmpty ? [] : [BookmarksSectionViewModel(title: L("bookmarks"),
+-                                                                                 bookmarks: bookmarks)])
++    searchQuery = text
++    searchGeneration += 1
++    let requestedGeneration = searchGeneration
++    interactor.search(text) { [weak self] results in
++      guard let self, searchGeneration == requestedGeneration, searchQuery == text else { return }
++      view.setSections(mapSearchResults(results))
+     }
+   }
+ 
+@@ -308,11 +350,11 @@
+     switch section {
+     case let bookmarksSection as IBookmarksSectionViewModel:
+       let bookmark = bookmarksSection.bookmarks[index] as! BookmarkViewModel
+-      interactor.viewBookmarkOnMap(bookmark.bookmarkId)
++      guard interactor.viewBookmarkOnMap(bookmark.bookmarkId) else { return }
+       router.viewOnMap(bookmarkGroup)
+     case let tracksSection as ITracksSectionViewModel:
+       let track = tracksSection.tracks[index] as! TrackViewModel
+-      interactor.viewTrackOnMap(track.trackId)
++      guard interactor.viewTrackOnMap(track.trackId) else { return }
+       router.viewOnMap(bookmarkGroup)
+     case let subgroupsSection as ISubgroupsSectionViewModel:
+       let subgroup = subgroupsSection.subgroups[index] as! SubgroupViewModel
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift
+@@ -39,6 +39,7 @@
+     searchController.obscuresBackgroundDuringPresentation = false
+     searchController.hidesNavigationBarDuringPresentation = alternativeSizeClass(iPhone: true, iPad: false)
+     searchController.searchBar.delegate = self
++    searchController.delegate = self
+     searchController.searchBar.applyTheme()
+     navigationItem.searchController = searchController
+     navigationItem.hidesSearchBarWhenScrolling = false
+@@ -187,7 +188,6 @@
+ 
+   func searchBarTextDidEndEditing(_ searchBar: UISearchBar) {
+     searchBar.setShowsCancelButton(false, animated: true)
+-    presenter.deactivateSearch()
+   }
+ 
+   func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+@@ -203,6 +203,13 @@
+     }
+ 
+     presenter.search(searchText)
++  }
++}
++
++extension BookmarksListViewController: UISearchControllerDelegate {
++  func didDismissSearchController(_ searchController: UISearchController) {
++    presenter.deactivateSearch()
++    presenter.cancelSearch()
+   }
+ }
+ 
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCView/BMCSearchResultsViewController.swift b/iphone/Maps/Bookmarks/Categories/BMCView/BMCSearchResultsViewController.swift
+--- a/iphone/Maps/Bookmarks/Categories/BMCView/BMCSearchResultsViewController.swift
++++ b/iphone/Maps/Bookmarks/Categories/BMCView/BMCSearchResultsViewController.swift
+@@ -2,7 +2,7 @@
+ 
+ final class BMCSearchResultsViewController: UITableViewController {
+   private let manager = BookmarksManager.shared()
+-  private let model = BMCSearchViewModel(service: BMCBookmarksSearchService())
++  private let model = BMCSearchViewModel(service: BMCSavedItemsSearchService())
+   var onSelect: ((BMCSearchResult) -> Void)?
+ 
+   init() {
+@@ -134,43 +134,3 @@
+   }
+ }
+ 
+-private final class BMCBookmarksSearchService: BMCSearchService {
+-  private let manager = BookmarksManager.shared()
+-
+-  func prepare() {
+-    manager.prepareForSearchAllGroups()
+-  }
+-
+-  func release() {
+-    manager.releaseSearch()
+-  }
+-
+-  func search(_ text: String, completion: @escaping ([BMCSearchResult]) -> Void) {
+-    manager.searchAllBookmarks(text) { [manager] bookmarks in
+-      let results = bookmarks.map { bookmark in
+-        let category = manager.category(forBookmarkId: bookmark.bookmarkId)
+-        return BMCSearchResult(item: .bookmark(bookmark.bookmarkId),
+-                               categoryId: category.categoryId,
+-                               categoryName: category.title,
+-                               name: bookmark.bookmarkName,
+-                               subtitle: bookmark.bookmarkType)
+-      }
+-      completion(results)
+-    }
+-  }
+-
+-  func resolveSelection(_ result: BMCSearchResult) -> BMCSearchResult? {
+-    let category: BookmarkGroup
+-    switch result.item {
+-    case .bookmark(let id):
+-      guard manager.hasBookmark(id) else { return nil }
+-      category = manager.category(forBookmarkId: id)
+-    case .track(let id):
+-      guard manager.hasTrack(id) else { return nil }
+-      category = manager.category(forTrackId: id)
+-    }
+-    guard manager.hasCategory(category.categoryId) else { return nil }
+-    return BMCSearchResult(item: result.item, categoryId: category.categoryId,
+-                           categoryName: category.title, name: result.name, subtitle: result.subtitle)
+-  }
+-}
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSavedItemsSearchService.swift b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSavedItemsSearchService.swift
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSavedItemsSearchService.swift
+@@ -0,0 +1,73 @@
++import Foundation
++
++final class BMCSavedItemsSearchService: BMCSearchService {
++  private let manager = BookmarksManager.shared()
++  private let groupId: MWMMarkGroupID?
++
++  init(groupId: MWMMarkGroupID? = nil) {
++    self.groupId = groupId
++  }
++
++  func prepare() {}
++
++  func release() {
++    manager.cancelSavedItemsSearch()
++  }
++
++  func search(_ text: String, completion: @escaping ([BMCSearchResult]) -> Void) {
++    let onResults: ([SavedItemSearchResult]) -> Void = { [weak self] items in
++      guard let self else { return }
++      completion(items.compactMap { item in
++        guard manager.hasCategory(item.categoryId) else { return nil }
++        let category = manager.category(withId: item.categoryId)
++        switch item.kind {
++        case .bookmark:
++          guard manager.hasBookmark(item.itemId) else { return nil }
++          let bookmark = manager.bookmark(withId: item.itemId)
++          return BMCSearchResult(item: .bookmark(item.itemId), categoryId: category.categoryId,
++                                 categoryName: category.title, name: bookmark.bookmarkName,
++                                 subtitle: bookmark.bookmarkType)
++        case .track:
++          guard manager.hasTrack(item.itemId) else { return nil }
++          let track = manager.track(withId: item.itemId)
++          let distance = DistanceFormatter.distanceString(fromMeters: Double(track.trackLengthMeters))
++          return BMCSearchResult(item: .track(item.itemId), categoryId: category.categoryId,
++                                 categoryName: category.title, name: track.trackName,
++                                 subtitle: "\(L("length")) \(distance)")
++        @unknown default:
++          return nil
++        }
++      })
++    }
++    if let groupId {
++      manager.searchSavedItems(inGroup: groupId, text: text, completion: onResults)
++    } else {
++      manager.searchAllSavedItems(text, completion: onResults)
++    }
++  }
++
++  func resolveSelection(_ result: BMCSearchResult) -> BMCSearchResult? {
++    let category: BookmarkGroup
++    switch result.item {
++    case .bookmark(let id):
++      guard manager.hasBookmark(id) else { return nil }
++      if let groupId {
++        guard manager.hasSavedItem(.bookmark, itemId: id, inGroup: groupId) else { return nil }
++        category = manager.category(withId: groupId)
++      } else {
++        category = manager.category(forBookmarkId: id)
++      }
++    case .track(let id):
++      guard manager.hasTrack(id) else { return nil }
++      if let groupId {
++        guard manager.hasSavedItem(.track, itemId: id, inGroup: groupId) else { return nil }
++        category = manager.category(withId: groupId)
++      } else {
++        category = manager.category(forTrackId: id)
++      }
++    }
++    guard manager.hasCategory(category.categoryId) else { return nil }
++    return BMCSearchResult(item: result.item, categoryId: category.categoryId,
++                           categoryName: category.title, name: result.name, subtitle: result.subtitle)
++  }
++}
+diff --git a/iphone/Maps/Maps.xcodeproj/project.pbxproj b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+--- a/iphone/Maps/Maps.xcodeproj/project.pbxproj
++++ b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+@@ -693,6 +693,8 @@
+ 		A421ABC00000000000000101 /* BMCSearchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000201 /* BMCSearchViewModel.swift */; };
+ 		A421ABC00000000000000102 /* BMCSearchResultsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000202 /* BMCSearchResultsViewController.swift */; };
+ 		A421ABC00000000000000103 /* BMCSearchViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000203 /* BMCSearchViewModelTests.swift */; };
++		A421ABC00000000000000104 /* BMCSavedItemsSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000204 /* BMCSavedItemsSearchService.swift */; };
++		A421ABC00000000000000105 /* SavedItemsSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000205 /* SavedItemsSearchTests.swift */; };
+ /* End PBXBuildFile section */
+ 
+ /* Begin PBXContainerItemProxy section */
+@@ -1838,6 +1840,8 @@
+ 		A421ABC00000000000000201 /* BMCSearchViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMCSearchViewModel.swift; sourceTree = "<group>"; };
+ 		A421ABC00000000000000202 /* BMCSearchResultsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMCSearchResultsViewController.swift; sourceTree = "<group>"; };
+ 		A421ABC00000000000000203 /* BMCSearchViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMCSearchViewModelTests.swift; sourceTree = "<group>"; };
++		A421ABC00000000000000204 /* BMCSavedItemsSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMCSavedItemsSearchService.swift; sourceTree = "<group>"; };
++		A421ABC00000000000000205 /* SavedItemsSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedItemsSearchTests.swift; sourceTree = "<group>"; };
+ /* End PBXFileReference section */
+ 
+ /* Begin PBXFrameworksBuildPhase section */
+@@ -2414,6 +2418,7 @@
+ 			children = (
+ 				34B846A72029E8110081ECCD /* BMCDefaultViewModel.swift */,
+ 				A421ABC00000000000000201 /* BMCSearchViewModel.swift */,
++				A421ABC00000000000000204 /* BMCSavedItemsSearchService.swift */,
+ 			);
+ 			path = BMCViewModel;
+ 			sourceTree = "<group>";
+@@ -3447,6 +3452,7 @@
+ 				EDC4E3422C5D1BD3009286A2 /* RecentlyDeletedTests */,
+ 				A421ABC00000000000000203 /* BMCSearchViewModelTests.swift */,
+ 				A421ABC10000000000000201 /* BookmarkFolderOrderTests.swift */,
++				A421ABC00000000000000205 /* SavedItemsSearchTests.swift */,
+ 			);
+ 			path = Categories;
+ 			sourceTree = "<group>";
+@@ -4479,6 +4485,7 @@
+ 				34AB665F1FC5AA330078E451 /* TransportTransitIntermediatePoint.swift in Sources */,
+ 				34B846A82029E8110081ECCD /* BMCDefaultViewModel.swift in Sources */,
+ 				A421ABC00000000000000101 /* BMCSearchViewModel.swift in Sources */,
++				A421ABC00000000000000104 /* BMCSavedItemsSearchService.swift in Sources */,
+ 				993DF12123F6BDB100AC231A /* UIViewControllerRenderer.swift in Sources */,
+ 				34D3AFF61E37A36A004100F9 /* UICollectionView+Cells.swift in Sources */,
+ 				4767CDA420AAF66B00BD8166 /* NSAttributedString+HTML.swift in Sources */,
+@@ -4959,6 +4966,7 @@
+ 				EDC4E3612C5E2576009286A2 /* RecentlyDeletedCategoriesViewModelTests.swift in Sources */,
+ 				A421ABC00000000000000103 /* BMCSearchViewModelTests.swift in Sources */,
+ 				A421ABC10000000000000101 /* BookmarkFolderOrderTests.swift in Sources */,
++				A421ABC00000000000000105 /* SavedItemsSearchTests.swift in Sources */,
+ 				4B4153B52BF9695500EE4B02 /* MWMTextToSpeechTests.mm in Sources */,
+ 				EDF838C42C00B9D6007E4E67 /* FileManagerMock.swift in Sources */,
+ 			);
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift
+@@ -0,0 +1,191 @@
++import XCTest
++@testable import CoMaps__Debug_
++
++final class SavedItemsSearchTests: XCTestCase, BookmarksObserver {
++  private var manager: BookmarksManager { BookmarksManager.shared() }
++  private var loading: XCTestExpectation?
++  private var importing: XCTestExpectation?
++  private var categories: [BookmarkGroup] = []
++  private var files: [URL] = []
++
++  override func setUp() async throws {
++    try await super.setUp()
++    try await prepareFixtures()
++  }
++
++  @MainActor
++  private func prepareFixtures() async throws {
++    manager.add(self)
++    if !manager.areBookmarksLoaded() {
++      loading = expectation(description: "Bookmark loading")
++      manager.loadBookmarks()
++      await fulfillment(of: [loading!], timeout: 30)
++      loading = nil
++    }
++    try await importCategory()
++    try await importCategory()
++  }
++
++  override func tearDown() async throws {
++    await cleanupFixtures()
++    try await super.tearDown()
++  }
++
++  @MainActor
++  private func cleanupFixtures() {
++    manager.cancelSavedItemsSearch()
++    manager.releaseSearch()
++    manager.remove(self)
++    for category in categories where manager.hasCategory(category.categoryId) {
++      manager.deleteCategory(category.categoryId)
++    }
++    for file in files { try? FileManager.default.removeItem(at: file) }
++    categories = []
++    files = []
++  }
++
++  @MainActor
++  func testTypedResultPreservesKindWithEqualNumericIds() async {
++    let bookmark = SavedItemSearchResult(kind: .bookmark, itemId: 42, categoryId: categories[0].categoryId)
++    let track = SavedItemSearchResult(kind: .track, itemId: 42, categoryId: categories[0].categoryId)
++    XCTAssertEqual(bookmark.itemId, track.itemId)
++    XCTAssertNotEqual(bookmark.kind, track.kind)
++  }
++
++  @MainActor
++  func testCurrentFolderSearchReturnsBothKindsFromOnlyThatFolder() async {
++    let group = categories[0]
++    let items = await search("needle", in: group.categoryId)
++    XCTAssertEqual(items.count, 2)
++    XCTAssertTrue(items.contains { $0.kind == .bookmark })
++    XCTAssertTrue(items.contains { $0.kind == .track })
++    XCTAssertTrue(items.allSatisfy { $0.categoryId == group.categoryId })
++  }
++
++  @MainActor
++  func testGlobalSearchIncludesBothFoldersAndBothKinds() async {
++    let ids = Set(categories.map(\.categoryId))
++    let items = await search("needle").filter { ids.contains($0.categoryId) }
++    XCTAssertEqual(items.count, 4)
++    XCTAssertEqual(Set(items.map(\.categoryId)), ids)
++    XCTAssertEqual(items.filter { $0.kind == .track }.count, 2)
++  }
++
++  @MainActor
++  func testChildCollectionSearchUsesMembershipInsteadOfPrimaryParent() async throws {
++    let root = categories[0]
++    let child = try XCTUnwrap(root.collections.first)
++    let bookmark = try XCTUnwrap(child.bookmarks.first)
++    XCTAssertEqual(manager.category(forBookmarkId: bookmark.bookmarkId).categoryId, root.categoryId)
++    XCTAssertNotEqual(root.categoryId, child.categoryId)
++    let items = await search("needle", in: child.categoryId)
++    XCTAssertEqual(items.map(\.itemId), [bookmark.bookmarkId])
++    XCTAssertEqual(items.map(\.categoryId), [child.categoryId])
++    XCTAssertEqual(items.first?.kind, .bookmark)
++    XCTAssertTrue(manager.hasSavedItem(.bookmark, itemId: bookmark.bookmarkId, inGroup: child.categoryId))
++  }
++
++  @MainActor
++  func testRenamedTrackIsReplacedInTheNextSearchSnapshot() async throws {
++    let category = categories[0]
++    let track = try XCTUnwrap(category.tracks.first)
++    manager.updateTrack(track.trackId, setGroupId: category.categoryId, color: track.trackColor, title: "Different route")
++    let oldNameResults = await search("needle", in: category.categoryId)
++    let newNameResults = await search("different", in: category.categoryId)
++    XCTAssertFalse(oldNameResults.contains { $0.kind == .track })
++    XCTAssertEqual(newNameResults.filter { $0.kind == .track }.map(\.itemId), [track.trackId])
++  }
++
++  @MainActor
++  func testMovedTrackLeavesOldScopeAndAppearsInNewScope() async throws {
++    let source = categories[0]
++    let target = categories[1]
++    let track = try XCTUnwrap(source.tracks.first)
++    manager.moveTrack(track.trackId, toGroupId: target.categoryId)
++    XCTAssertFalse(manager.hasSavedItem(.track, itemId: track.trackId, inGroup: source.categoryId))
++    XCTAssertTrue(manager.hasSavedItem(.track, itemId: track.trackId, inGroup: target.categoryId))
++    let sourceResults = await search("needle", in: source.categoryId)
++    let targetResults = await search("needle", in: target.categoryId)
++    XCTAssertFalse(sourceResults.contains { $0.kind == .track && $0.itemId == track.trackId })
++    XCTAssertTrue(targetResults.contains { $0.kind == .track && $0.itemId == track.trackId })
++  }
++
++  @MainActor
++  func testDeletedTrackIsNotSearchableOrSelectable() async throws {
++    let category = categories[0]
++    let track = try XCTUnwrap(category.tracks.first)
++    manager.deleteTrack(track.trackId)
++    XCTAssertFalse(manager.hasSavedItem(.track, itemId: track.trackId, inGroup: category.categoryId))
++    let results = await search("needle", in: category.categoryId)
++    XCTAssertFalse(results.contains { $0.kind == .track })
++  }
++
++  @MainActor
++  func testLegacyBookmarkSearchStillReturnsOnlyBookmarks() async {
++    let category = categories[0]
++    manager.prepare(forSearch: category.categoryId)
++    let finished = expectation(description: "Legacy bookmark search")
++    var returned: [Bookmark] = []
++    var didFinish = false
++    manager.searchBookmarksGroup(category.categoryId, text: "needle") { bookmarks in
++      returned = bookmarks
++      if !didFinish && bookmarks.count == category.bookmarks.count {
++        didFinish = true
++        finished.fulfill()
++      }
++    }
++    await fulfillment(of: [finished], timeout: 30)
++    XCTAssertEqual(returned.map(\.bookmarkId), category.bookmarks.map(\.bookmarkId))
++  }
++
++  @MainActor
++  private func search(_ text: String, in groupId: MWMMarkGroupID? = nil) async -> [SavedItemSearchResult] {
++    let finished = expectation(description: "Saved item search")
++    var items: [SavedItemSearchResult] = []
++    let completion: ([SavedItemSearchResult]) -> Void = { results in
++      items = results
++      finished.fulfill()
++    }
++    if let groupId {
++      manager.searchSavedItems(inGroup: groupId, text: text, completion: completion)
++    } else {
++      manager.searchAllSavedItems(text, completion: completion)
++    }
++    await fulfillment(of: [finished], timeout: 30)
++    return items
++  }
++
++  @MainActor
++  private func importCategory() async throws {
++    let title = "Search fixture \(UUID().uuidString)"
++    let file = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).kml")
++    let data = """
++    <?xml version="1.0" encoding="UTF-8"?>
++    <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:mwm="https://comaps.app"><Document><name>\(title)</name>
++    <ExtendedData><mwm:compilation id="1" type="Collection">
++    <mwm:name><mwm:lang code="default">Child collection</mwm:lang></mwm:name>
++    </mwm:compilation></ExtendedData>
++    <Placemark><name>Needle point</name><Point><coordinates>0,0</coordinates></Point>
++    <ExtendedData><mwm:compilations>1</mwm:compilations></ExtendedData></Placemark>
++    <Placemark><name>Needle route</name><LineString><coordinates>0,0,0 0.001,0.001,0</coordinates></LineString></Placemark>
++    </Document></kml>
++    """
++    try Data(data.utf8).write(to: file)
++    files.append(file)
++    importing = expectation(description: "Import search fixture")
++    manager.loadBookmarkFile(file)
++    await fulfillment(of: [importing!], timeout: 30)
++    importing = nil
++    categories.append(try XCTUnwrap(manager.sortedUserCategories().first { $0.title == title }))
++  }
++
++  func onBookmarksLoadFinished() {
++    loading?.fulfill()
++    importing?.fulfill()
++  }
++
++  func onBookmarksFileLoadError() {
++    XCTFail("Failed to import synthetic search fixture")
++    importing?.fulfill()
++  }
++}

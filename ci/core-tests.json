@@ -3,5 +3,10 @@
   "Bookmarks_ReloadReplacesCompilations",
   "TrackRename_AutoSave",
   "Bookmarks_ManualFolderOrderPersistsEmptyCategories",
-  "Bookmarks_NewCategorySaveFailureRestoresUnsavedState"
+  "Bookmarks_NewCategorySaveFailureRestoresUnsavedState",
+  "ManualItemOrder_PersistenceAfterReload",
+  "ManualItemOrder_RejectsStaleForeignAndDuplicateIds",
+  "ManualItemOrder_InvalidRanksAndNewItems",
+  "ManualItemOrder_SharedModeAndDefault",
+  "ManualItemOrder_AppendsNewMovedItemsAndHandlesDeletion"
 ]

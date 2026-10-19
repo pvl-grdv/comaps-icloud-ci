@@ -1,0 +1,129 @@
+diff --git a/libs/search/processor.cpp b/libs/search/processor.cpp
+index f020412..b79975a 100644
+--- a/libs/search/processor.cpp
++++ b/libs/search/processor.cpp
+@@ -548,6 +548,8 @@ void Processor::Search(SearchParams params)
+   {
+     Results results;
+     results.SetEndMarker(true /* isCancelled */);
++    if (params.m_onSavedItemsResults)
++      params.m_onSavedItemsResults({}, true);
+     params.m_onResults(std::move(results));
+     return;
+   }
+diff --git a/libs/search/search_tests/bookmarks_processor_tests.cpp b/libs/search/search_tests/bookmarks_processor_tests.cpp
+index 3765721..b2ce1d6 100644
+--- a/libs/search/search_tests/bookmarks_processor_tests.cpp
++++ b/libs/search/search_tests/bookmarks_processor_tests.cpp
+@@ -6,10 +6,17 @@
+ #include "search/bookmarks/processor.hpp"
+ #include "search/bookmarks/saved_items_index.hpp"
+ #include "search/emitter.hpp"
++#include "search/processor.hpp"
++#include "search/search_params.hpp"
++#include "search/suggest.hpp"
+ 
+ #include "indexer/classificator.hpp"
++#include "indexer/categories_holder.hpp"
++#include "indexer/data_source.hpp"
+ #include "indexer/search_string_utils.hpp"
+ 
++#include "storage/country_info_getter.hpp"
++
+ #include "base/cancellable.hpp"
+ #include "base/string_utils.hpp"
+ 
+@@ -29,7 +36,7 @@ class BookmarksProcessorTest : public generator::tests_support::TestWithClassifi
+ public:
+   BookmarksProcessorTest() : m_processor(m_emitter, m_cancellable) {}
+ 
+-  Processor & GetProcessor() { return m_processor; }
++  bookmarks::Processor & GetProcessor() { return m_processor; }
+ 
+   void Add(Id const & id, GroupId const & group, kml::BookmarkData const & data)
+   {
+@@ -56,7 +63,7 @@ public:
+     vector<strings::UniString> tokens;
+     auto const isPrefix = TokenizeStringAndCheckIfLastTokenIsPrefix(query, tokens);
+ 
+-    Processor::Params params;
++    bookmarks::Processor::Params params;
+     params.Init(query, tokens, isPrefix);
+ 
+     params.m_groupId = groupId;
+@@ -71,7 +78,7 @@ public:
+ protected:
+   Emitter m_emitter;
+   base::Cancellable m_cancellable;
+-  Processor m_processor;
++  bookmarks::Processor m_processor;
+ };
+ 
+ kml::BookmarkData MakeBookmarkData(string const & name, string const & customName, string const & description,
+@@ -212,7 +219,7 @@ public:
+   {
+     std::vector<strings::UniString> tokens;
+     auto const isPrefix = TokenizeStringAndCheckIfLastTokenIsPrefix(query, tokens);
+-    Processor::Params params;
++    bookmarks::Processor::Params params;
+     params.Init(query, tokens, isPrefix);
+     params.m_groupId = group;
+     params.m_maxNumResults = limit;
+@@ -296,3 +303,57 @@ UNIT_CLASS_TEST(SavedItemsIndexTest, CancelledSearch)
+ }
+ 
+ }  // namespace bookmarks_processor_tests
++
++namespace saved_items_processor_tests
++{
++using SavedItemsProcessorTest = generator::tests_support::TestWithClassificator;
++
++UNIT_CLASS_TEST(SavedItemsProcessorTest, CancelledBeforeProcessingCompletesTypedCallback)
++{
++  FrozenDataSource dataSource;
++  storage::CountryInfoGetterForTesting infoGetter;
++  std::vector<search::Suggest> suggestions;
++  search::Processor processor(dataSource, GetDefaultCategories(), suggestions, infoGetter);
++  search::SearchParams params;
++  params.m_mode = search::Mode::Bookmarks;
++  params.m_savedItems = std::make_shared<std::vector<search::bookmarks::ItemDocument> const>();
++  params.m_onStarted = [&] { processor.Cancel(); };
++  size_t typedCallbacks = 0;
++  size_t legacyCallbacks = 0;
++  params.m_onSavedItemsResults = [&](search::bookmarks::ItemResults results, bool cancelled)
++  {
++    ++typedCallbacks;
++    TEST(cancelled, ());
++    TEST(results.empty(), ());
++  };
++  params.m_onResults = [&](search::Results const & results)
++  {
++    ++legacyCallbacks;
++    TEST(results.IsEndMarker(), ());
++    TEST(results.IsEndedCancelled(), ());
++  };
++  processor.Search(std::move(params));
++  TEST_EQUAL(typedCallbacks, 1, ());
++  TEST_EQUAL(legacyCallbacks, 1, ());
++}
++
++UNIT_CLASS_TEST(SavedItemsProcessorTest, CancelledLegacyRequestStillCompletes)
++{
++  FrozenDataSource dataSource;
++  storage::CountryInfoGetterForTesting infoGetter;
++  std::vector<search::Suggest> suggestions;
++  search::Processor processor(dataSource, GetDefaultCategories(), suggestions, infoGetter);
++  search::SearchParams params;
++  params.m_mode = search::Mode::Bookmarks;
++  params.m_onStarted = [&] { processor.Cancel(); };
++  size_t callbacks = 0;
++  params.m_onResults = [&](search::Results const & results)
++  {
++    ++callbacks;
++    TEST(results.IsEndMarker(), ());
++    TEST(results.IsEndedCancelled(), ());
++  };
++  processor.Search(std::move(params));
++  TEST_EQUAL(callbacks, 1, ());
++}
++}

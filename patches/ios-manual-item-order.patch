@@ -1,0 +1,801 @@
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
+@@ -19,7 +19,8 @@
+   MWMBookmarksSortingTypeByType,
+   MWMBookmarksSortingTypeByDistance,
+   MWMBookmarksSortingTypeByTime,
+-  MWMBookmarksSortingTypeByName
++  MWMBookmarksSortingTypeByName,
++  MWMBookmarksSortingTypeManual
+ } NS_SWIFT_NAME(BookmarksSortingType);
+ 
+ typedef NS_ENUM(NSInteger, MWMBookmarkCategorySortingType) {
+@@ -106,6 +107,10 @@
+ - (BOOL)hasLastSortingType:(MWMMarkGroupID)groupId;
+ - (MWMBookmarksSortingType)lastSortingType:(MWMMarkGroupID)groupId;
+ - (void)resetLastSortingType:(MWMMarkGroupID)groupId;
++- (BOOL)canManuallyOrderItems:(MWMMarkGroupID)groupId;
++- (BOOL)setManualItemOrder:(MWMMarkGroupID)groupId
++              bookmarkIds:(NSArray<NSNumber *> *)bookmarkIds
++                 trackIds:(NSArray<NSNumber *> *)trackIds NS_SWIFT_NAME(setManualItemOrder(_:bookmarkIds:trackIds:));
+ 
+ - (NSArray<MWMCarPlayBookmarkObject *> *)bookmarksForCategory:(MWMMarkGroupID)categoryId;
+ - (MWMMarkIDCollection)bookmarkIdsForCategory:(MWMMarkGroupID)categoryId;
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+@@ -71,6 +71,8 @@
+       return MWMBookmarksSortingTypeByTime;
+     case BookmarkManager::SortingType::ByName:
+       return MWMBookmarksSortingTypeByName;
++    case BookmarkManager::SortingType::Manual:
++      return MWMBookmarksSortingTypeManual;
+   }
+ }
+ 
+@@ -84,6 +86,8 @@
+       return BookmarkManager::SortingType::ByTime;
+     case MWMBookmarksSortingTypeByName:
+       return BookmarkManager::SortingType::ByName;
++    case MWMBookmarksSortingTypeManual:
++      return BookmarkManager::SortingType::Manual;
+   }
+ }
+ 
+@@ -500,6 +504,25 @@
+ 
+ - (void)resetLastSortingType:(MWMMarkGroupID)groupId {
+   self.bm.ResetLastSortingType(groupId);
++}
++
++- (BOOL)canManuallyOrderItems:(MWMMarkGroupID)groupId {
++  return self.bm.CanSetManualItemOrder(groupId);
++}
++
++- (BOOL)setManualItemOrder:(MWMMarkGroupID)groupId
++              bookmarkIds:(NSArray<NSNumber *> *)bookmarkIds
++                 trackIds:(NSArray<NSNumber *> *)trackIds
++{
++  std::vector<kml::MarkId> bookmarks;
++  std::vector<kml::TrackId> tracks;
++  bookmarks.reserve(bookmarkIds.count);
++  tracks.reserve(trackIds.count);
++  for (NSNumber * itemId in bookmarkIds)
++    bookmarks.push_back(itemId.unsignedLongLongValue);
++  for (NSNumber * itemId in trackIds)
++    tracks.push_back(itemId.unsignedLongLongValue);
++  return self.bm.SetManualItemOrder(groupId, bookmarks, tracks);
+ }
+ 
+ #pragma mark - Bookmarks
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarkItemOrder.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarkItemOrder.swift
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarkItemOrder.swift
+@@ -0,0 +1,30 @@
++import Foundation
++
++struct BookmarkItemOrder: Equatable {
++  enum Section {
++    case bookmarks
++    case tracks
++  }
++
++  private(set) var bookmarkIds: [MWMMarkID]
++  private(set) var trackIds: [MWMTrackID]
++
++  init?(bookmarkIds: [MWMMarkID], trackIds: [MWMTrackID]) {
++    guard Set(bookmarkIds).count == bookmarkIds.count, Set(trackIds).count == trackIds.count else { return nil }
++    self.bookmarkIds = bookmarkIds
++    self.trackIds = trackIds
++  }
++
++  mutating func move(in section: Section, from source: Int, to target: Int) -> Bool {
++    switch section {
++    case .bookmarks: return Self.move(&bookmarkIds, from: source, to: target)
++    case .tracks: return Self.move(&trackIds, from: source, to: target)
++    }
++  }
++
++  private static func move<T>(_ items: inout [T], from source: Int, to target: Int) -> Bool {
++    guard items.indices.contains(source), items.indices.contains(target) else { return false }
++    if source != target { items.insert(items.remove(at: source), at: target) }
++    return true
++  }
++}
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift
+@@ -9,6 +9,8 @@
+       self = .date
+     case .byName:
+       self = .name
++    case .manual:
++      self = .manual
+     @unknown default:
+       fatalError()
+     }
+@@ -75,6 +77,8 @@
+         return BookmarksListSortingType.date
+       case .byName:
+         return BookmarksListSortingType.name
++      case .manual:
++        return BookmarksListSortingType.manual
+       @unknown default:
+         fatalError()
+       }
+@@ -120,6 +124,8 @@
+       coreSortingType = .byType
+     case .name:
+       coreSortingType = .byName
++    case .manual:
++      coreSortingType = .manual
+     }
+ 
+     bookmarksManager.sortBookmarks(markGroupId,
+@@ -134,6 +140,16 @@
+     bookmarksManager.resetLastSortingType(markGroupId)
+   }
+ 
++  func canManuallyOrderItems() -> Bool {
++    bookmarksManager.canManuallyOrderItems(markGroupId)
++  }
++
++  func setManualItemOrder(_ order: BookmarkItemOrder) -> Bool {
++    bookmarksManager.setManualItemOrder(markGroupId,
++                                        bookmarkIds: order.bookmarkIds.map { NSNumber(value: $0) },
++                                        trackIds: order.trackIds.map { NSNumber(value: $0) })
++  }
++
+   func lastSortingType() -> BookmarksListSortingType? {
+     guard bookmarksManager.hasLastSortingType(markGroupId) else {
+       return nil
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift
+@@ -60,6 +60,8 @@
+   func setTitle(_ title: String)
+   func setInfo(_ info: IBookmarksListInfoViewModel)
+   func setSections(_ sections: [IBookmarksListSectionViewModel])
++  func setSectionsAfterReordering(_ sections: [IBookmarksListSectionViewModel])
++  func setItemReordering(_ enabled: Bool)
+   func setMoreItemTitle(_ itemTitle: String)
+   func showMenu(_ items: [IBookmarksListMenuItem], from source: BookmarkToolbarButtonSource)
+   func showColorPicker(with pickerType: ColorPickerType, _ completion: ((UIColor) -> Void)?)
+@@ -83,6 +85,8 @@
+   func selectItem(in section: IBookmarksListSectionViewModel, at index: Int)
+   func checkItem(in section: IBookmarksListSectionViewModel, at index: Int, checked: Bool)
+   func toggleVisibility(in section: IBookmarksListSectionViewModel)
++  func finishItemReordering()
++  func reorderItem(in section: IBookmarksListSectionViewModel, from source: Int, to target: Int)
+   func showDescription()
+ }
+ 
+@@ -91,6 +95,7 @@
+   case date
+   case type
+   case name
++  case manual
+ }
+ 
+ protocol IBookmarksListInteractor {
+@@ -111,6 +116,8 @@
+             completion: @escaping ([BookmarksSection]) -> Void)
+   func resetSort()
+   func lastSortingType() -> BookmarksListSortingType?
++  func canManuallyOrderItems() -> Bool
++  func setManualItemOrder(_ order: BookmarkItemOrder) -> Bool
+   func deleteBookmark(_ bookmarkId: MWMMarkID)
+   func deleteTrack(_ trackId: MWMTrackID)
+   func moveBookmark(_ bookmarkId: MWMMarkID, toGroupId: MWMMarkGroupID)
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift
+@@ -6,6 +6,8 @@
+   private var bookmarkGroup: BookmarkGroup
+   private var searchQuery: String?
+   private var searchGeneration = 0
++  private var displayedSections: [IBookmarksListSectionViewModel] = []
++  private var itemOrder: BookmarkItemOrder?
+ 
+   private enum EditableItem {
+     case bookmark(MWMMarkID)
+@@ -28,6 +30,7 @@
+   private func subscribeOnGroupReloading() {
+     interactor.onCategoryReload = { [weak self] result in
+       guard let self else { return }
++      self.finishItemReordering()
+       switch result {
+       case .notFound:
+         self.router.goBack()
+@@ -55,10 +58,10 @@
+     interactor.resetSort()
+     var sections: [IBookmarksListSectionViewModel] = []
+     let tracks = bookmarkGroup.tracks.map { track in
+-      TrackViewModel(track, formattedDistance: formatDistance(Double(track.trackLengthMeters)), colorDidTap: {
+-        self.view.showColorPicker(with: .defaultColorPicker(track.trackColor)) { color in
++      TrackViewModel(track, formattedDistance: formatDistance(Double(track.trackLengthMeters)), colorDidTap: { [weak self] in
++        self?.view.showColorPicker(with: .defaultColorPicker(track.trackColor)) { color in
+           BookmarksManager.shared().updateTrack(track.trackId, setColor: color)
+-          self.reload()
++          self?.reload()
+         }
+       })
+     }
+@@ -80,7 +83,7 @@
+     if !bookmarks.isEmpty {
+       sections.append(BookmarksSectionViewModel(title: L("bookmarks"), bookmarks: bookmarks))
+     }
+-    view.setSections(sections)
++    setSections(sections)
+   }
+ 
+   private func mapBookmarks(_ bookmarks: [Bookmark]) -> [BookmarkViewModel] {
+@@ -106,6 +109,33 @@
+ 
+   private func formatDistance(_ distance: Double) -> String {
+     DistanceFormatter.distanceString(fromMeters: distance)
++  }
++
++  private func setSections(_ sections: [IBookmarksListSectionViewModel], reloadTable: Bool = true) {
++    displayedSections = sections
++    if reloadTable {
++      view.setSections(sections)
++    } else {
++      view.setSectionsAfterReordering(sections)
++    }
++  }
++
++  private func beginItemReordering() {
++    guard searchQuery == nil, interactor.canManuallyOrderItems() else { return }
++    let bookmarks = displayedSections.compactMap { $0 as? IBookmarksSectionViewModel }
++      .flatMap { $0.bookmarks }.compactMap { ($0 as? BookmarkViewModel)?.bookmarkId }
++    let tracks = displayedSections.compactMap { $0 as? ITracksSectionViewModel }
++      .flatMap { $0.tracks }.compactMap { ($0 as? TrackViewModel)?.trackId }
++    guard let order = BookmarkItemOrder(bookmarkIds: bookmarks, trackIds: tracks),
++          interactor.setManualItemOrder(order) else {
++      reload()
++      return
++    }
++    itemOrder = order
++    sort(.manual) { [weak self] in
++      guard let self, itemOrder != nil else { return }
++      view.setItemReordering(true)
++    }
+   }
+ 
+   private func mapSearchResults(_ results: [BMCSearchResult]) -> [IBookmarksListSectionViewModel] {
+@@ -153,11 +183,16 @@
+           return BookmarksListMenuItem(title: L("sort_type"), action: { [weak self] in
+             self?.sort(.type)
+           })
++        case .manual:
++          return BookmarksListMenuItem(title: L("edit"), action: { [weak self] in self?.beginItemReordering() })
+         case .name:
+           return BookmarksListMenuItem(title: L("sort_name"), action: { [weak self] in
+             self?.sort(.name)
+           })
+         }
++    }
++    if interactor.canManuallyOrderItems() && searchQuery == nil {
++      sortItems.append(BookmarksListMenuItem(title: L("edit"), action: { [weak self] in self?.beginItemReordering() }))
+     }
+     sortItems.append(BookmarksListMenuItem(title: L("sort_default"), action: { [weak self] in
+       self?.setDefaultSections()
+@@ -219,25 +254,40 @@
+     router.viewOnMap(bookmarkGroup)
+   }
+ 
+-  private func sort(_ sortingType: BookmarksListSortingType) {
++  private func sort(_ sortingType: BookmarksListSortingType, reloadTable: Bool = true, completion: (() -> Void)? = nil) {
+     interactor.sort(sortingType, location: LocationManager.lastLocation()) { [weak self] sortedSections in
+-      let sections = sortedSections.map { (bookmarksSection) -> IBookmarksListSectionViewModel in
+-        if let bookmarks = bookmarksSection.bookmarks, let self = self {
++      guard let self, searchQuery == nil || searchQuery?.isEmpty == true else { return }
++      var sections = sortedSections.map { (bookmarksSection) -> IBookmarksListSectionViewModel in
++        if let bookmarks = bookmarksSection.bookmarks {
+           return BookmarksSectionViewModel(title: bookmarksSection.sectionName, bookmarks: self.mapBookmarks(bookmarks))
+         }
+-        if let tracks = bookmarksSection.tracks, let self = self {
++        if let tracks = bookmarksSection.tracks {
+           return TracksSectionViewModel(tracks: tracks.map { track in
+-            TrackViewModel(track, formattedDistance: self.formatDistance(Double(track.trackLengthMeters)), colorDidTap: {
+-              self.view.showColorPicker(with: .defaultColorPicker(track.trackColor)) { color in
++            TrackViewModel(track, formattedDistance: self.formatDistance(Double(track.trackLengthMeters)), colorDidTap: { [weak self] in
++              self?.view.showColorPicker(with: .defaultColorPicker(track.trackColor)) { color in
+                 BookmarksManager.shared().updateTrack(track.trackId, setColor: color)
+-                self.reload()
++                self?.reload()
+               }
+             })
+           })
+         }
+         fatalError()
+       }
+-      self?.view.setSections(sections)
++      if case .manual = sortingType {
++        var subgroups: [IBookmarksListSectionViewModel] = []
++        let collections = bookmarkGroup.collections.map { SubgroupViewModel($0) }
++        if !collections.isEmpty {
++          subgroups.append(SubgroupsSectionViewModel(title: L("collections"), subgroups: collections, type: .collection))
++        }
++        let categories = bookmarkGroup.categories.map { SubgroupViewModel($0) }
++        if !categories.isEmpty {
++          subgroups.append(SubgroupsSectionViewModel(title: L("categories"), subgroups: categories, type: .category))
++        }
++        let index = sections.firstIndex { $0 is IBookmarksSectionViewModel } ?? sections.count
++        sections.insert(contentsOf: subgroups, at: index)
++      }
++      setSections(sections, reloadTable: reloadTable)
++      completion?()
+     }
+   }
+ }
+@@ -263,6 +313,7 @@
+   }
+ 
+   func activateSearch() {
++    finishItemReordering()
+     if searchQuery == nil { searchQuery = "" }
+     interactor.prepareForSearch()
+   }
+@@ -286,8 +337,37 @@
+     let requestedGeneration = searchGeneration
+     interactor.search(text) { [weak self] results in
+       guard let self, searchGeneration == requestedGeneration, searchQuery == text else { return }
+-      view.setSections(mapSearchResults(results))
+-    }
++      setSections(mapSearchResults(results))
++    }
++  }
++
++  func finishItemReordering() {
++    guard itemOrder != nil else { return }
++    itemOrder = nil
++    view.setItemReordering(false)
++  }
++
++  func reorderItem(in section: IBookmarksListSectionViewModel, from source: Int, to target: Int) {
++    guard searchQuery == nil, var order = itemOrder, interactor.canManuallyOrderItems() else {
++      finishItemReordering()
++      reload()
++      return
++    }
++    let kind: BookmarkItemOrder.Section
++    if section is IBookmarksSectionViewModel {
++      kind = .bookmarks
++    } else if section is ITracksSectionViewModel {
++      kind = .tracks
++    } else {
++      return
++    }
++    guard order.move(in: kind, from: source, to: target), interactor.setManualItemOrder(order) else {
++      finishItemReordering()
++      reload()
++      return
++    }
++    itemOrder = order
++    sort(.manual, reloadTable: false)
+   }
+ 
+   func more() {
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift
+@@ -5,6 +5,7 @@
+   private let cellStrategy = BookmarksListCellStrategy()
+ 
+   private var canEdit = false
++  private var isReorderingItems = false
+ 
+   @IBOutlet private var tableView: UITableView!
+   @IBOutlet private var toolBar: UIToolbar!
+@@ -46,9 +47,11 @@
+     
+     cellStrategy.registerCells(tableView)
+     cellStrategy.cellCheckHandler = { [weak self] (viewModel, index, checked) in
++      guard self?.isReorderingItems == false else { return }
+       self?.presenter.checkItem(in: viewModel, at: index, checked: checked)
+     }
+     cellStrategy.cellVisibilityHandler = { [weak self] viewModel in
++      guard self?.isReorderingItems == false else { return }
+       self?.presenter.toggleVisibility(in: viewModel)
+     }
+     presenter.viewDidLoad()
+@@ -88,8 +91,13 @@
+   }
+ 
+   override func setEditing(_ editing: Bool, animated: Bool) {
++    guard !isReorderingItems else { return }
+     super.setEditing(editing, animated: animated)
+     tableView.setEditing(editing, animated: animated)
++  }
++
++  @objc private func finishItemReordering() {
++    presenter.finishItemReordering()
+   }
+     
+   private func updateTableViewInsets() {
+@@ -101,6 +109,18 @@
+ }
+ 
+ extension BookmarksListViewController: UITableViewDataSource {
++  func tableView(_ tableView: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
++    guard isReorderingItems, !searchController.isActive,
++          let section = sections?[indexPath.section] else { return false }
++    return section is IBookmarksSectionViewModel || section is ITracksSectionViewModel
++  }
++
++  func tableView(_ tableView: UITableView, moveRowAt source: IndexPath, to destination: IndexPath) {
++    guard isReorderingItems, source.section == destination.section,
++          let section = sections?[source.section] else { return }
++    presenter.reorderItem(in: section, from: source.row, to: destination.row)
++  }
++
+   func numberOfSections(in tableView: UITableView) -> Int {
+     sections?.count ?? 0
+   }
+@@ -117,6 +137,20 @@
+ }
+ 
+ extension BookmarksListViewController: UITableViewDelegate {
++  func tableView(_ tableView: UITableView, targetIndexPathForMoveFromRowAt source: IndexPath,
++                 toProposedIndexPath proposed: IndexPath) -> IndexPath {
++    guard proposed.section == source.section else { return source }
++    return proposed
++  }
++
++  func tableView(_ tableView: UITableView, editingStyleForRowAt indexPath: IndexPath) -> UITableViewCell.EditingStyle {
++    isReorderingItems ? .none : .delete
++  }
++
++  func tableView(_ tableView: UITableView, shouldIndentWhileEditingRowAt indexPath: IndexPath) -> Bool {
++    !isReorderingItems
++  }
++
+   func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+     60
+   }
+@@ -131,6 +165,7 @@
+   }
+ 
+   func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
++    guard !isReorderingItems else { return }
+     tableView.deselectRow(at: indexPath, animated: true)
+     guard let section = sections?[indexPath.section] else { fatalError() }
+     presenter.selectItem(in: section, at: indexPath.row)
+@@ -138,6 +173,7 @@
+ 
+   func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
+     guard let section = sections?[indexPath.section] else { fatalError() }
++    if isReorderingItems { return self.tableView(tableView, canMoveRowAt: indexPath) }
+     return canEdit && section.canEdit
+   }
+ 
+@@ -151,6 +187,7 @@
+   
+   func tableView(_ tableView: UITableView,
+                  leadingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
++    guard !isReorderingItems else { return nil }
+     let moveAction = UIContextualAction(style: .normal, title: L("move")) { [weak self] (_, _, completion) in
+       guard let section = self?.sections?[indexPath.section] else { fatalError() }
+       self?.presenter.moveItem(in: section, at: indexPath.row)
+@@ -161,6 +198,7 @@
+ 
+   func tableView(_ tableView: UITableView,
+                  trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
++    guard !isReorderingItems else { return nil }
+     let deleteAction = UIContextualAction(style: .destructive, title: L("delete")) { [weak self] (_, _, completion) in
+       guard let section = self?.sections?[indexPath.section] else { fatalError() }
+       self?.presenter.deleteItem(in: section, at: indexPath.row)
+@@ -175,6 +213,7 @@
+   }
+ 
+   func tableView(_ tableView: UITableView, accessoryButtonTappedForRowWith indexPath: IndexPath) {
++    guard !isReorderingItems else { return }
+     guard let section = sections?[indexPath.section] else { fatalError() }
+     presenter.editItem(in: section, at: indexPath.row)
+   }
+@@ -207,13 +246,37 @@
+ }
+ 
+ extension BookmarksListViewController: UISearchControllerDelegate {
++  func willPresentSearchController(_ searchController: UISearchController) {
++    presenter.finishItemReordering()
++    sortToolbarItem.isEnabled = false
++    moreToolbarItem.isEnabled = false
++  }
++
+   func didDismissSearchController(_ searchController: UISearchController) {
+     presenter.deactivateSearch()
+     presenter.cancelSearch()
++    sortToolbarItem.isEnabled = true
++    moreToolbarItem.isEnabled = true
+   }
+ }
+ 
+ extension BookmarksListViewController: IBookmarksListView {
++  func setSectionsAfterReordering(_ sections: [IBookmarksListSectionViewModel]) {
++    self.sections = sections
++  }
++
++  func setItemReordering(_ enabled: Bool) {
++    if enabled && isEditing { setEditing(false, animated: false) }
++    isReorderingItems = enabled
++    tableView.setEditing(enabled, animated: true)
++    navigationItem.rightBarButtonItem = enabled
++      ? UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(finishItemReordering))
++      : (canEdit ? editButtonItem : nil)
++    sortToolbarItem.isEnabled = !enabled
++    moreToolbarItem.isEnabled = !enabled
++    searchController.searchBar.isUserInteractionEnabled = !enabled
++  }
++
+   func setTitle(_ title: String) {
+     self.title = title
+   }
+@@ -251,6 +314,7 @@
+   }
+ 
+   func showColorPicker(with pickerType: ColorPickerType, _ completionHandler: ((UIColor) -> Void)?) {
++    guard !isReorderingItems else { return }
+     ColorPicker.shared.present(from: self, pickerType: pickerType, completionHandler: completionHandler)
+   }
+ 
+diff --git a/iphone/Maps/Maps.xcodeproj/project.pbxproj b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+--- a/iphone/Maps/Maps.xcodeproj/project.pbxproj
++++ b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+@@ -695,6 +695,8 @@
+ 		A421ABC00000000000000103 /* BMCSearchViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000203 /* BMCSearchViewModelTests.swift */; };
+ 		A421ABC00000000000000104 /* BMCSavedItemsSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000204 /* BMCSavedItemsSearchService.swift */; };
+ 		A421ABC00000000000000105 /* SavedItemsSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000205 /* SavedItemsSearchTests.swift */; };
++		A421ABC00000000000000106 /* BookmarkItemOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000206 /* BookmarkItemOrder.swift */; };
++		A421ABC00000000000000107 /* BookmarkItemOrderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000207 /* BookmarkItemOrderTests.swift */; };
+ /* End PBXBuildFile section */
+ 
+ /* Begin PBXContainerItemProxy section */
+@@ -1842,6 +1844,8 @@
+ 		A421ABC00000000000000203 /* BMCSearchViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMCSearchViewModelTests.swift; sourceTree = "<group>"; };
+ 		A421ABC00000000000000204 /* BMCSavedItemsSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMCSavedItemsSearchService.swift; sourceTree = "<group>"; };
+ 		A421ABC00000000000000205 /* SavedItemsSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedItemsSearchTests.swift; sourceTree = "<group>"; };
++		A421ABC00000000000000206 /* BookmarkItemOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkItemOrder.swift; sourceTree = "<group>"; };
++		A421ABC00000000000000207 /* BookmarkItemOrderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkItemOrderTests.swift; sourceTree = "<group>"; };
+ /* End PBXFileReference section */
+ 
+ /* Begin PBXFrameworksBuildPhase section */
+@@ -2851,6 +2855,7 @@
+ 				47CA68CF2500435D00671019 /* BookmarksListViewController.swift */,
+ 				47CA68D02500435D00671019 /* BookmarksListViewController.xib */,
+ 				47CA68D3250043C000671019 /* BookmarksListPresenter.swift */,
++				A421ABC00000000000000206 /* BookmarkItemOrder.swift */,
+ 				47CA68D52500448D00671019 /* BookmarksListInteractor.swift */,
+ 				47CA68D7250044C500671019 /* BookmarksListRouter.swift */,
+ 				47CA68D92500469400671019 /* BookmarksListBuilder.swift */,
+@@ -3453,6 +3458,7 @@
+ 				A421ABC00000000000000203 /* BMCSearchViewModelTests.swift */,
+ 				A421ABC10000000000000201 /* BookmarkFolderOrderTests.swift */,
+ 				A421ABC00000000000000205 /* SavedItemsSearchTests.swift */,
++				A421ABC00000000000000207 /* BookmarkItemOrderTests.swift */,
+ 			);
+ 			path = Categories;
+ 			sourceTree = "<group>";
+@@ -4854,6 +4860,7 @@
+ 				47E3C7332111F4D8008B3B27 /* CoverVerticalDismissalAnimator.swift in Sources */,
+ 				471AB99423ABA3BD00F56D49 /* SearchMapsDataSource.swift in Sources */,
+ 				47CA68F1250B54AF00671019 /* BookmarksListCell.swift in Sources */,
++				A421ABC00000000000000106 /* BookmarkItemOrder.swift in Sources */,
+ 				471A7BC02481C82500A0D4C1 /* BookmarkTitleCell.swift in Sources */,
+ 				47F67D1521CAB21B0069754E /* MWMImageCoder.m in Sources */,
+ 				34AB66861FC5AA330078E451 /* MWMNavigationInfoView.mm in Sources */,
+@@ -4967,6 +4974,7 @@
+ 				A421ABC00000000000000103 /* BMCSearchViewModelTests.swift in Sources */,
+ 				A421ABC10000000000000101 /* BookmarkFolderOrderTests.swift in Sources */,
+ 				A421ABC00000000000000105 /* SavedItemsSearchTests.swift in Sources */,
++				A421ABC00000000000000107 /* BookmarkItemOrderTests.swift in Sources */,
+ 				4B4153B52BF9695500EE4B02 /* MWMTextToSpeechTests.mm in Sources */,
+ 				EDF838C42C00B9D6007E4E67 /* FileManagerMock.swift in Sources */,
+ 			);
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
+@@ -0,0 +1,198 @@
++import XCTest
++@testable import CoMaps__Debug_
++
++final class BookmarkItemOrderModelTests: XCTestCase {
++  func testMovingBookmarkLeavesTrackSequenceUnchanged() throws {
++    var order = try XCTUnwrap(BookmarkItemOrder(bookmarkIds: [1, 2, 3], trackIds: [7, 8]))
++    XCTAssertTrue(order.move(in: .bookmarks, from: 0, to: 2))
++    XCTAssertEqual(order.bookmarkIds, [2, 3, 1])
++    XCTAssertEqual(order.trackIds, [7, 8])
++  }
++
++  func testMovingTrackLeavesBookmarkSequenceUnchanged() throws {
++    var order = try XCTUnwrap(BookmarkItemOrder(bookmarkIds: [1, 2], trackIds: [7, 8, 9]))
++    XCTAssertTrue(order.move(in: .tracks, from: 2, to: 0))
++    XCTAssertEqual(order.bookmarkIds, [1, 2])
++    XCTAssertEqual(order.trackIds, [9, 7, 8])
++  }
++
++  func testEqualNumericIdsInDifferentSectionsRemainDistinct() throws {
++    var order = try XCTUnwrap(BookmarkItemOrder(bookmarkIds: [1, 2], trackIds: [1, 2]))
++    XCTAssertTrue(order.move(in: .tracks, from: 0, to: 1))
++    XCTAssertEqual(order.bookmarkIds, [1, 2])
++    XCTAssertEqual(order.trackIds, [2, 1])
++  }
++
++  func testInvalidMoveDoesNotChangeEitherSequence() throws {
++    var order = try XCTUnwrap(BookmarkItemOrder(bookmarkIds: [1, 2], trackIds: [7]))
++    let original = order
++    XCTAssertFalse(order.move(in: .bookmarks, from: -1, to: 0))
++    XCTAssertFalse(order.move(in: .tracks, from: 0, to: 1))
++    XCTAssertEqual(order, original)
++  }
++
++  func testDuplicateIdsWithinEitherSectionAreRejected() {
++    XCTAssertNil(BookmarkItemOrder(bookmarkIds: [1, 1], trackIds: []))
++    XCTAssertNil(BookmarkItemOrder(bookmarkIds: [], trackIds: [2, 2]))
++  }
++
++  func testMovingToSamePositionKeepsOrder() throws {
++    var order = try XCTUnwrap(BookmarkItemOrder(bookmarkIds: [1, 2], trackIds: []))
++    let original = order
++    XCTAssertTrue(order.move(in: .bookmarks, from: 1, to: 1))
++    XCTAssertEqual(order, original)
++  }
++}
++
++final class BookmarkItemOrderBridgeTests: XCTestCase, BookmarksObserver {
++  private var manager: BookmarksManager { BookmarksManager.shared() }
++  private var pending: XCTestExpectation?
++  private var category: BookmarkGroup?
++  private var fixtureFile: URL?
++
++  override func setUp() async throws {
++    try await super.setUp()
++    try await prepareFixture()
++  }
++
++  override func tearDown() async throws {
++    await cleanupFixture()
++    try await super.tearDown()
++  }
++
++  @MainActor
++  private func prepareFixture() async throws {
++    manager.add(self)
++    if !manager.areBookmarksLoaded() {
++      pending = expectation(description: "Load bookmarks")
++      manager.loadBookmarks()
++      await fulfillment(of: [pending!], timeout: 30)
++      pending = nil
++    }
++    let title = "Manual fixture \(UUID().uuidString)"
++    let file = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).kml")
++    fixtureFile = file
++    let kml = """
++    <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:mwm="https://comaps.app"><Document><name>\(title)</name>
++    <ExtendedData><mwm:compilation id="1" type="Collection">
++    <mwm:name><mwm:lang code="default">Child</mwm:lang></mwm:name></mwm:compilation></ExtendedData>
++    <Placemark><name>Point A</name><Point><coordinates>0,0</coordinates></Point>
++    <ExtendedData><mwm:compilations>1</mwm:compilations></ExtendedData></Placemark>
++    <Placemark><name>Point B</name><Point><coordinates>1,1</coordinates></Point></Placemark>
++    <Placemark><name>Track A</name><LineString><coordinates>0,0,0 0.001,0.001,0</coordinates></LineString></Placemark>
++    <Placemark><name>Track B</name><LineString><coordinates>1,1,0 1.001,1.001,0</coordinates></LineString></Placemark>
++    </Document></kml>
++    """
++    try Data(kml.utf8).write(to: file)
++    pending = expectation(description: "Import manual fixture")
++    manager.loadBookmarkFile(file)
++    await fulfillment(of: [pending!], timeout: 30)
++    pending = nil
++    category = try XCTUnwrap(manager.sortedUserCategories().first { $0.title == title })
++  }
++
++  @MainActor
++  private func cleanupFixture() {
++    manager.remove(self)
++    if let category, manager.hasCategory(category.categoryId) { manager.deleteCategory(category.categoryId) }
++    if let fixtureFile { try? FileManager.default.removeItem(at: fixtureFile) }
++    category = nil
++    fixtureFile = nil
++  }
++
++  @MainActor
++  func testBridgePersistsCompleteSeparatePermutationsAndManualMode() async throws {
++    let category = try XCTUnwrap(category)
++    let bookmarks = Array(category.bookmarks.map(\.bookmarkId).reversed())
++    let tracks = Array(category.tracks.map(\.trackId).reversed())
++    XCTAssertTrue(manager.canManuallyOrderItems(category.categoryId))
++    XCTAssertTrue(save(bookmarks: bookmarks, tracks: tracks, in: category.categoryId))
++    XCTAssertEqual(manager.lastSortingType(category.categoryId), .manual)
++    XCTAssertEqual(category.collections.count, 1)
++    let sections = await sortedSections(category.categoryId)
++    XCTAssertEqual(sections.flatMap { $0.bookmarks ?? [] }.map(\.bookmarkId), bookmarks)
++    XCTAssertEqual(sections.flatMap { $0.tracks ?? [] }.map(\.trackId), tracks)
++  }
++
++  @MainActor
++  func testIncompleteDuplicateAndForeignIdsAreRejectedWithoutMutation() async throws {
++    let category = try XCTUnwrap(category)
++    let bookmarks = category.bookmarks.map(\.bookmarkId)
++    let tracks = category.tracks.map(\.trackId)
++    XCTAssertTrue(save(bookmarks: bookmarks, tracks: tracks, in: category.categoryId))
++    XCTAssertFalse(save(bookmarks: Array(bookmarks.dropLast()), tracks: tracks, in: category.categoryId))
++    XCTAssertFalse(save(bookmarks: [bookmarks[0], bookmarks[0]], tracks: tracks, in: category.categoryId))
++    XCTAssertFalse(save(bookmarks: [bookmarks[0], UInt64.max], tracks: tracks, in: category.categoryId))
++    let sections = await sortedSections(category.categoryId)
++    XCTAssertEqual(sections.flatMap { $0.bookmarks ?? [] }.map(\.bookmarkId), bookmarks)
++    XCTAssertEqual(sections.flatMap { $0.tracks ?? [] }.map(\.trackId), tracks)
++  }
++
++  @MainActor
++  func testChildCollectionCannotChangeParentItemRanks() async throws {
++    let root = try XCTUnwrap(category)
++    let child = try XCTUnwrap(root.collections.first)
++    XCTAssertFalse(manager.canManuallyOrderItems(child.categoryId))
++    XCTAssertFalse(save(bookmarks: child.bookmarks.map(\.bookmarkId), tracks: [], in: child.categoryId))
++    XCTAssertTrue(manager.canManuallyOrderItems(root.categoryId))
++  }
++
++  @MainActor
++  func testManualOrderAndModeSurviveKmlSaveAndReload() async throws {
++    let category = try XCTUnwrap(category)
++    let bookmarks = Array(category.bookmarks.reversed())
++    let tracks = Array(category.tracks.reversed())
++    XCTAssertTrue(save(bookmarks: bookmarks.map(\.bookmarkId), tracks: tracks.map(\.trackId), in: category.categoryId))
++    let saved = expectation(description: "Complete queued KML save")
++    manager.shareCategory(category.categoryId, fileType: .text) { status, _ in
++      XCTAssertEqual(status, .success)
++      saved.fulfill()
++    }
++    await fulfillment(of: [saved], timeout: 30)
++    manager.finishSharing()
++    let files = try FileManager.default.contentsOfDirectory(at: FileManager.default.bookmarksDirectoryUrl,
++                                                            includingPropertiesForKeys: nil)
++    let file = try XCTUnwrap(files.first { url in
++      url.pathExtension == "kml" && (try? String(contentsOf: url, encoding: .utf8).contains(category.title)) == true
++    })
++    let kml = try String(contentsOf: file, encoding: .utf8)
++    XCTAssertTrue(kml.contains("comaps:itemOrder"))
++    XCTAssertTrue(kml.contains("comaps:itemSorting"))
++    pending = expectation(description: "Reload saved KML")
++    manager.reloadCategory(atFilePath: file.path)
++    await fulfillment(of: [pending!], timeout: 30)
++    pending = nil
++    XCTAssertEqual(manager.lastSortingType(category.categoryId), .manual)
++    XCTAssertEqual(manager.category(withId: category.categoryId).collections.count, 1)
++    let sections = await sortedSections(category.categoryId)
++    XCTAssertEqual(sections.flatMap { $0.bookmarks ?? [] }.map(\.bookmarkName), bookmarks.map(\.bookmarkName))
++    XCTAssertEqual(sections.flatMap { $0.tracks ?? [] }.map(\.trackName), tracks.map(\.trackName))
++  }
++
++  @MainActor
++  private func save(bookmarks: [MWMMarkID], tracks: [MWMTrackID], in group: MWMMarkGroupID) -> Bool {
++    manager.setManualItemOrder(group, bookmarkIds: bookmarks.map { NSNumber(value: $0) },
++                               trackIds: tracks.map { NSNumber(value: $0) })
++  }
++
++  @MainActor
++  private func sortedSections(_ group: MWMMarkGroupID) async -> [BookmarksSection] {
++    let finished = expectation(description: "Read manual order")
++    var sections: [BookmarksSection] = []
++    manager.sortBookmarks(group, sortingType: .manual, location: nil) { result in
++      sections = result ?? []
++      finished.fulfill()
++    }
++    await fulfillment(of: [finished], timeout: 30)
++    return sections
++  }
++
++  func onBookmarksLoadFinished() {
++    pending?.fulfill()
++  }
++
++  func onBookmarksFileLoadError() {
++    XCTFail("Synthetic manual-order fixture could not be imported")
++    pending?.fulfill()
++  }
++}

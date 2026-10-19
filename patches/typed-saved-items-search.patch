@@ -1,0 +1,480 @@
+diff --git a/libs/map/saved_items_search_params.hpp b/libs/map/saved_items_search_params.hpp
+new file mode 100644
+--- /dev/null
++++ b/libs/map/saved_items_search_params.hpp
+@@ -0,0 +1,23 @@
++#pragma once
++
++#include "map/bookmarks_search_params.hpp"
++#include "search/bookmarks/saved_items.hpp"
++
++#include <functional>
++#include <string>
++#include <vector>
++
++namespace search
++{
++struct SavedItemsSearchParams
++{
++  using Status = BookmarksSearchParams::Status;
++  using OnResults = std::function<void(bookmarks::ItemResults results, Status status)>;
++
++  std::string m_query;
++  kml::MarkGroupId m_groupId = kml::kInvalidMarkGroupId;
++  std::vector<bookmarks::ItemDocument> m_documents;
++  bool m_indexDescriptions = false;
++  OnResults m_onResults;
++};
++}
+diff --git a/libs/map/search_api.cpp b/libs/map/search_api.cpp
+--- a/libs/map/search_api.cpp
++++ b/libs/map/search_api.cpp
+@@ -2,6 +2,7 @@
+ 
+ #include "map/bookmark_helpers.hpp"
+ #include "map/bookmarks_search_params.hpp"
++#include "map/saved_items_search_params.hpp"
+ #include "map/everywhere_search_params.hpp"
+ 
+ #include "search/bookmarks/types.hpp"
+@@ -264,6 +265,31 @@
+   return Search(std::move(p), true /* forceSearch */);
+ }
+ 
++bool SearchAPI::SearchSavedItems(search::SavedItemsSearchParams params)
++{
++  CHECK(static_cast<bool>(params.m_onResults), ());
++  SearchParams p;
++  p.m_query = std::move(params.m_query);
++  p.m_position = m_delegate.GetCurrentPosition();
++  SetViewportIfPossible(p);
++  p.m_maxNumResults = SearchParams::kDefaultNumBookmarksResults;
++  p.m_mode = Mode::Bookmarks;
++  p.m_suggestsEnabled = false;
++  p.m_needAddress = false;
++  p.m_bookmarksGroupId = KmlGroupIdToSearchGroupId(params.m_groupId);
++  p.m_savedItems = std::make_shared<std::vector<bookmarks::ItemDocument> const>(std::move(params.m_documents));
++  p.m_savedItemsDescriptions = params.m_indexDescriptions;
++  p.m_onResults = [](Results const &) {};
++  p.m_onSavedItemsResults =
++      [delegate = &m_delegate, onResults = std::move(params.m_onResults)](bookmarks::ItemResults results, bool cancelled)
++  {
++    auto const status = cancelled ? SavedItemsSearchParams::Status::Cancelled : SavedItemsSearchParams::Status::Completed;
++    delegate->RunUITask([onResults, results = std::move(results), status]() mutable
++    { onResults(std::move(results), status); });
++  };
++  return Search(std::move(p), true);
++}
++
+ void SearchAPI::PokeSearchInViewport(bool forceSearch)
+ {
+   if (!m_isViewportInitialized || !IsViewportSearchActive())
+diff --git a/libs/map/search_api.hpp b/libs/map/search_api.hpp
+--- a/libs/map/search_api.hpp
++++ b/libs/map/search_api.hpp
+@@ -32,6 +32,7 @@
+ namespace search
+ {
+ struct BookmarksSearchParams;
++struct SavedItemsSearchParams;
+ struct EverywhereSearchParams;
+ struct DiscoverySearchParams;
+ }  // namespace search
+@@ -92,6 +93,7 @@
+ 
+   // Search for bookmarks.
+   bool SearchInBookmarks(search::BookmarksSearchParams params);
++  bool SearchSavedItems(search::SavedItemsSearchParams params);
+ 
+   search::Engine & GetEngine() { return m_engine; }
+   search::Engine const & GetEngine() const { return m_engine; }
+diff --git a/libs/search/bookmarks/data.hpp b/libs/search/bookmarks/data.hpp
+--- a/libs/search/bookmarks/data.hpp
++++ b/libs/search/bookmarks/data.hpp
+@@ -11,6 +11,7 @@
+ #include "base/string_utils.hpp"
+ 
+ #include <string>
++#include <utility>
+ #include <vector>
+ 
+ namespace search
+@@ -27,6 +28,15 @@
+     : m_names(ExtractIndexableNames(bookmarkData))
+     , m_description(kml::GetDefaultStr(bookmarkData.m_description))
+   {}
++
++  Data(kml::TrackData const & trackData)
++    : m_description(kml::GetDefaultStr(trackData.m_description))
++  {
++    auto name = kml::GetPreferredBookmarkStrForKml(trackData.m_name, localisation::GetMapLanguageIndexes());
++    strings::Trim(name);
++    if (!name.empty())
++      m_names.push_back(std::move(name));
++  }
+ 
+   template <typename Fn>
+   void ForEachNameToken(Fn && fn) const
+diff --git a/libs/search/bookmarks/saved_items.hpp b/libs/search/bookmarks/saved_items.hpp
+new file mode 100644
+--- /dev/null
++++ b/libs/search/bookmarks/saved_items.hpp
+@@ -0,0 +1,57 @@
++#pragma once
++
++#include "search/bookmarks/data.hpp"
++#include "search/bookmarks/types.hpp"
++
++#include <string>
++#include <tuple>
++#include <vector>
++
++namespace search::bookmarks
++{
++enum class ItemKind
++{
++  Bookmark,
++  Track
++};
++
++struct ItemId
++{
++  ItemKind m_kind = ItemKind::Bookmark;
++  uint64_t m_id = 0;
++
++  bool operator==(ItemId const &) const = default;
++  bool operator<(ItemId const & other) const
++  {
++    return std::tie(m_kind, m_id) < std::tie(other.m_kind, other.m_id);
++  }
++};
++
++inline std::string DebugPrint(ItemId const & id)
++{
++  return std::string(id.m_kind == ItemKind::Bookmark ? "Bookmark:" : "Track:") + std::to_string(id.m_id);
++}
++
++struct ItemDocument
++{
++  ItemId m_item;
++  GroupId m_groupId = kInvalidGroupId;
++  Data m_data;
++};
++
++struct ItemResult
++{
++  ItemId m_item;
++  GroupId m_groupId = kInvalidGroupId;
++
++  bool operator==(ItemResult const &) const = default;
++};
++
++inline std::string DebugPrint(ItemResult const & result)
++{
++  return DebugPrint(result.m_item) + "@" + std::to_string(result.m_groupId);
++}
++
++using ItemResults = std::vector<ItemResult>;
++
++}
+diff --git a/libs/search/bookmarks/saved_items_index.hpp b/libs/search/bookmarks/saved_items_index.hpp
+new file mode 100644
+--- /dev/null
++++ b/libs/search/bookmarks/saved_items_index.hpp
+@@ -0,0 +1,77 @@
++#pragma once
++
++#include "search/bookmarks/processor.hpp"
++#include "search/bookmarks/saved_items.hpp"
++#include "search/bookmarks/results.hpp"
++#include "search/emitter.hpp"
++
++#include <map>
++#include <set>
++#include <vector>
++
++namespace search::bookmarks
++{
++class SavedItemsIndex
++{
++public:
++  explicit SavedItemsIndex(base::Cancellable const & cancellable, bool indexDescriptions = false)
++    : m_cancellable(cancellable)
++    , m_processor(m_emitter, cancellable)
++    , m_indexDescriptions(indexDescriptions)
++  {}
++
++  bool Replace(std::vector<ItemDocument> const & documents)
++  {
++    std::map<ItemId, ItemDocument const *> ordered;
++    for (auto const & document : documents)
++    {
++      ::search::BailIfCancelled(m_cancellable);
++      if (document.m_groupId == kInvalidGroupId || !ordered.emplace(document.m_item, &document).second)
++        return false;
++    }
++
++    m_valid = false;
++    m_processor.Reset();
++    m_processor.EnableIndexingOfDescriptions(m_indexDescriptions);
++    m_items.clear();
++    m_items.reserve(ordered.size());
++    std::set<GroupId> groups;
++    for (auto const & [item, document] : ordered)
++    {
++      ::search::BailIfCancelled(m_cancellable);
++      auto const indexId = static_cast<Id>(m_items.size());
++      m_processor.Add(indexId, document->m_data);
++      m_processor.AttachToGroup(indexId, document->m_groupId);
++      m_items.push_back({item, document->m_groupId});
++      groups.insert(document->m_groupId);
++    }
++    for (auto const & group : groups)
++    {
++      ::search::BailIfCancelled(m_cancellable);
++      m_processor.EnableIndexingOfBookmarkGroup(group, true);
++    }
++    m_valid = true;
++    return true;
++  }
++
++  ItemResults Search(Processor::Params const & params)
++  {
++    if (!m_valid)
++      return {};
++    m_emitter.Init([](::search::Results const &) {});
++    m_processor.Search(params);
++    ItemResults results;
++    for (auto const & result : m_emitter.GetResults().GetBookmarksResults())
++      results.push_back(m_items.at(result.m_id));
++    return results;
++  }
++
++private:
++  base::Cancellable const & m_cancellable;
++  Emitter m_emitter;
++  Processor m_processor;
++  bool const m_indexDescriptions;
++  bool m_valid = true;
++  ItemResults m_items;
++};
++}
+diff --git a/libs/search/processor.cpp b/libs/search/processor.cpp
+--- a/libs/search/processor.cpp
++++ b/libs/search/processor.cpp
+@@ -3,6 +3,7 @@
+ #include "ge0/parser.hpp"
+ 
+ #include "search/cancel_exception.hpp"
++#include "search/bookmarks/saved_items_index.hpp"
+ #include "search/common.hpp"
+ #include "search/filtering_params.hpp"
+ #include "search/geometry_utils.hpp"
+@@ -618,7 +619,12 @@
+     m_geocoder.Finish(cancellationStatus == Cancellable::Status::CancelCalled);
+     break;
+   }
+-  case Mode::Bookmarks: SearchBookmarks(params.m_bookmarksGroupId); break;
++  case Mode::Bookmarks:
++    if (params.m_savedItems)
++      SearchSavedItems(params);
++    else
++      SearchBookmarks(params.m_bookmarksGroupId);
++    break;
+   case Mode::Count: ASSERT(false, ("Invalid mode")); break;
+   }
+ 
+@@ -810,6 +816,35 @@
+ 
+   // Emit finish marker to client.
+   m_bookmarksProcessor.Finish(IsCancelled());
++}
++
++void Processor::SearchSavedItems(SearchParams const & searchParams)
++{
++  bookmarks::ItemResults results;
++  try
++  {
++    bookmarks::SavedItemsIndex index(static_cast<base::Cancellable const &>(*this),
++                                    searchParams.m_savedItemsDescriptions);
++    if (index.Replace(*searchParams.m_savedItems))
++    {
++      bookmarks::Processor::Params params;
++      InitParams(params);
++      params.m_groupId = searchParams.m_bookmarksGroupId;
++      params.m_maxNumResults = searchParams.m_maxNumResults;
++      results = index.Search(params);
++    }
++    else
++    {
++      LOG(LWARNING, ("Invalid saved items search snapshot"));
++    }
++  }
++  catch (CancelException const &)
++  {
++    LOG(LDEBUG, ("Saved items search has been cancelled."));
++  }
++
++  searchParams.m_onSavedItemsResults(std::move(results), IsCancelled());
++  m_emitter.Finish(IsCancelled());
+ }
+ 
+ void Processor::InitParams(QueryParams & params) const
+diff --git a/libs/search/processor.hpp b/libs/search/processor.hpp
+--- a/libs/search/processor.hpp
++++ b/libs/search/processor.hpp
+@@ -86,6 +86,7 @@
+   void SearchPostcode();
+ 
+   void SearchBookmarks(bookmarks::GroupId const & groupId);
++  void SearchSavedItems(SearchParams const & params);
+ 
+   void InitParams(QueryParams & params) const;
+ 
+diff --git a/libs/search/search_params.hpp b/libs/search/search_params.hpp
+--- a/libs/search/search_params.hpp
++++ b/libs/search/search_params.hpp
+@@ -1,6 +1,7 @@
+ #pragma once
+ 
+ #include "search/bookmarks/types.hpp"
++#include "search/bookmarks/saved_items.hpp"
+ #include "search/filtering_params.hpp"
+ #include "search/mode.hpp"
+ 
+@@ -38,7 +39,12 @@
+ 
+   bool IsEqualCommon(SearchParams const & rhs) const;
+ 
+-  void Clear() { m_query.clear(); }
++  void Clear()
++  {
++    m_query.clear();
++    m_savedItems.reset();
++    m_onSavedItemsResults = {};
++  }
+ 
+   OnStarted m_onStarted;
+ 
+@@ -76,6 +82,9 @@
+   RecommendedFilteringParams m_filteringParams;
+ 
+   bookmarks::GroupId m_bookmarksGroupId = bookmarks::kInvalidGroupId;
++  std::shared_ptr<std::vector<bookmarks::ItemDocument> const> m_savedItems;
++  std::function<void(bookmarks::ItemResults results, bool cancelled)> m_onSavedItemsResults;
++  bool m_savedItemsDescriptions = false;
+ 
+   // Amount of time after which the search is aborted.
+   TimeDurationT m_timeout = kDefaultTimeout;
+diff --git a/libs/search/search_tests/bookmarks_processor_tests.cpp b/libs/search/search_tests/bookmarks_processor_tests.cpp
+--- a/libs/search/search_tests/bookmarks_processor_tests.cpp
++++ b/libs/search/search_tests/bookmarks_processor_tests.cpp
+@@ -4,6 +4,7 @@
+ 
+ #include "search/bookmarks/data.hpp"
+ #include "search/bookmarks/processor.hpp"
++#include "search/bookmarks/saved_items_index.hpp"
+ #include "search/emitter.hpp"
+ 
+ #include "indexer/classificator.hpp"
+@@ -198,4 +199,100 @@
+   TEST_EQUAL(Search("cherry pie"), Ids{}, ());
+ }
+ 
++class SavedItemsIndexTest : public generator::tests_support::TestWithClassificator
++{
++public:
++  SavedItemsIndexTest() : m_index(m_cancellable, true) {}
++
++  bool Replace(std::vector<ItemDocument> const & documents) { return m_index.Replace(documents); }
++  void Cancel() { m_cancellable.Cancel(); }
++
++  ItemResults Search(std::string const & query, GroupId group = kInvalidGroupId,
++                     size_t limit = SearchParams::kDefaultNumResultsEverywhere)
++  {
++    std::vector<strings::UniString> tokens;
++    auto const isPrefix = TokenizeStringAndCheckIfLastTokenIsPrefix(query, tokens);
++    Processor::Params params;
++    params.Init(query, tokens, isPrefix);
++    params.m_groupId = group;
++    params.m_maxNumResults = limit;
++    return m_index.Search(params);
++  }
++
++  ItemDocument BookmarkDocument(uint64_t id, GroupId group, std::string const & name)
++  {
++    auto data = MakeBookmarkData(name, "", "", {});
++    return {{ItemKind::Bookmark, id}, group, Data(data)};
++  }
++
++  ItemDocument TrackDocument(uint64_t id, GroupId group, std::string const & name,
++                             std::string const & description = {})
++  {
++    kml::TrackData data;
++    kml::SetDefaultStr(data.m_name, name);
++    kml::SetDefaultStr(data.m_description, description);
++    return {{ItemKind::Track, id}, group, Data(data)};
++  }
++
++private:
++  base::Cancellable m_cancellable;
++  SavedItemsIndex m_index;
++};
++
++UNIT_CLASS_TEST(SavedItemsIndexTest, CollidingNumericIds)
++{
++  auto const id = std::numeric_limits<uint64_t>::max();
++  TEST(Replace({BookmarkDocument(id, 10, "River"), TrackDocument(id, 20, "River")}), ());
++  auto const results = Search("river");
++  TEST_EQUAL(results.size(), 2, ());
++  std::set<ItemId> ids;
++  for (auto const & result : results)
++    ids.insert(result.m_item);
++  TEST_EQUAL(ids, (std::set<ItemId>{{ItemKind::Bookmark, id}, {ItemKind::Track, id}}), ());
++  TEST_EQUAL(Search("river", 10), (ItemResults{{{ItemKind::Bookmark, id}, 10}}), ());
++  TEST_EQUAL(Search("river", 20), (ItemResults{{{ItemKind::Track, id}, 20}}), ());
++  TEST_EQUAL(Search("river", kInvalidGroupId, 1).size(), 1, ());
++}
++
++UNIT_CLASS_TEST(SavedItemsIndexTest, UnicodePrefixAndDescription)
++{
++  TEST(Replace({BookmarkDocument(1, 10, "Riverside"),
++                TrackDocument(2, 10, "Café Тропа", "Сосновый лес")}), ());
++  auto const expected = ItemResults{{{ItemKind::Track, 2}, 10}};
++  TEST_EQUAL(Search("cafe"), expected, ());
++  TEST_EQUAL(Search("тро"), expected, ());
++  TEST_EQUAL(Search("сосн"), expected, ());
++}
++
++UNIT_CLASS_TEST(SavedItemsIndexTest, SnapshotRenameMoveDeleteReload)
++{
++  TEST(Replace({TrackDocument(7, 10, "Sequoia")}), ());
++  TEST_EQUAL(Search("sequoia", 10), (ItemResults{{{ItemKind::Track, 7}, 10}}), ());
++  TEST(Replace({TrackDocument(7, 11, "Glacier")}), ());
++  TEST(Search("sequoia").empty(), ());
++  TEST(Search("glacier", 10).empty(), ());
++  TEST_EQUAL(Search("glacier", 11), (ItemResults{{{ItemKind::Track, 7}, 11}}), ());
++  TEST(Replace({TrackDocument(77, 11, "Glacier")}), ());
++  TEST_EQUAL(Search("glacier"), (ItemResults{{{ItemKind::Track, 77}, 11}}), ());
++  TEST(Replace({}), ());
++  TEST(Search("glacier").empty(), ());
++}
++
++UNIT_CLASS_TEST(SavedItemsIndexTest, InvalidSnapshotRetainsPreviousIndex)
++{
++  TEST(Replace({BookmarkDocument(4, 10, "Lagoon")}), ());
++  TEST(!Replace({BookmarkDocument(4, 10, "Lagoon"), BookmarkDocument(4, 20, "Desert")}), ());
++  TEST_EQUAL(Search("lagoon"), (ItemResults{{{ItemKind::Bookmark, 4}, 10}}), ());
++  auto invalid = TrackDocument(9, kInvalidGroupId, "Glacier");
++  TEST(!Replace({invalid}), ());
++  TEST_EQUAL(Search("lagoon"), (ItemResults{{{ItemKind::Bookmark, 4}, 10}}), ());
++}
++
++UNIT_CLASS_TEST(SavedItemsIndexTest, CancelledSearch)
++{
++  TEST(Replace({TrackDocument(7, 10, "Sequoia")}), ());
++  Cancel();
++  TEST_THROW(Search("sequoia"), ::search::CancelException, ());
++}
++
+ }  // namespace bookmarks_processor_tests
