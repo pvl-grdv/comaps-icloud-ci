@@ -95,11 +95,19 @@
     "category-reload.patch": "882f577c6693b1c29dd867ca8319c6b0207d34b0392cd19fc29c013fd6513355",
     "track-rename.patch": "f8dc8de7b65e4312a4b94987ac742ec6ffc08a7e7a9495025f0ae265d6dcd4bf",
     "global-bookmark-search.patch": "6536922417198e07249115db29ce075bb63bce3918ae2a5abe19df6bf941d87b",
-    "ios-folder-order.patch": "a8c3e9a003773d3bc992d04dd905a98aef45158313445da58e425b9dcebf78d6",
+    "ios-folder-order.patch": "5f09fcfa8d4ee5e7b1754c190532c25a30fb96172284b3b93b45f49a00966502",
     "typed-saved-items-search.patch": "690cfd324c15af1635fbf656dddbfd91f3e3f466b186fd254c91f282f7d38fed",
     "typed-saved-items-ios.patch": "d571149cc42d1149a2c9c0464e11302d8ead145fe2f13f8300bf08df5fbde161",
     "manual-item-order.patch": "fa2c0b1171e876a1d7a3af8fd4ddb2c3fd6cfcdf50f4c679c0559ea956c2c43b",
     "ios-manual-item-order.patch": "f658c0fdc61e11663d024833e35c5c73721a82e74aa32c6c7b71b74281ab9196",
     "typed-search-cancellation.patch": "a4a231c229e48897846f4c71d47ec57d0eb2f6d9ef7a0911368e83856d4a84e5"
-  }
+  },
+  "ci_findings": [
+    {
+      "run": 39265917045,
+      "branch": "ios-library-features",
+      "error": "Folder save-failure regression called private BookmarkManager::SetCategoryName",
+      "fix": "Use the public GetEditSession().SetCategoryName API; product behavior unchanged."
+    }
+  ]
 }

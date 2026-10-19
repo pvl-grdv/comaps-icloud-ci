@@ -543,7 +543,7 @@ diff --git a/libs/map/map_tests/bookmarks_test.cpp b/libs/map/map_tests/bookmark
 +  TEST(!bmManager.SaveBookmarkCategory(groupId), ());
 +  TEST(bmManager.GetCategoryFileName(groupId).empty(), ());
 +  TEST_EQUAL(bmManager.GetCategoryData(groupId).m_id, groupId, ());
-+  bmManager.SetCategoryName(groupId, "Recovered folder order save");
++  bmManager.GetEditSession().SetCategoryName(groupId, "Recovered folder order save");
 +  TEST(bmManager.SaveBookmarkCategory(groupId), ());
 +  TEST(Platform::IsFileExistsByFullPath(bmManager.GetCategoryFileName(groupId)), ());
 +}
