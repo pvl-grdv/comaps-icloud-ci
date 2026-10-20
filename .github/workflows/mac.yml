@@ -1,0 +1,109 @@
+name: CoMaps Lab Local for Mac
+
+on:
+  workflow_call:
+    inputs:
+      upload_requested:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
+  LANG: en_US.UTF-8
+  LC_ALL: en_US.UTF-8
+
+jobs:
+  build:
+    runs-on: xcode-27
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+      - name: Require the local application mode
+        env:
+          UPLOAD_REQUESTED: ${{ inputs.upload_requested }}
+        run: |
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/comaps-lab
+          test "$UPLOAD_REQUESTED" = false
+      - name: Inspect the existing build toolchain
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks
+          if ! xcrun metal -v >/dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain
+            xcrun -k
+          fi
+          xcrun metal -v
+          for formula in wget optipng cmake ninja qt jq coreutils gnu-getopt icu4c; do
+            if ! brew list --versions "$formula" >/dev/null 2>&1; then brew install "$formula"; fi
+          done
+          printf '%s\n' "$(brew --prefix gnu-getopt)/bin" >> "$GITHUB_PATH"
+          printf '%s\n' "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
+          printf '%s\n' "$(brew --prefix icu4c)/bin" >> "$GITHUB_PATH"
+      - name: Check Mac configuration and packaging helpers
+        run: |
+          bash -n ci/build-mac-lab.sh
+          python3 -m unittest discover -s ci -p 'test_mac_*.py'
+      - name: Verify the original and candidate synthetic file scenarios
+        run: bash verify.sh
+      - name: Apply the unchanged pinned feature series
+        run: bash ci/prepare-upstream.sh
+      - name: Configure isolated Local Lab identities
+        run: |
+          python3 ci/test-configure-lab.py --source comaps
+          python3 ci/configure-lab.py --source comaps --local-only
+          python3 ci/test-mac-config.py --source comaps
+      - name: Verify the native saved-item regressions
+        env:
+          CORE_CHECK_BASELINE: '0'
+        run: |
+          bash ci/test-core.sh
+          bash ci/test-incoming-control.sh
+          bash ci/test-search.sh
+      - name: Record search and manual-order source integrity
+        run: python3 ci/check-mac-feature-integrity.py record --source comaps --manifest results/mac-feature-integrity.json
+      - name: Configure the Metal-only Mac Catalyst destination
+        run: |
+          python3 ci/configure-mac-lab.py --source comaps > results/mac-lab-config.json
+          cat results/mac-lab-config.json
+          python3 ci/check-mac-feature-integrity.py verify --source comaps --manifest results/mac-feature-integrity.json
+      - name: Build the direct Mac application
+        id: mac_build
+        run: bash ci/build-mac-lab.sh
+      - name: Package the local ad-hoc signed Mac application
+        env:
+          MAC_APP: ${{ steps.mac_build.outputs.app_path }}
+        run: |
+          python3 ci/package-mac-lab.py \
+            --app "$MAC_APP" \
+            --entitlements comaps/iphone/Maps/CoMaps-Mac-Local.entitlements \
+            --output-dir results/mac-install --commit "$GITHUB_SHA"
+      - name: Publish the direct Mac application
+        uses: actions/upload-artifact@v7
+        with:
+          name: CoMaps-Lab-Local-Mac-arm64
+          path: |
+            results/mac-install/CoMaps-Lab-Local-Mac-arm64.zip
+            results/mac-install/manifest.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+      - name: Keep exact build and regression diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: comaps-lab-mac-diagnostics
+          path: |
+            results/mac-lab/*.log
+            results/mac-lab/*.json
+            results/mac-lab/*.txt
+            results/mac-lab-config.json
+            results/mac-feature-integrity.json
+            results/core-summary.json
+            results/search-summary.json
+            results/incoming-control-summary.json
+          if-no-files-found: warn
+          retention-days: 7

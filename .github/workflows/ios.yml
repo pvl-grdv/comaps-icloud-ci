@@ -16,6 +16,10 @@ on:
         description: Build local-only Lab IPA for free-account signing (no iCloud or TestFlight)
         type: boolean
         default: false
+      lab_mac:
+        description: Build a direct local Mac Catalyst app without Apple credentials
+        type: boolean
+        default: false
       release:
         description: Build an unsigned Release archive after regression tests
         type: boolean
@@ -25,7 +29,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: comaps-icloud-${{ github.ref }}
+  group: comaps-icloud-${{ github.ref }}${{ inputs.lab_mac && '-mac' || '' }}
   cancel-in-progress: true
 
 env:
@@ -34,8 +38,14 @@ env:
   LC_ALL: en_US.UTF-8
 
 jobs:
+  mac-lab:
+    if: github.event_name == 'workflow_dispatch' && inputs.lab_mac
+    uses: ./.github/workflows/mac.yml
+    with:
+      upload_requested: ${{ inputs.lab_upload }}
+
   lab:
-    if: github.event_name == 'workflow_dispatch' && (inputs.lab || inputs.lab_local)
+    if: github.event_name == 'workflow_dispatch' && !inputs.lab_mac && (inputs.lab || inputs.lab_local)
     uses: ./.github/workflows/lab.yml
     with:
       upload: ${{ inputs.lab_upload }}
@@ -43,7 +53,7 @@ jobs:
     secrets: inherit
 
   file-pipeline:
-    if: github.event_name != 'workflow_dispatch' || (!inputs.lab && !inputs.lab_local)
+    if: github.event_name != 'workflow_dispatch' || (!inputs.lab && !inputs.lab_local && !inputs.lab_mac)
     runs-on: xcode-27
     timeout-minutes: 15
     steps:
@@ -61,7 +71,7 @@ jobs:
           printf '\n```\n' >> "$GITHUB_STEP_SUMMARY"
 
   ios:
-    if: github.event_name != 'workflow_dispatch' || (!inputs.lab && !inputs.lab_local)
+    if: github.event_name != 'workflow_dispatch' || (!inputs.lab && !inputs.lab_local && !inputs.lab_mac)
     needs: file-pipeline
     runs-on: xcode-27
     timeout-minutes: 120
