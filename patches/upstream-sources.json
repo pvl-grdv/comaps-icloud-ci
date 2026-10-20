@@ -102,7 +102,8 @@
     "hosted-ui-window-lifecycle.patch": "Test-only: use connected phone application scene and its existing root-bearing host window despite XCTest activation transition; restore root/key/hidden state. Preserve all original13assertions and3screens, add realwindow attachment assertion.",
     "per-operation-coordinators.patch": "One local NSFileCoordinator per top-level operation/read on its executing thread; same coordinator passed through nested preservation. Removes unused retained coordinator injection, no queue/QoS/retry or reconciliation changes. Documented thread ownership correction; previous timing root cause not proven.",
     "writer-tests-file-worker-adapter.patch": "Test-only incoming adapter runs real destination validation and fake atomic install offmain, matching actual native File-worker boundary; typed ack on every path. Original23methods and30stimeout retained; one selected-path locked FileManager spy requires actualwrittenhash/bytes and nonempty offmain observations. Actual24Foundation bodies PASS; exactoldmainadapter fails newcase normally.",
-    "fingerprint-tests-functional-io-deadline.patch": "Test-only common30s bounded positive coordinated-I/O wait, matching writer integration tests. Original fourmethods/hash/reset/nil assertions and inverted0.2s unchanged; no warmup/QoS/product edits. ActualrealNSFileCoordinator competing6swrite acquired before providerrequest: original5s normalexpectationfailure, new30s PASS6.0276s with exacthash; all4Foundation bodiesPASS. Exact priorcold-delaycause remains unproven."
+    "fingerprint-tests-functional-io-deadline.patch": "Test-only common30s bounded positive coordinated-I/O wait, matching writer integration tests. Original fourmethods/hash/reset/nil assertions and inverted0.2s unchanged; no warmup/QoS/product edits. ActualrealNSFileCoordinator competing6swrite acquired before providerrequest: original5s normalexpectationfailure, new30s PASS6.0276s with exacthash; all4Foundation bodiesPASS. Exact priorcold-delaycause remains unproven.",
+    "store-tests-functional-io-deadline.patch": "Test-only bounded30s functional disk/notification wait for state-store integration tests, matching writer/fingerprint I/O budget. Allfivepositive waits shareconstant; actualdisk/reopen/accounttoken/reset assertions unchanged,2methods/163total unchanged. RealstoredA+actualsnapshot received thennotificationdelayed6.297s: old5s normalexpectationfailure/new30s fullaccountchecksPASS. Productionunchanged; exactnativeeventlatencycauseunmeasured."
   },
   "patch_sha256": {
     "initial-conflict.patch": "baebd78a4a6779fb07ea7a92173169d805cd2460dae0b0bb8b8375a28c0ca19e",
@@ -140,7 +141,8 @@
     "hosted-ui-window-lifecycle.patch": "a700a5df359bbbc03af8c4a76fc72057e15b432db57dd79d5d67984c06ce2439",
     "per-operation-coordinators.patch": "a598e8c12419c009828eed22cfb95d87104c2313dc0555dbe41f5ab94ec811ff",
     "writer-tests-file-worker-adapter.patch": "2447da4ba0cefd2a449af9bcdb1ed17acae9fd7068ed0866e0a089a31dfadcc1",
-    "fingerprint-tests-functional-io-deadline.patch": "8f09f59f81b97707c1ee3a27b1746de43c9f1288322219c0d034dea6c014476c"
+    "fingerprint-tests-functional-io-deadline.patch": "8f09f59f81b97707c1ee3a27b1746de43c9f1288322219c0d034dea6c014476c",
+    "store-tests-functional-io-deadline.patch": "9878202e08a5a7667e05b29b05c7b288fb45b4b0c3457646f1f4d48de812b03a"
   },
   "ci_findings": [
     {
@@ -325,13 +327,14 @@
       "file_pipeline_historical": 6
     },
     "local_checks": {
-      "strict_series": "PASS36clean patches,45 exact baseline files,43Swiftparse,PBX/bash/JSON/Python; no diagnostictraces",
+      "strict_series": "PASS37clean patches,45 exact baseline files,43Swiftparse,PBX/bash/JSON/Python; no diagnostictraces",
       "file_pipeline": "6 historical +12 current scenarios PASS after coordinator lifetime correction; real production sources with synthetic native adapter",
       "source_body_execution": "39 resolver,12 real local monitor,2 real state-store Foundation assertion-shim cases passed",
       "save_state_harness": "17 source-extracted checks passed; preceding state fails4 normally",
       "separate_module_typecheck": "9 real production +12 test/mock files, actual ObjC selector/enum, app/XCTest surface stubs",
       "writer_adapter": "Actual24Foundation test bodies PASS with real coordinator/filesystem; exactoldmainadapter fails newcase normally, not timeout. XCTest/native C++ bridge surfaces stubbed.",
-      "fingerprint_io_budget": "Actual4Foundation bodiesPASS, realheld6scoordinatedwriter negativecontrol5FAIL/30PASS+exacthash; no nativeiOSclaim."
+      "fingerprint_io_budget": "Actual4Foundation bodiesPASS, realheld6scoordinatedwriter negativecontrol5FAIL/30PASS+exacthash; no nativeiOSclaim.",
+      "state_store_io_budget": "Actual2Foundation store+monitor methodbodies PASS; realA diskstate/snapshot confirmed before6snotificationdelay, old5 normalfailure/new30 fullaccount/reopen/resetassertionsPASS. No nativeiOSclaim."
     },
     "limits": [
       "No live three-device synchronization or real NSFileVersion conflict-version fixture",

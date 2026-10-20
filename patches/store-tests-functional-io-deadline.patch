@@ -1,0 +1,56 @@
+diff --git a/iphone/Maps/Tests/Core/iCloudTests/SynchronizedStateStoreTests.swift b/iphone/Maps/Tests/Core/iCloudTests/SynchronizedStateStoreTests.swift
+--- a/iphone/Maps/Tests/Core/iCloudTests/SynchronizedStateStoreTests.swift
++++ b/iphone/Maps/Tests/Core/iCloudTests/SynchronizedStateStoreTests.swift
+@@ -2,6 +2,9 @@
+ @testable import CoMaps__Debug_
+ 
+ final class SynchronizedStateStoreTests: XCTestCase, LocalDirectoryMonitorDelegate {
++  // This functional I/O deadline includes persistence and filesystem notification delivery.
++  private static let persistenceTimeout: TimeInterval = 30
++
+   private let directoryURL = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+   private var monitor: FileSystemDispatchSourceMonitor?
+   private var onSnapshot: (() -> Void)?
+@@ -23,7 +26,7 @@
+     let persisted = expectDiskState(fileManager: fileManager, expected: expected)
+ 
+     store.setState(expected, for: "file.kml")
+-    await fulfillment(of: [persisted], timeout: 5)
++    await fulfillment(of: [persisted], timeout: Self.persistenceTimeout)
+ 
+     let reopened = FileSynchronizedStateStore(fileManager: fileManager)
+     XCTAssertEqual(reopened.state(for: "file.kml"), expected)
+@@ -39,13 +42,13 @@
+     let firstWrite = expectDiskState(fileManager: fileManager, expected: state("A"))
+     store.resetIfCloudIdentityChanged(accountA)
+     store.setState(state("A"), for: "file.kml")
+-    await fulfillment(of: [firstWrite], timeout: 5)
++    await fulfillment(of: [firstWrite], timeout: Self.persistenceTimeout)
+ 
+     let secondWrite = expectDiskState(fileManager: fileManager, expected: state("B"))
+     store.resetIfCloudIdentityChanged(accountB)
+     XCTAssertNil(store.state(for: "file.kml"))
+     store.setState(state("B"), for: "file.kml")
+-    await fulfillment(of: [secondWrite], timeout: 5)
++    await fulfillment(of: [secondWrite], timeout: Self.persistenceTimeout)
+ 
+     let reopened = FileSynchronizedStateStore(fileManager: fileManager)
+     let sameAccountB = try identity("Account B")
+@@ -56,7 +59,7 @@
+     let resetWrite = expectDiskState(fileManager: fileManager, expected: nil)
+     reopened.resetIfCloudIdentityChanged(accountA)
+     XCTAssertNil(reopened.state(for: "file.kml"))
+-    await fulfillment(of: [resetWrite], timeout: 5)
++    await fulfillment(of: [resetWrite], timeout: Self.persistenceTimeout)
+     XCTAssertNil(FileSynchronizedStateStore(fileManager: fileManager).state(for: "file.kml"))
+   }
+ 
+@@ -70,7 +73,7 @@
+     monitor = try FileSystemDispatchSourceMonitor(fileManager: .default, directory: directoryURL)
+     monitor?.delegate = self
+     monitor?.start()
+-    await fulfillment(of: [initial], timeout: 5)
++    await fulfillment(of: [initial], timeout: Self.persistenceTimeout)
+   }
+ 
+   @MainActor
