@@ -38,6 +38,7 @@ class MacOverlayTests(unittest.TestCase):
         report = MAC.overlay(self.source)
         project = (self.source / MAC.MAPS / 'Maps.xcodeproj/project.pbxproj').read_text()
         self.assertIn('PRODUCT_BUNDLE_IDENTIFIER = ' + MAC.BUNDLE + ';', project)
+        self.assertNotIn('INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace', project)
         for line in original.splitlines():
             if 'PRODUCT_NAME =' in line:
                 self.assertIn(line, project)
@@ -46,6 +47,7 @@ class MacOverlayTests(unittest.TestCase):
         self.assertIs(info['CoMapsLabLocalOnly'], True)
         self.assertIs(info['CoMapsLabMacCatalyst'], True)
         self.assertNotIn('NSUbiquitousContainers', info)
+        self.assertNotIn('LSSupportsOpeningDocumentsInPlace', info)
         entitlements = plistlib.loads((self.source / MAC.ENTITLEMENTS).read_bytes())
         self.assertEqual(entitlements, {key: True for key in [
             'com.apple.security.app-sandbox', 'com.apple.security.network.client',

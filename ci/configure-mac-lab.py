@@ -276,7 +276,8 @@ def overlay(source):
     require(not (source / ENTITLEMENTS).exists(), "Mac overlay already applied; prepare a fresh source tree")
     info['CoMapsLabMacCatalyst'] = True
     info['CFBundleDisplayName'] = 'CoMaps Lab Local'
-    for key in ['UIBackgroundModes', 'UIApplicationShortcutItems', 'NSSupportsLiveActivities']:
+    for key in ['UIBackgroundModes', 'UIApplicationShortcutItems', 'NSSupportsLiveActivities',
+                'LSSupportsOpeningDocumentsInPlace']:
         info.pop(key, None)
     put(MAPS / 'CoMaps.plist', plistlib.dumps(info, sort_keys=False))
     entitlements = {key: True for key in ['com.apple.security.app-sandbox',
@@ -318,6 +319,8 @@ EXCLUDED_SOURCE_FILE_NAMES = $(inherited) iosOGLContext.mm iosOGLContextFactory.
     project = re.sub(r'(?m)^(\s*)CODE_SIGN_ENTITLEMENTS = "?CoMaps-(?:Debug|Release)\.entitlements"?;$',
                      r'\1CODE_SIGN_ENTITLEMENTS = "CoMaps-Mac-Local.entitlements";', project)
     project = re.sub(r'(?m)^(\s*)INFOPLIST_KEY_NSSupportsLiveActivities = YES;$', r'\1INFOPLIST_KEY_NSSupportsLiveActivities = NO;', project)
+    project = replace(project, '\t\t\t\tINFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = NO;\n',
+                      '', 'iOS document-opening plist setting', count=2)
     # The native Mac app's embedded frameworks are siblings of MacOS/, not a
     # subdirectory of the executable's directory as in an iOS bundle.
     project = project.replace('"@executable_path/Frameworks"', '"@executable_path/../Frameworks"')
