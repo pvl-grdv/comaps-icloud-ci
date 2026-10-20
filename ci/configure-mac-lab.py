@@ -55,6 +55,19 @@ def set_settings(text, values):
     return pattern.sub(update, text)
 
 
+def catalyst_platform_project(text):
+    # Catalyst uses the macosx SDK, but this UIKit app needs the iOS platform
+    # implementation and NSUserDefaults storage, not the native Qt desktop path.
+    old = '\t\t\t\t"EXCLUDED_SOURCE_FILE_NAMES[sdk=macosx*]" = (\n\t\t\t\t\t"ios_*",\n\t\t\t\t\tplatform_ios.mm,\n\t\t\t\t\tsecure_storage_ios.mm,\n\t\t\t\t);'
+    new = '\t\t\t\t"EXCLUDED_SOURCE_FILE_NAMES[sdk=macosx*]" = (\n\t\t\t\t\t"$(inherited)",\n\t\t\t\t\tplatform_mac.mm,\n\t\t\t\t\tsecure_storage_qt.cpp,\n\t\t\t\t\tplatform_qt.cpp,\n\t\t\t\t);'
+    text = replace(text, old, new, 'platform macosx source filters', count=2)
+    for key in ['FRAMEWORK_SEARCH_PATHS', 'HEADER_SEARCH_PATHS', 'LIBRARY_SEARCH_PATHS']:
+        pattern = re.compile(r'(?m)^\t\t\t\t"' + key + r'\[sdk=macosx\*\]" = \(\n.*?^\t\t\t\t\);', re.S)
+        require(len(pattern.findall(text)) == 2, 'Unexpected platform macosx search paths: ' + key)
+        text = pattern.sub('\t\t\t\t"' + key + '[sdk=macosx*]" = "$(inherited)";', text)
+    return text
+
+
 def metal_view(text):
     require('new iosOGLContextFactory' in text and 'MetalContextFactory' in text,
             "Expected the pinned dual-backend map view")
@@ -229,6 +242,7 @@ CARPLAY_HASHES = {
 
 
 BASELINE_HASHES = {
+  "xcode/platform/platform.xcodeproj/project.pbxproj": "0db879f888052a1123ff4bef8b4afc627e91f344",
   "libs/drape/hw_texture.cpp": "743720ce4a67794c44ffbfc530f7ae9259b6d1d5",
   "libs/drape/hw_texture_ios.mm": "658ce02e03ae3893a4786d6d02281dc0fad22321",
   "libs/drape/hw_texture_ios.hpp": "75e97f6c2bfea0e1323f90873b85c722808cbe8b",
@@ -275,7 +289,7 @@ def overlay(source):
                      'FRAMEWORK_SEARCH_PATHS[sdk=macosx*] = $(inherited)', 'Qt framework path')
     common = replace(common,
         'OTHER_LDFLAGS[sdk=macosx*] = -framework Cocoa -framework IOKit -framework OpenGL -framework QtCore -framework QtGui -framework QtNetwork -framework QtOpenGL -framework QtWidgets -framework SystemConfiguration -framework CFNetwork',
-        'OTHER_LDFLAGS[sdk=macosx*] = -framework CoreGraphics -framework Foundation -framework Metal -framework MetalKit -framework QuartzCore -framework SystemConfiguration -framework UIKit -framework CFNetwork -ObjC',
+        'OTHER_LDFLAGS[sdk=macosx*] = -framework CoreGraphics -framework Foundation -framework CoreTelephony -framework Metal -framework MetalKit -framework QuartzCore -framework SystemConfiguration -framework UIKit -framework CFNetwork -ObjC',
         'Mac framework links')
     common += '\n' + MARKER + '''
 SUPPORTS_MACCATALYST = YES
@@ -286,6 +300,8 @@ MACOSX_DEPLOYMENT_TARGET = 13.0
 EXCLUDED_SOURCE_FILE_NAMES = $(inherited) iosOGLContext.mm iosOGLContextFactory.mm LiveActivityManager.swift TrackRecordingLiveActivityAttributes.swift TrackRecordingLiveActivityConfiguration.swift TrackRecordingLiveActivityView.swift
 '''
     put('xcode/common.xcconfig', common)
+    path = Path('xcode/platform/platform.xcodeproj/project.pbxproj')
+    put(path, catalyst_platform_project(read(path)))
 
     project_path = MAPS / 'Maps.xcodeproj/project.pbxproj'
     project = read(project_path)

@@ -2,6 +2,8 @@
 """Validate Mac overlay isolation against an actual prepared Local Lab source."""
 import argparse
 import importlib.util
+import fnmatch
+import json
 from pathlib import Path
 import plistlib
 import re
@@ -15,7 +17,7 @@ MAC = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(MAC)
 SOURCE = None
 FILES = list(map(Path, MAC.BASELINE_HASHES)) + list(map(Path, MAC.CARPLAY_HASHES)) + [
-    MAC.MAPS / 'CoMaps.plist', MAC.MAPS / 'Maps.xcodeproj/project.pbxproj']
+    MAC.MAPS / 'CoMaps.plist', MAC.MAPS / 'Maps.xcodeproj/project.pbxproj', Path('libs/std/target_os.hpp')]
 
 
 class MacOverlayTests(unittest.TestCase):
@@ -168,6 +170,54 @@ class MacOverlayTests(unittest.TestCase):
                                  stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
         self.assertNotEqual(control.returncode, 0)
         self.assertIn("cannot find 'LaneInfo' in scope", control.stdout)
+
+    def test_catalyst_selects_ios_platform_sources_and_links_supported_telephony(self):
+        path = Path('xcode/platform/platform.xcodeproj/project.pbxproj')
+        before = json.loads(subprocess.check_output(['plutil', '-convert', 'json', '-o', '-',
+                                                    str(self.source / path)], text=True))['objects']
+        MAC.overlay(self.source)
+        after = json.loads(subprocess.check_output(['plutil', '-convert', 'json', '-o', '-',
+                                                   str(self.source / path)], text=True))['objects']
+        source_groups = []
+        for obj in before.values():
+            if obj.get('isa') == 'PBXSourcesBuildPhase':
+                source_groups.append({Path(before[before[file]['fileRef']]['path']).name for file in obj['files']})
+        sources = next(group for group in source_groups if 'platform_ios.mm' in group)
+        key = 'EXCLUDED_SOURCE_FILE_NAMES[sdk=macosx*]'
+        configs = [identifier for identifier, obj in before.items() if key in obj.get('buildSettings', {})]
+        self.assertEqual(len(configs), 2)
+        for identifier in configs:
+            old_settings = before[identifier]['buildSettings']
+            new_settings = after[identifier]['buildSettings']
+            old_sources = {file for file in sources if not any(fnmatch.fnmatch(file, pattern) for pattern in old_settings[key])}
+            new_sources = {file for file in sources if not any(fnmatch.fnmatch(file, pattern) for pattern in new_settings[key])}
+            self.assertIn('platform_qt.cpp', old_sources)
+            self.assertNotIn('platform_ios.mm', old_sources)
+            self.assertIn('platform_ios.mm', new_sources)
+            self.assertIn('secure_storage_ios.mm', new_sources)
+            self.assertTrue({'platform_qt.cpp', 'platform_mac.mm', 'secure_storage_qt.cpp'}.isdisjoint(new_sources))
+            self.assertIn('$(inherited)', new_settings[key])
+            for setting in ['HEADER_SEARCH_PATHS', 'FRAMEWORK_SEARCH_PATHS', 'LIBRARY_SEARCH_PATHS']:
+                self.assertEqual(new_settings[setting + '[sdk=macosx*]'], '$(inherited)')
+        sdk = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
+        arguments = ['xcrun', 'clang++', '-target', 'arm64-apple-ios15.6-macabi', '-isysroot', sdk]
+        probe = self.source / 'platform-macros.cpp'
+        probe.write_text('#include "std/target_os.hpp"\n#if !TARGET_OS_MACCATALYST || !defined(OMIM_OS_IPHONE) || !defined(OMIM_OS_MOBILE) || defined(OMIM_OS_MAC) || defined(OMIM_OS_DESKTOP)\n#error Catalyst must use the UIKit iOS platform implementation\n#endif\n')
+        check = subprocess.run(arguments + ['-I', str(self.source / 'libs'), '-fsyntax-only', str(probe)],
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        self.assertEqual(check.returncode, 0, check.stdout)
+        # The existing AppInfo idiom gate already rejects phone calls on Mac.
+        # Keep its logic; prove its SDK framework can satisfy the real link symbol.
+        probe = self.source / 'telephony-link.mm'
+        probe.write_text('#import <Foundation/Foundation.h>\n#import <CoreTelephony/CTTelephonyNetworkInfo.h>\nint main() { @autoreleasepool { return [[CTTelephonyNetworkInfo alloc] init] ? 0 : 1; } }\n')
+        common = (self.source / 'xcode/common.xcconfig').read_text()
+        mac_flags = next(line for line in common.splitlines() if line.startswith('OTHER_LDFLAGS[sdk=macosx*]'))
+        self.assertIn('-framework CoreTelephony', mac_flags)
+        self.assertNotIn('-framework Qt', mac_flags)
+        check = subprocess.run(arguments + ['-fobjc-arc', str(probe), '-framework', 'Foundation',
+                                            '-framework', 'CoreTelephony', '-o', str(self.source / 'telephony-link')],
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        self.assertEqual(check.returncode, 0, check.stdout)
 
     def test_changed_carplay_source_fails_before_any_write(self):
         path = self.source / next(iter(MAC.CARPLAY_HASHES))
