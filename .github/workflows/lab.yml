@@ -9,6 +9,10 @@ on:
         description: Explicitly sign and upload for internal TestFlight
         type: boolean
         default: false
+      local_only:
+        description: Package local-only Lab for free-account sideloading
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -24,6 +28,15 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v6
+      - name: Reject incompatible distribution modes
+        env:
+          LOCAL_ONLY: ${{ inputs.local_only }}
+          TESTFLIGHT_UPLOAD: ${{ inputs.upload }}
+        run: |
+          if [ "$LOCAL_ONLY" = true ] && [ "$TESTFLIGHT_UPLOAD" = true ]; then
+            printf '%s\n' 'Local-only free-account builds cannot be uploaded to TestFlight.' >&2
+            exit 1
+          fi
       - name: Check Lab signing/configuration helpers
         run: |
           bash -n ci/lab-sign.sh
@@ -47,9 +60,15 @@ jobs:
       - name: Apply the complete pinned feature patch series
         run: bash ci/prepare-upstream.sh
       - name: Verify and configure the isolated CoMaps Lab application
+        env:
+          LOCAL_ONLY: ${{ inputs.local_only }}
         run: |
           python3 ci/test-configure-lab.py --source comaps
-          python3 ci/configure-lab.py --source comaps
+          if [ "$LOCAL_ONLY" = true ]; then
+            python3 ci/configure-lab.py --source comaps --local-only
+          else
+            python3 ci/configure-lab.py --source comaps
+          fi
       - name: Run all native core regressions
         env:
           CORE_CHECK_BASELINE: '0'
@@ -59,7 +78,19 @@ jobs:
       - name: Run native search and automatic sort compatibility checks
         run: bash ci/test-search.sh
       - name: Build Lab and run the complete XCTest plan
-        run: bash ci/test-ios.sh
+        env:
+          IOS_TEST_PLAN: ${{ github.workspace }}/results/lab-ios-tests.json
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          tests = json.loads(Path('ci/ios-tests.json').read_text())
+          manager = [item for item in tests if item['className'] == 'SynchronizationManagerTests']
+          assert len(manager) == 1 and manager[0]['expectedTests'] == 10
+          manager[0]['expectedTests'] += 1  # Lab's explicit local-only manager regression.
+          Path('results/lab-ios-tests.json').write_text(json.dumps(tests))
+          PY
+          bash ci/test-ios.sh
       - name: Export synthetic hosted UI attachments
         run: |
           xcrun xcresulttool export attachments \
@@ -84,15 +115,34 @@ jobs:
             -archivePath "$RUNNER_TEMP/CoMaps-Lab-Unsigned.xcarchive" \
             CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO
       - name: Summarize verified scope
+        env:
+          LOCAL_ONLY: ${{ inputs.local_only }}
         run: |
           printf '%s\n' \
             'CoMaps Lab: full synthetic file/native/XCTest plan and unsigned Release archive passed.' \
             'No credentials were used. No installable signed application was published.' \
             'Physical iPhone, iPad and Apple silicon Mac/iCloud tests remain separate.' \
             >> "$GITHUB_STEP_SUMMARY"
+      - name: Package local-only IPA for local signing
+        if: inputs.local_only
+        run: |
+          python3 ci/package-local-ipa.py \
+            --archive "$RUNNER_TEMP/CoMaps-Lab-Unsigned.xcarchive" \
+            --output-dir results/local-install --commit "$GITHUB_SHA"
+      - name: Publish only the unsigned local application
+        if: inputs.local_only
+        uses: actions/upload-artifact@v7
+        with:
+          name: CoMaps-Lab-Local-unsigned
+          path: |
+            results/local-install/CoMaps-Lab-Local-unsigned.ipa
+            results/local-install/manifest.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
 
   upload:
-    if: inputs.upload
+    if: inputs.upload && !inputs.local_only
     needs: verify
     environment: comaps-lab
     runs-on: xcode-27

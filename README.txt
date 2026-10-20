@@ -5,6 +5,11 @@ or an upstream submission. CoMaps Lab branch: comaps-lab. Read LAB-SETUP-RU.txt
 for installation prerequisites and the signing setup, and LAB-TESTING-RU.txt
 for the physical-device acceptance scenarios.
 
+Free local search/order testing: LAB-LOCAL-RU.txt describes a separate
+CoMaps Lab Local IPA, signed on the user's Mac with a free Apple Account.
+This variant disables iCloud and excludes widgets from the IPA. No local Xcode
+or Apple credentials in GitHub are needed; actual device installation is separate.
+
 The base feature candidate at 0237ee3737e6b2deeb80fbe03b6c72d82aee43d8 passed
 163 native XCTest, 48 native core cases, 11 search cases, legacy sorting,
 18 historical/candidate file scenarios and an unsigned Release archive:

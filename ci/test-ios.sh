@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 experiment_dir=$(pwd)
+test_plan=${IOS_TEST_PLAN:-"$experiment_dir/ci/ios-tests.json"}
+test -f "$test_plan"
 mkdir -p "$experiment_dir/results"
 test_selectors=()
 while IFS= read -r class_name; do
   test_selectors+=("-only-testing:CoMapsTests/$class_name")
-done < <(jq -er '.[].className' ci/ios-tests.json)
+done < <(jq -er '.[].className' "$test_plan")
 test "${#test_selectors[@]}" -gt 0
 cd comaps
 xcodebuild test \
@@ -25,4 +27,4 @@ xcrun xcresulttool get test-results summary \
   --path "$experiment_dir/results/CoMaps-Debug-Tests.xcresult" --compact \
   > "$experiment_dir/results/ios-summary.json"
 python3 "$experiment_dir/ci/check-ios-summary.py" \
-  "$experiment_dir/ci/ios-tests.json" "$experiment_dir/results/ios-summary.json"
+  "$test_plan" "$experiment_dir/results/ios-summary.json"

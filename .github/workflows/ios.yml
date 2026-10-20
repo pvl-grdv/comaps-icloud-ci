@@ -12,6 +12,10 @@ on:
         description: Also sign and upload CoMaps Lab to internal TestFlight (paid Developer Program required)
         type: boolean
         default: false
+      lab_local:
+        description: Build local-only Lab IPA for free-account signing (no iCloud or TestFlight)
+        type: boolean
+        default: false
       release:
         description: Build an unsigned Release archive after regression tests
         type: boolean
@@ -31,14 +35,15 @@ env:
 
 jobs:
   lab:
-    if: github.event_name == 'workflow_dispatch' && inputs.lab
+    if: github.event_name == 'workflow_dispatch' && (inputs.lab || inputs.lab_local)
     uses: ./.github/workflows/lab.yml
     with:
       upload: ${{ inputs.lab_upload }}
+      local_only: ${{ inputs.lab_local }}
     secrets: inherit
 
   file-pipeline:
-    if: github.event_name != 'workflow_dispatch' || !inputs.lab
+    if: github.event_name != 'workflow_dispatch' || (!inputs.lab && !inputs.lab_local)
     runs-on: xcode-27
     timeout-minutes: 15
     steps:
@@ -56,7 +61,7 @@ jobs:
           printf '\n```\n' >> "$GITHUB_STEP_SUMMARY"
 
   ios:
-    if: github.event_name != 'workflow_dispatch' || !inputs.lab
+    if: github.event_name != 'workflow_dispatch' || (!inputs.lab && !inputs.lab_local)
     needs: file-pipeline
     runs-on: xcode-27
     timeout-minutes: 120
