@@ -97,6 +97,44 @@ class MacOverlayTests(unittest.TestCase):
         self.assertNotEqual(control.returncode, 0, 'Old mobile GPU enums must reproduce the Catalyst failure')
         self.assertIn("error: 'MTLFeatureSet_iOS_GPUFamily1_v1' is unavailable", control.stdout)
 
+    def test_catalyst_excludes_eagl_headers_and_keeps_real_metal_allocators(self):
+        original = (self.source / 'libs/drape/hw_texture.cpp').read_text()
+        MAC.overlay(self.source)
+        transformed = (self.source / 'libs/drape/hw_texture.cpp').read_text()
+        self.assertIn('#if defined(OMIM_OS_IPHONE) && !TARGET_OS_MACCATALYST\n'
+                      '#include "drape/hw_texture_ios.hpp"', transformed)
+        methods = []
+        for function in ['CreateAllocator', 'GetDefaultAllocator']:
+            pattern = re.compile(r'^(?:drape_ptr|ref_ptr)<HWTextureAllocator> ' + function
+                                 + r'\(ref_ptr<dp::GraphicsContext> context\)\n\{\n.*?\n\}', re.M | re.S)
+            old_method = pattern.search(original).group()
+            new_method = pattern.search(transformed).group()
+            old_body = old_method[old_method.index('{\n') + 2:-2]
+            self.assertIn('#else\n' + old_body + '\n#endif', new_method)
+            self.assertIn('CHECK_EQUAL(context->GetApiVersion(), dp::ApiVersion::Metal,', new_method)
+            methods.append(new_method)
+        # Compile both actual generated platform guards and the extracted factory
+        # methods for macabi. Only thin core type declarations are substituted;
+        # OpenGL allocator/types are deliberately undeclared to catch fallthrough.
+        probe = self.source / 'texture-boundary.mm'
+        prefix = '#include <TargetConditionals.h>\n#include <memory>\nstatic_assert(TARGET_OS_MACCATALYST == 1);\n#define OMIM_OS_IPHONE\n#define CHECK(condition, message) static_cast<void>(condition)\n#define CHECK_EQUAL(left, right, message) static_cast<void>((left) == (right))\ntemplate <typename T> using ref_ptr = T *;\ntemplate <typename T> using drape_ptr = std::unique_ptr<T>;\nnamespace dp {\nenum class ApiVersion { Metal };\nstruct GraphicsContext { ApiVersion GetApiVersion() const; };\nstruct HWTextureAllocator {};\n}\ndrape_ptr<dp::HWTextureAllocator> CreateMetalAllocator();\nref_ptr<dp::HWTextureAllocator> GetDefaultMetalAllocator();\nnamespace dp {\n'
+        probe.write_text(prefix + '\n'.join(methods) + '\n}\n')
+        sdk = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
+        arguments = ['xcrun', 'clang++', '-std=c++23', '-fobjc-arc',
+                     '-target', 'arm64-apple-ios15.6-macabi', '-isysroot', sdk,
+                     '-x', 'objective-c++', '-fsyntax-only']
+        files = [self.source / 'libs/drape/hw_texture_ios.hpp',
+                 self.source / 'libs/drape/hw_texture_ios.mm', probe]
+        check = subprocess.run(arguments + list(map(str, files)),
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        self.assertEqual(check.returncode, 0, check.stdout)
+        # The former SDK imports must fail for this exact missing-header reason.
+        probe.write_text('#import <CoreVideo/CVOpenGLESTexture.h>\n')
+        control = subprocess.run(arguments + [str(probe)],
+                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        self.assertNotEqual(control.returncode, 0)
+        self.assertIn("'CoreVideo/CVOpenGLESTexture.h' file not found", control.stdout)
+
     def test_changed_carplay_source_fails_before_any_write(self):
         path = self.source / next(iter(MAC.CARPLAY_HASHES))
         path.write_text(path.read_text() + '\n// unknown source\n')

@@ -103,6 +103,29 @@ def metal_renderer_version(text):
     return text[:start] + catalyst + original + '\n#endif' + text[end:]
 
 
+def metal_texture_allocators(text):
+    text = replace(text, '#if defined(OMIM_OS_IPHONE)\n#include "drape/hw_texture_ios.hpp"',
+                   '#if defined(OMIM_OS_IPHONE) && !TARGET_OS_MACCATALYST\n#include "drape/hw_texture_ios.hpp"',
+                   'iOS OpenGLES texture include')
+    for signature, allocator in [
+            ('drape_ptr<HWTextureAllocator> CreateAllocator(ref_ptr<dp::GraphicsContext> context)',
+             'CreateMetalAllocator()'),
+            ('ref_ptr<HWTextureAllocator> GetDefaultAllocator(ref_ptr<dp::GraphicsContext> context)',
+             'GetDefaultMetalAllocator()')]:
+        pattern = re.compile('(' + re.escape(signature) + r'\n\{\n)(.*?)(\n\})', re.S)
+        matches = list(pattern.finditer(text))
+        require(len(matches) == 1, 'Unexpected texture allocator: ' + signature)
+        match = matches[0]
+        require(allocator in match[2], 'Missing original Metal allocator: ' + signature)
+        body = ('#if TARGET_OS_MACCATALYST\n'
+                '  CHECK(context != nullptr, ());\n'
+                '  CHECK_EQUAL(context->GetApiVersion(), dp::ApiVersion::Metal,\n'
+                '              ("Only Metal textures are supported in the Mac Lab"));\n'
+                '  return ' + allocator + ';\n#else\n' + match[2] + '\n#endif')
+        text = text[:match.start()] + match[1] + body + match[3] + text[match.end():]
+    return text
+
+
 def metal_gl_functions(header, original):
     # Shared GPU classes still reference the GL wrapper ABI. Keep that ABI but
     # abort on every GL operation; silently emulating GL would hide wrong routing.
@@ -193,6 +216,9 @@ CARPLAY_HASHES = {
 
 
 BASELINE_HASHES = {
+  "libs/drape/hw_texture.cpp": "743720ce4a67794c44ffbfc530f7ae9259b6d1d5",
+  "libs/drape/hw_texture_ios.mm": "658ce02e03ae3893a4786d6d02281dc0fad22321",
+  "libs/drape/hw_texture_ios.hpp": "75e97f6c2bfea0e1323f90873b85c722808cbe8b",
   "libs/drape/metal/metal_base_context.mm": "e89bd97a369b229f29cfe748149466a339a63ce4",
   "iphone/Maps/Classes/EAGLView.mm": "760223d9e19b34568d13c851b3b979b5e9d6b470",
   "iphone/Maps/Classes/MapsAppDelegate.mm": "015aff419ad7b453b2fe2144d7a1817224ab8bf2",
@@ -276,6 +302,13 @@ EXCLUDED_SOURCE_FILE_NAMES = $(inherited) iosOGLContext.mm iosOGLContextFactory.
     put(path, metal_view(read(path)))
     path = Path('libs/drape/metal/metal_base_context.mm')
     put(path, metal_renderer_version(read(path)))
+    path = Path('libs/drape/hw_texture.cpp')
+    put(path, metal_texture_allocators(read(path)))
+    for name in ['libs/drape/hw_texture_ios.hpp', 'libs/drape/hw_texture_ios.mm']:
+        original = read(name)
+        require('CVOpenGLESTexture' in original, 'Expected iOS-only EAGL texture source: ' + name)
+        put(name, MARKER + '\n#include <TargetConditionals.h>\n#if !TARGET_OS_MACCATALYST\n'
+                  + original + '\n#endif\n')
     path = Path('libs/drape/gl_functions.cpp')
     put(path, metal_gl_functions(read('libs/drape/gl_functions.hpp'), read(path)))
     path = Path('libs/drape/gl_includes.hpp')
