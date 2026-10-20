@@ -1,3 +1,16 @@
 comaps/
 results/
 .DS_Store
+.private/
+*.p12
+*.p8
+*.key
+*.pem
+*.cer
+*.certSigningRequest
+*.mobileprovision
+*.provisionprofile
+*.ipa
+*.xcarchive/
+__pycache__/
+lab-review.txt

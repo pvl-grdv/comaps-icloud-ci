@@ -1,8 +1,21 @@
-CoMaps saved-items and iCloud CI experiments
+CoMaps Lab: saved-items and iCloud experiments
 
 Independent, AI-assisted diagnostic repository. Not an official CoMaps release
-or an upstream submission. Current integrated candidate: ios-saved-items.
-Results belong to a specific Actions HEAD; pending tests have not passed.
+or an upstream submission. CoMaps Lab branch: comaps-lab. Read LAB-SETUP-RU.txt
+for installation prerequisites and the signing setup, and LAB-TESTING-RU.txt
+for the physical-device acceptance scenarios.
+
+The base feature candidate at 0237ee3737e6b2deeb80fbe03b6c72d82aee43d8 passed
+163 native XCTest, 48 native core cases, 11 search cases, legacy sorting,
+18 historical/candidate file scenarios and an unsigned Release archive:
+https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39345457120
+This does not validate subsequent Lab configuration, signing, Apple upload
+or live synchronization. Each Lab result belongs to its own Actions HEAD.
+
+Lab adds a distribution-only configuration overlay after the portable feature
+patch series: distinct app/widget identities, display name, iCloud container
+and own-team signing configuration. The existing Swift module/scheme and all
+37 feature patches remain intact for later upstream review.
 
 The candidate ports the principal reconciliation mechanism from Organic Maps
 PR #13232 at 5f24813d6fd93f26cb216d823ab4d5996d49d192, including its deletion

@@ -1,0 +1,148 @@
+name: CoMaps Lab
+
+# Invoke through the existing "CoMaps iCloud candidate" manual workflow with
+# lab=true on comaps-lab. New workflows need not be added to the default branch.
+on:
+  workflow_call:
+    inputs:
+      upload:
+        description: Explicitly sign and upload for internal TestFlight
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
+  LANG: en_US.UTF-8
+  LC_ALL: en_US.UTF-8
+
+jobs:
+  verify:
+    runs-on: xcode-27
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+      - name: Check Lab signing/configuration helpers
+        run: |
+          bash -n ci/lab-sign.sh
+          python3 -m unittest discover -s ci -p 'test_lab_*.py'
+      - name: Verify synthetic original and candidate file pipelines
+        run: bash verify.sh
+      - name: Inspect the preinstalled toolchain and install existing build requirements
+        run: |
+          xcodebuild -version
+          if ! xcrun metal -v >/dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain
+            xcrun -k
+          fi
+          xcrun metal -v
+          for formula in wget optipng cmake ninja qt jq coreutils gnu-getopt icu4c; do
+            if ! brew list --versions "$formula" >/dev/null 2>&1; then brew install "$formula"; fi
+          done
+          printf '%s\n' "$(brew --prefix gnu-getopt)/bin" >> "$GITHUB_PATH"
+          printf '%s\n' "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
+          printf '%s\n' "$(brew --prefix icu4c)/bin" >> "$GITHUB_PATH"
+      - name: Apply the complete pinned feature patch series
+        run: bash ci/prepare-upstream.sh
+      - name: Verify and configure the isolated CoMaps Lab application
+        run: |
+          python3 ci/test-configure-lab.py --source comaps
+          python3 ci/configure-lab.py --source comaps
+      - name: Run all native core regressions
+        env:
+          CORE_CHECK_BASELINE: '0'
+        run: bash ci/test-core.sh
+      - name: Reproduce the previous incoming boundary as a negative control
+        run: bash ci/test-incoming-control.sh
+      - name: Run native search and automatic sort compatibility checks
+        run: bash ci/test-search.sh
+      - name: Build Lab and run the complete XCTest plan
+        run: bash ci/test-ios.sh
+      - name: Export synthetic hosted UI attachments
+        run: |
+          xcrun xcresulttool export attachments \
+            --path results/CoMaps-Debug-Tests.xcresult --output-path results/ui-attachments
+          test "$(find results/ui-attachments -type f -name '*.png' | wc -l | tr -d ' ')" -ge 3
+      - name: Keep only synthetic UI images
+        uses: actions/upload-artifact@v7
+        with:
+          name: comaps-lab-ui-smoke
+          path: |
+            results/ui-attachments/**/*.png
+            results/ui-attachments/manifest.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Verify an unsigned Lab Release archive
+        working-directory: comaps
+        run: |
+          xcodebuild archive \
+            -workspace xcode/CoMaps.xcworkspace -scheme CoMaps -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/comaps-derived-data" \
+            -archivePath "$RUNNER_TEMP/CoMaps-Lab-Unsigned.xcarchive" \
+            CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO COMPILER_INDEX_STORE_ENABLE=NO
+      - name: Summarize verified scope
+        run: |
+          printf '%s\n' \
+            'CoMaps Lab: full synthetic file/native/XCTest plan and unsigned Release archive passed.' \
+            'No credentials were used. No installable signed application was published.' \
+            'Physical iPhone, iPad and Apple silicon Mac/iCloud tests remain separate.' \
+            >> "$GITHUB_STEP_SUMMARY"
+
+  upload:
+    if: inputs.upload
+    needs: verify
+    environment: comaps-lab
+    runs-on: xcode-27
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v6
+      - name: Require the authorized Lab branch
+        run: |
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF" = refs/heads/comaps-lab
+      - name: Require paid-program signing configuration
+        env:
+          LAB_TEAM_ID: ${{ vars.LAB_TEAM_ID }}
+          ASC_KEY_ID: ${{ vars.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ vars.ASC_ISSUER_ID }}
+          LAB_CERTIFICATE_P12_BASE64: ${{ secrets.LAB_CERTIFICATE_P12_BASE64 }}
+          LAB_CERTIFICATE_PASSWORD: ${{ secrets.LAB_CERTIFICATE_PASSWORD }}
+          LAB_APP_PROFILE_BASE64: ${{ secrets.LAB_APP_PROFILE_BASE64 }}
+          LAB_WIDGET_PROFILE_BASE64: ${{ secrets.LAB_WIDGET_PROFILE_BASE64 }}
+          ASC_PRIVATE_KEY_P8_BASE64: ${{ secrets.ASC_PRIVATE_KEY_P8_BASE64 }}
+        run: bash ci/lab-sign.sh --check-environment
+      - name: Prepare the preinstalled toolchain and existing build requirements
+        run: |
+          xcodebuild -version
+          if ! xcrun metal -v >/dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain
+            xcrun -k
+          fi
+          xcrun metal -v
+          for formula in wget optipng cmake ninja qt jq coreutils gnu-getopt icu4c; do
+            if ! brew list --versions "$formula" >/dev/null 2>&1; then brew install "$formula"; fi
+          done
+          printf '%s\n' "$(brew --prefix gnu-getopt)/bin" >> "$GITHUB_PATH"
+          printf '%s\n' "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
+          printf '%s\n' "$(brew --prefix icu4c)/bin" >> "$GITHUB_PATH"
+      - name: Apply the same pinned feature patch series
+        run: bash ci/prepare-upstream.sh
+      - name: Configure Lab for the selected developer team
+        env:
+          LAB_TEAM_ID: ${{ vars.LAB_TEAM_ID }}
+        run: python3 ci/configure-lab.py --source comaps --team-id "$LAB_TEAM_ID"
+      - name: Validate, sign and upload only for internal TestFlight
+        env:
+          LAB_UPLOAD_AUTHORIZED: 'true'
+          LAB_TEAM_ID: ${{ vars.LAB_TEAM_ID }}
+          ASC_KEY_ID: ${{ vars.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ vars.ASC_ISSUER_ID }}
+          LAB_CERTIFICATE_P12_BASE64: ${{ secrets.LAB_CERTIFICATE_P12_BASE64 }}
+          LAB_CERTIFICATE_PASSWORD: ${{ secrets.LAB_CERTIFICATE_PASSWORD }}
+          LAB_APP_PROFILE_BASE64: ${{ secrets.LAB_APP_PROFILE_BASE64 }}
+          LAB_WIDGET_PROFILE_BASE64: ${{ secrets.LAB_WIDGET_PROFILE_BASE64 }}
+          ASC_PRIVATE_KEY_P8_BASE64: ${{ secrets.ASC_PRIVATE_KEY_P8_BASE64 }}
+        run: bash ci/lab-sign.sh

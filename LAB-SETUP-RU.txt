@@ -1,0 +1,202 @@
+CoMaps Lab — GitHub → внутренний TestFlight без локального Xcode
+
+Согласованные идентификаторы
+
+Приложение: CoMaps Lab
+Bundle ID: com.pvlgrdv.comapslab
+Widget Bundle ID: com.pvlgrdv.comapslab.widgetextension
+iCloud Documents container: iCloud.com.pvlgrdv.comapslab
+GitHub: https://github.com/pvl-grdv/comaps-icloud-ci
+Рабочая ветка: comaps-lab
+GitHub Environment для подписи: comaps-lab
+
+Это независимая экспериментальная сборка, не официальный релиз CoMaps.
+Имена модулей, scheme и test target остаются CoMaps, чтобы не ломать исходники
+и тесты. Отображаемое имя и идентификаторы отличаются от официального приложения.
+Патчи функций остаются отдельно в patches/series.txt; настройка Lab выполняется
+после них скриптом ci/configure-lab.py. Обычная CoMaps и её облако не используются.
+
+Сначала главное
+
+Для TestFlight и собственного приложения с iCloud необходимо активное платное
+членство Apple Developer Program. Обычный Apple Account / бесплатный Personal
+Team не даёт выбранного пути. Бесплатная личная установка через локальный Xcode
+не заменяет TestFlight и требуемые iCloud capabilities.
+
+Подготовка исходников и автоматические проверки без подписи не требуют платного
+членства. Секреты нужны только для отдельно запрошенного запуска upload.
+В этой инструкции нет необходимости устанавливать Xcode на пользовательский Mac.
+Apple Developer Program и iCloud+ — разные подписки. Для тестовой синхронизации
+нужны включённый iCloud Drive и свободное место в iCloud, не обязательно iCloud+.
+
+Шаг 0. Членство — действие владельца аккаунта
+
+Открыть https://developer.apple.com/programs/enroll/ и проверить варианты
+оформления на своё физическое лицо. Apple указывает ориентир 99 USD в год;
+конкретная валюта/цена и доступность зависят от региона. Оформление, проверку
+личности, соглашения и оплату выполняет сам владелец. Не покупать Enterprise.
+
+После активации открыть Membership details в
+https://developer.apple.com/account/ и найти Team ID: 10 латинских букв/цифр.
+Team ID можно сообщить в чат: это идентификатор команды, не пароль или ключ.
+Пароль Apple Account, коды 2FA и платёжные данные никому не передавать.
+
+Остановиться на этом шаге, пока активного членства нет. Следующие шаги — после
+активации; отсутствие кнопки Certificates/Profiles/API не исправляется ключом
+бесплатного Personal Team. Подготовленные исходники Lab от этого не пропадают.
+
+Шаг 1. Зарегистрировать идентификаторы и облако
+
+В https://developer.apple.com/account/resources/identifiers/list:
+  1. Создать Explicit App ID com.pvlgrdv.comapslab, описание CoMaps Lab.
+  2. Включить iCloud, доступ к iCloud Documents и key-value storage.
+  3. Создать/связать iCloud container iCloud.com.pvlgrdv.comapslab.
+     Lab запрашивает CloudDocuments и KVS, без CloudKit database. Не включать
+     дополнительные CloudKit-службы только потому, что они были в исходной
+     подписи официального CoMaps: здесь используются файлы Documents и KVS.
+  4. Создать отдельный Explicit App ID com.pvlgrdv.comapslab.widgetextension.
+     Для виджета не включать дополнительные службы без требования исходников.
+
+Не выбирать контейнер iCloud.app.comaps: он принадлежит команде CoMaps.
+Lab использует собственный контейнер и собственное KVS-пространство команды.
+Официальные universal links и ограниченные CarPlay/navigation entitlements
+не включаются в лабораторную подпись. Членство не выдаёт CarPlay автоматически.
+При изменении capabilities уже созданные provisioning profiles нужно обновить.
+
+Шаг 2. Сертификат Apple Distribution без Xcode
+
+Встроенное приложение macOS «Связка ключей» / Keychain Access подходит для CSR:
+  1. Запустить Keychain Access через Spotlight.
+  2. Certificate Assistant → Request a Certificate From a Certificate Authority.
+  3. Указать свой email и понятное Common Name, например CoMaps Lab Distribution.
+  4. CA Email оставить пустым; выбрать Saved to disk и сохранить CSR локально.
+     Закрытый ключ остаётся в вашей связке ключей.
+
+В кабинете Apple Developer открыть Certificates → «+» → Apple Distribution,
+загрузить созданный CSR и скачать сертификат .cer. Дважды открыть .cer для
+добавления в ту же связку ключей, где создавался CSR. В My Certificates рядом
+с сертификатом должна раскрываться запись закрытого ключа.
+
+Экспортировать эту identity (сертификат вместе с закрытым ключом) в файл .p12
+и установить сильный пароль экспорта. Файл .cer отдельно недостаточен для CI.
+Нужен именно Apple Distribution, не Developer ID Application для macOS и не
+Apple Development. Если экспорт .p12 недоступен, сначала проверить наличие
+соответствующего закрытого ключа в той же связке; не перевыпускать всё наугад.
+
+Хранить .p12 и пароль в личном защищённом месте. Не присылать .p12/пароль в чат.
+Правила .gitignore помогают от случайного добавления, но не являются шифрованием.
+
+Шаг 3. Два distribution provisioning profile
+
+В Profiles создать профиль типа App Store Connect (название в кабинете может
+быть App Store) для com.pvlgrdv.comapslab с выбранным Apple Distribution
+сертификатом. Затем такой же профиль для .widgetextension. Скачать оба файла
+.mobileprovision. У основного профиля должны быть права на свой iCloud container
+и KVS. Идентификаторы, команда и срок действия проверяются скриптом до сборки.
+
+Для TestFlight регистрировать UDID iPhone/iPad/Mac не требуется. Профили Ad Hoc
+не подходят выбранному export method app-store-connect. Не использовать
+development/Personal Team profile вместо distribution profile.
+
+Шаг 4. Создать запись приложения в App Store Connect
+
+Открыть https://appstoreconnect.apple.com/ → Apps → «+» → New App.
+Выбрать платформу iOS, зарегистрированный Bundle ID com.pvlgrdv.comapslab,
+название CoMaps Lab (если занято, собственное уникальное имя записи), основной
+язык и любой уникальный для своего аккаунта SKU, например comaps-lab.
+Публикацию версии в App Store не запускать. Нам нужен внутренний TestFlight.
+Если Apple требует принять новые соглашения, их принимает владелец аккаунта.
+
+Шаг 5. API key для загрузки из CI
+
+В App Store Connect → Users and Access → Integrations → App Store Connect API
+при необходимости запросить доступ. Создать Team Key с ролью Developer для
+загрузки сборок, назвать CoMaps Lab CI. Не выдавать Admin только ради upload.
+Team Key действует на приложения команды в пределах роли, не ограничивается
+автоматически одной Lab записью. Для команды с другими приложениями оценить
+эту область доступа прежде, чем создавать ключ.
+
+Сохранить Key ID и Issuer ID. Скачать AuthKey_<KeyID>.p8 сразу: закрытая часть
+скачивается однократно. Файл хранить локально и загрузить напрямую в GitHub
+Environment secret, не в git, не в артефакт и не в чат. Для описанного workflow
+используется Team Key с Issuer ID, а не Individual Key с другим способом auth.
+
+Шаг 6. Добавить значения непосредственно в GitHub Environment
+
+Открыть Settings → Environments → comaps-lab в вашем репозитории.
+Environment ограничивается веткой comaps-lab и требует ручного подтверждения
+владельца перед передачей секретов signing/upload job. Проверить эти настройки
+перед добавлением реальных ключей. Не снимать ограничение ради внешнего PR.
+
+Environment variables (не секреты):
+  LAB_TEAM_ID             — 10-символьный Team ID платной команды
+  ASC_KEY_ID              — Key ID загрузочного Team Key
+  ASC_ISSUER_ID           — Issuer ID этого Team Key
+
+Environment secrets:
+  LAB_CERTIFICATE_P12_BASE64  — содержимое .p12 в Base64
+  LAB_CERTIFICATE_PASSWORD    — пароль экспорта .p12
+  LAB_APP_PROFILE_BASE64      — основной .mobileprovision в Base64
+  LAB_WIDGET_PROFILE_BASE64   — профиль виджета в Base64
+  ASC_PRIVATE_KEY_P8_BASE64   — содержимое AuthKey_*.p8 в Base64
+
+Base64 — кодирование, не шифрование. Значения добавлять как secrets, не vars.
+Можно сделать это из Terminal через уже авторизованный gh, не выводя байты:
+
+  base64 < '/полный/путь/distribution.p12' | gh secret set LAB_CERTIFICATE_P12_BASE64 --env comaps-lab --repo pvl-grdv/comaps-icloud-ci
+  gh secret set LAB_CERTIFICATE_PASSWORD --env comaps-lab --repo pvl-grdv/comaps-icloud-ci
+  base64 < '/полный/путь/main.mobileprovision' | gh secret set LAB_APP_PROFILE_BASE64 --env comaps-lab --repo pvl-grdv/comaps-icloud-ci
+  base64 < '/полный/путь/widget.mobileprovision' | gh secret set LAB_WIDGET_PROFILE_BASE64 --env comaps-lab --repo pvl-grdv/comaps-icloud-ci
+  base64 < '/полный/путь/AuthKey_KEYID.p8' | gh secret set ASC_PRIVATE_KEY_P8_BASE64 --env comaps-lab --repo pvl-grdv/comaps-icloud-ci
+
+Команда пароля запрашивает его интерактивно: не подставлять пароль в аргумент
+shell-команды. В приведённых командах сначала заменить пути на реальные.
+Не выполнять их, пока нет корректных сертификата/профилей/ключа.
+
+Шаг 7. Сборка и upload
+
+Workflow ios.yml уже существует в default branch репозитория. Он служит точкой
+входа и в feature-ветку: новый lab.yml вызывается из него как reusable workflow.
+Для этого не нужно отправлять новые файлы в main или менять default branch.
+
+Сначала проверка Lab без подписи и без доступа к секретам:
+
+  gh workflow run ios.yml --repo pvl-grdv/comaps-icloud-ci --ref comaps-lab -f lab=true -f lab_upload=false
+
+После успешной проверки и всех шагов выше — отдельно явно запрошенный upload:
+
+  gh workflow run ios.yml --repo pvl-grdv/comaps-icloud-ci --ref comaps-lab -f lab=true -f lab_upload=true
+
+Upload-run сначала снова выполняет проверки. Signing job дополнительно ждёт
+ручного подтверждения Environment. Он использует временную связку ключей
+на GitHub runner, проверяет профили и подписывает main app вместе с виджетом.
+Архив экспортируется напрямую в App Store Connect для internal testing.
+Пароли/ключи/профили/IPA/xcarchive не сохраняются публичными CI artifacts.
+После upload дождаться обработки Apple. Успешный build не равен успешному upload,
+а успешный upload ещё не означает, что Apple закончила обработку.
+
+Шаг 8. Установка на три устройства
+
+В App Store Connect → приложение → TestFlight создать внутреннюю группу,
+добавить себя как internal tester и нужный обработанный build. При запросе
+заполнить сведения для тестирования и export compliance.
+
+В Settings группы включить Test iPhone and iPad apps on Apple silicon Macs.
+Это установка совместимой iPad-версии на Mac, не отдельный native/Catalyst target.
+Проверка на Mac выполняется после установки; предыдущий CI проверял iOS simulator.
+
+На iPhone, iPad и Mac установить TestFlight из App Store, принять приглашение
+и установить CoMaps Lab. Сборка TestFlight доступна до 90 дней; новые версии
+можно будет доставлять тем же CI. Для данных использовать одинаковый iCloud
+аккаунт на всех устройствах. Перейти к LAB-TESTING-RU.txt.
+
+Источники
+
+Членство: https://developer.apple.com/programs/enroll/
+Personal Team: https://developer.apple.com/help/account/basics/about-your-developer-account
+CSR: https://developer.apple.com/help/account/certificates/create-a-certificate-signing-request
+Capabilities/profiles: https://developer.apple.com/help/account/identifiers/enable-app-capabilities/
+API key: https://developer.apple.com/help/app-store-connect/get-started/app-store-connect-api
+Подпись в CI: https://docs.github.com/en/actions/how-tos/deploy/deploy-to-third-party-platforms/sign-xcode-applications
+Internal TestFlight: https://developer.apple.com/help/app-store-connect/test-a-beta-version/add-internal-testers/
+TestFlight на Mac: https://developer.apple.com/help/app-store-connect/test-a-beta-version/test-iphone-and-ipad-apps-on-macs-with-apple-silicon

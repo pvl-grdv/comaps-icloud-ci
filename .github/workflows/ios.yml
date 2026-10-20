@@ -4,6 +4,14 @@ on:
     branches: [main, om-reuse-regressions, ios-library-features, ios-saved-items]
   workflow_dispatch:
     inputs:
+      lab:
+        description: Verify the separate CoMaps Lab application
+        type: boolean
+        default: false
+      lab_upload:
+        description: Also sign and upload CoMaps Lab to internal TestFlight (paid Developer Program required)
+        type: boolean
+        default: false
       release:
         description: Build an unsigned Release archive after regression tests
         type: boolean
@@ -22,7 +30,15 @@ env:
   LC_ALL: en_US.UTF-8
 
 jobs:
+  lab:
+    if: github.event_name == 'workflow_dispatch' && inputs.lab
+    uses: ./.github/workflows/lab.yml
+    with:
+      upload: ${{ inputs.lab_upload }}
+    secrets: inherit
+
   file-pipeline:
+    if: github.event_name != 'workflow_dispatch' || !inputs.lab
     runs-on: xcode-27
     timeout-minutes: 15
     steps:
@@ -40,6 +56,7 @@ jobs:
           printf '\n```\n' >> "$GITHUB_STEP_SUMMARY"
 
   ios:
+    if: github.event_name != 'workflow_dispatch' || !inputs.lab
     needs: file-pipeline
     runs-on: xcode-27
     timeout-minutes: 120
