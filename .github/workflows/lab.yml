@@ -78,6 +78,7 @@ jobs:
       - name: Run native search and automatic sort compatibility checks
         run: bash ci/test-search.sh
       - name: Build Lab and run the complete XCTest plan
+        id: ios_tests
         env:
           IOS_TEST_PLAN: ${{ github.workspace }}/results/lab-ios-tests.json
         run: |
@@ -91,6 +92,17 @@ jobs:
           Path('results/lab-ios-tests.json').write_text(json.dumps(tests))
           PY
           bash ci/test-ios.sh
+      - name: Keep failed simulator test diagnostics
+        if: failure() && steps.ios_tests.outcome == 'failure'
+        uses: actions/upload-artifact@v7
+        with:
+          name: comaps-lab-failed-simulator-tests
+          path: |
+            results/CoMaps-Debug-Tests.xcresult
+            results/xcodebuild-tests.log
+            results/ios-simulators.json
+          if-no-files-found: warn
+          retention-days: 3
       - name: Export synthetic hosted UI attachments
         run: |
           xcrun xcresulttool export attachments \
