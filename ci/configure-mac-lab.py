@@ -103,6 +103,19 @@ def metal_renderer_version(text):
     return text[:start] + catalyst + original + '\n#endif' + text[end:]
 
 
+def shared_route_info(text):
+    text = replace(text, 'import CarPlay\n',
+                   '#if targetEnvironment(macCatalyst)\nimport UIKit\n#else\nimport CarPlay\n#endif\n',
+                   'shared navigation imports')
+    start = text.index('  /// CarPlay maneuver type for the instrument cluster / HUD.')
+    end = text.index('\n}\n\n/// A single navigation lane:', start)
+    properties = text[start:end]
+    require(properties.count('var cpManeuverType: CPManeuverType') == 1
+            and properties.count('var cpJunctionType: CPJunctionType') == 1,
+            'Unexpected CarPlay maneuver properties')
+    return text[:start] + '#if !targetEnvironment(macCatalyst)\n' + properties + '\n#endif' + text[end:]
+
+
 def metal_texture_allocators(text):
     text = replace(text, '#if defined(OMIM_OS_IPHONE)\n#include "drape/hw_texture_ios.hpp"',
                    '#if defined(OMIM_OS_IPHONE) && !TARGET_OS_MACCATALYST\n#include "drape/hw_texture_ios.hpp"',
@@ -325,7 +338,9 @@ EXCLUDED_SOURCE_FILE_NAMES = $(inherited) iosOGLContext.mm iosOGLContextFactory.
         require(digest == expected, 'Changed mobile-only source requires review: ' + name)
         if name.endswith('CarplayPlaceholderView.swift'):
             continue  # Keep the storyboard class; its switch stays unreachable.
-        if name.endswith('CarPlayService.swift'):
+        if name.endswith('Templates Data/RouteInfo.swift'):
+            put(name, MARKER + '\n' + shared_route_info(data.decode()))
+        elif name.endswith('CarPlayService.swift'):
             put(name, MARKER + '\n' + CARPLAY_SERVICE)
         elif name.endswith('.swift'):
             put(name, MARKER + '\n#if !targetEnvironment(macCatalyst)\n' + data.decode() + '\n#endif\n')

@@ -135,6 +135,40 @@ class MacOverlayTests(unittest.TestCase):
         self.assertNotEqual(control.returncode, 0)
         self.assertIn("'CoreVideo/CVOpenGLESTexture.h' file not found", control.stdout)
 
+    def test_shared_navigation_models_remain_visible_on_catalyst(self):
+        path = Path('iphone/Maps/Classes/CarPlay/Templates Data/RouteInfo.swift')
+        original = (self.source / path).read_text()
+        MAC.overlay(self.source)
+        transformed = (self.source / path).read_text()
+        # The ordinary UIKit/ObjC navigation formatter and route models must
+        # remain byte-for-byte intact, rather than copying only the lane types.
+        boundary = '/// Instead of the legacy `GetFullRoadName`'
+        self.assertEqual(transformed[transformed.index(boundary):], original[original.index(boundary):])
+        model = transformed[:transformed.index(boundary)]
+        imports = '#if targetEnvironment(macCatalyst)\nimport UIKit\n#else\nimport CarPlay\n#endif\n'
+        self.assertIn(imports, model)
+        self.assertEqual(model.count('#if !targetEnvironment(macCatalyst)'), 1)
+        # These actual model declarations use only Foundation. Substitute that
+        # narrower import for local CLT typechecking; full UIKit is tested in CI.
+        model = model.replace(imports, 'import Foundation\n')
+        consumer = '\nfunc navigationModelProbe() { let lane = LaneInfo(laneWays: [6], recommendedWay: 6); '
+        consumer += '_ = LaneWay(rawValue: lane.recommendedWay)?.turnImageName; _ = CarDirection.turnRight.isRoundabout }\n'
+        probe = self.source / 'shared-navigation.swift'
+        probe.write_text(model + consumer)
+        sdk = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
+        arguments = ['xcrun', 'swiftc', '-typecheck', '-target', 'arm64-apple-ios15.6-macabi',
+                     '-sdk', sdk, '-module-cache-path', str(self.source / 'swift-module-cache')]
+        check = subprocess.run(arguments + [str(probe)],
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        self.assertEqual(check.returncode, 0, check.stdout)
+        # Reproduce the former whole-file exclusion: the actual consumer must
+        # fail because the shared LaneInfo declaration disappeared on Catalyst.
+        probe.write_text('import Foundation\n#if !targetEnvironment(macCatalyst)\n' + model + '\n#endif\n' + consumer)
+        control = subprocess.run(arguments + [str(probe)],
+                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        self.assertNotEqual(control.returncode, 0)
+        self.assertIn("cannot find 'LaneInfo' in scope", control.stdout)
+
     def test_changed_carplay_source_fails_before_any_write(self):
         path = self.source / next(iter(MAC.CARPLAY_HASHES))
         path.write_text(path.read_text() + '\n// unknown source\n')
