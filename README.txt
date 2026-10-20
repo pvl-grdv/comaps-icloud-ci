@@ -1,5 +1,10 @@
 CoMaps Lab: saved-items and iCloud experiments
 
+Contribution inventory (Russian technical notes, not submission prose):
+upstream/README.txt. Eight proposed review units, exact patch/test ownership,
+verification boundaries and current CoMaps contribution requirements.
+Validate the inventory with: python3 tools/check-upstream-plan.py
+
 Independent, AI-assisted diagnostic repository. Not an official CoMaps release
 or an upstream submission. CoMaps Lab branch: comaps-lab. Read LAB-SETUP-RU.txt
 for installation prerequisites and the signing setup, and LAB-TESTING-RU.txt

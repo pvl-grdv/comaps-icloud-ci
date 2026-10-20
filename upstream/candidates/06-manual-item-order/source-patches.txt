@@ -1,0 +1,6 @@
+# Historical references only; NOT an applyable series. Extract final hunks.
+manual-item-order.patch
+ios-manual-item-order.patch
+manual-bookmark-creation.patch
+invalidate-default-sort.patch
+show-reorder-controls.patch

@@ -1,0 +1,3 @@
+# Historical references only; NOT an applyable series. Extract final hunks.
+category-reload.patch
+category-info-compile-fix.patch

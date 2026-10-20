@@ -1,0 +1,116 @@
+{
+  "checked_at_utc": "2026-10-20T11:45:12.902163+00:00",
+  "upstream": {
+    "default_branch": "main",
+    "revision": "2ed70d0d28b3e7aae4dc33d4a20fd51922b73024",
+    "commit_date": "2026-10-19T22:26:01+02:00",
+    "commit_url": "https://codeberg.org/comaps/comaps/commit/2ed70d0d28b3e7aae4dc33d4a20fd51922b73024",
+    "message": "Add Game Shop (shop=games) POI",
+    "pinned_base": "a70fce4243e5c7eb4fc3f92ea0750e2b93c8ffb8",
+    "parents": [
+      "a70fce4243e5c7eb4fc3f92ea0750e2b93c8ffb8"
+    ],
+    "pinned_is_direct_parent": true,
+    "ahead_of_pin": 1,
+    "changed_file_count": 20,
+    "portable_patch_paths_count": 72,
+    "overlap_with_portable_patch_paths": [],
+    "freshness_conclusion": "Pinned candidate is one direct-parent commit behind the observed default HEAD. Current delta changes Game Shop POI assets/translations/tests, none of the 72 portable patched paths. Refresh/rebase and rerun per-unit checks before submission; no rebase or apply check was done here.",
+    "feature_absence_claim": "Not established for every feature, alternative implementation or open PR. Only the two explicit source probes below were read at current HEAD.",
+    "head_rechecked_at_utc": "2026-10-20T11:45:37.097484+00:00"
+  },
+  "governance": {
+    "default_branch": "main",
+    "revision": "4bd381ed969a29fec21934707055358c7f239391",
+    "commit_date": "2026-10-14T00:52:43+07:00"
+  },
+  "sources": [
+    {
+      "repository": "comaps",
+      "revision": "2ed70d0d28b3e7aae4dc33d4a20fd51922b73024",
+      "path": "docs/CONTRIBUTING.md",
+      "url": "https://codeberg.org/comaps/comaps/src/commit/2ed70d0d28b3e7aae4dc33d4a20fd51922b73024/docs/CONTRIBUTING.md",
+      "raw_url": "https://codeberg.org/comaps/comaps/raw/commit/2ed70d0d28b3e7aae4dc33d4a20fd51922b73024/docs/CONTRIBUTING.md",
+      "sha256": "04b277519811ce614a9612ce4143f3618cb28129629fab6b0b8bbaf883414e06"
+    },
+    {
+      "repository": "comaps",
+      "revision": "2ed70d0d28b3e7aae4dc33d4a20fd51922b73024",
+      "path": "docs/PR_GUIDE.md",
+      "url": "https://codeberg.org/comaps/comaps/src/commit/2ed70d0d28b3e7aae4dc33d4a20fd51922b73024/docs/PR_GUIDE.md",
+      "raw_url": "https://codeberg.org/comaps/comaps/raw/commit/2ed70d0d28b3e7aae4dc33d4a20fd51922b73024/docs/PR_GUIDE.md",
+      "sha256": "5752c193993583b9949530a3f38d00af12ba0c55de5470814f7138aa5c172f5a"
+    },
+    {
+      "repository": "comaps",
+      "revision": "2ed70d0d28b3e7aae4dc33d4a20fd51922b73024",
+      "path": ".forgejo/PULL_REQUEST_TEMPLATE.yml",
+      "url": "https://codeberg.org/comaps/comaps/src/commit/2ed70d0d28b3e7aae4dc33d4a20fd51922b73024/.forgejo/PULL_REQUEST_TEMPLATE.yml",
+      "raw_url": "https://codeberg.org/comaps/comaps/raw/commit/2ed70d0d28b3e7aae4dc33d4a20fd51922b73024/.forgejo/PULL_REQUEST_TEMPLATE.yml",
+      "sha256": "e200a406a0fff97aef1403d79e7859a86f62105c5a0ee026b39ae5273f9d31dc"
+    },
+    {
+      "repository": "Governance",
+      "revision": "4bd381ed969a29fec21934707055358c7f239391",
+      "path": "AI_USAGE.md",
+      "url": "https://codeberg.org/comaps/Governance/src/commit/4bd381ed969a29fec21934707055358c7f239391/AI_USAGE.md",
+      "raw_url": "https://codeberg.org/comaps/Governance/raw/commit/4bd381ed969a29fec21934707055358c7f239391/AI_USAGE.md",
+      "sha256": "c2e58232369c701d325a362e628fea301a71640374ef431c50076218dd62e781"
+    },
+    {
+      "repository": "Governance",
+      "revision": "4bd381ed969a29fec21934707055358c7f239391",
+      "path": "DCO.md",
+      "url": "https://codeberg.org/comaps/Governance/src/commit/4bd381ed969a29fec21934707055358c7f239391/DCO.md",
+      "raw_url": "https://codeberg.org/comaps/Governance/raw/commit/4bd381ed969a29fec21934707055358c7f239391/DCO.md",
+      "sha256": "3399a010bb18b6da4772e5e1d6d3b6fed14ef6cbc1ace9d43720950f42958ed3"
+    },
+    {
+      "repository": "comaps",
+      "revision": "2ed70d0d28b3e7aae4dc33d4a20fd51922b73024",
+      "path": ".forgejo/workflows/dco.yml",
+      "url": "https://codeberg.org/comaps/comaps/src/commit/2ed70d0d28b3e7aae4dc33d4a20fd51922b73024/.forgejo/workflows/dco.yml",
+      "raw_url": "https://codeberg.org/comaps/comaps/raw/commit/2ed70d0d28b3e7aae4dc33d4a20fd51922b73024/.forgejo/workflows/dco.yml",
+      "sha256": "efbf01337d1ec66bced3220590c45f84e884f666b67ff2b669937e75f0aef755"
+    },
+    {
+      "repository": "comaps",
+      "revision": "2ed70d0d28b3e7aae4dc33d4a20fd51922b73024",
+      "path": "libs/map/track.cpp",
+      "url": "https://codeberg.org/comaps/comaps/src/commit/2ed70d0d28b3e7aae4dc33d4a20fd51922b73024/libs/map/track.cpp",
+      "raw_url": "https://codeberg.org/comaps/comaps/raw/commit/2ed70d0d28b3e7aae4dc33d4a20fd51922b73024/libs/map/track.cpp",
+      "sha256": "3e288d5fce55ee1e146db52932c1fa62462609162750a51cb54a348ac1947f5a"
+    },
+    {
+      "repository": "comaps",
+      "revision": "2ed70d0d28b3e7aae4dc33d4a20fd51922b73024",
+      "path": "libs/map/bookmark_manager.cpp",
+      "url": "https://codeberg.org/comaps/comaps/src/commit/2ed70d0d28b3e7aae4dc33d4a20fd51922b73024/libs/map/bookmark_manager.cpp",
+      "raw_url": "https://codeberg.org/comaps/comaps/raw/commit/2ed70d0d28b3e7aae4dc33d4a20fd51922b73024/libs/map/bookmark_manager.cpp",
+      "sha256": "867ba08f22822c9ccb2f83565362fba9f07186ecd4f10213e9709fc1aa7b455a"
+    }
+  ],
+  "source_probes": [
+    {
+      "path": "libs/map/track.cpp",
+      "line": 86,
+      "symbol": "Track::SetName",
+      "result": "Current setter still only updates the KML name and does not set m_isDirty; the one-line dirty flag added by track-rename.patch is absent in this function. This is a source observation, not a new device reproduction.",
+      "url": "https://codeberg.org/comaps/comaps/src/commit/2ed70d0d28b3e7aae4dc33d4a20fd51922b73024/libs/map/track.cpp#L86"
+    },
+    {
+      "path": "libs/map/bookmark_manager.cpp",
+      "line": 2691,
+      "symbol": "BookmarkManager::UpdateBookmarkCategory",
+      "result": "Current method still clears the existing group then calls m_categories.emplace for the existing key, without replacing the map element or deleting old compilations as category-reload.patch does.",
+      "url": "https://codeberg.org/comaps/comaps/src/commit/2ed70d0d28b3e7aae4dc33d4a20fd51922b73024/libs/map/bookmark_manager.cpp#L2691"
+    },
+    {
+      "path": "libs/map/bookmark_manager.cpp",
+      "line": 2908,
+      "symbol": "SetUniqueName during reload",
+      "result": "Current reload still performs unique-name checking before recovering groupId from the file path and does not exclude its own category from that check.",
+      "url": "https://codeberg.org/comaps/comaps/src/commit/2ed70d0d28b3e7aae4dc33d4a20fd51922b73024/libs/map/bookmark_manager.cpp#L2908"
+    }
+  ]
+}

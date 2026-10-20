@@ -1,0 +1,13 @@
+# Historical references only; NOT an applyable series. Extract final hunks.
+initial-conflict.patch
+incoming-bookmark-ordered-commit.patch
+incoming-category-staging.patch
+explicit-fixture-callbacks.patch
+parser-rejected-invalid-snapshot-fixture.patch
+declare-fill-empty-names.patch
+icloud-content-reconciliation.patch
+fingerprint-tests-coordination-budget.patch
+per-operation-coordinators.patch
+writer-tests-file-worker-adapter.patch
+fingerprint-tests-functional-io-deadline.patch
+store-tests-functional-io-deadline.patch

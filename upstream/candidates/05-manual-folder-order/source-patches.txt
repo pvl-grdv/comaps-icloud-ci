@@ -1,0 +1,7 @@
+# Historical references only; NOT an applyable series. Extract final hunks.
+ios-folder-order.patch
+hosted-bookmarks-ui-smoke.patch
+show-reorder-controls.patch
+folder-order-lifecycle.patch
+stable-category-menu-target.patch
+hosted-ui-window-lifecycle.patch

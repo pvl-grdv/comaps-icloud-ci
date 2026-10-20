@@ -1,0 +1,4 @@
+# Historical references only; NOT an applyable series. Extract final hunks.
+shared-folder-order.patch
+folder-order-lifecycle.patch
+stable-category-menu-target.patch

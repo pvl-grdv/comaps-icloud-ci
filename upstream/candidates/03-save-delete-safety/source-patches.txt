@@ -1,0 +1,6 @@
+# Historical references only; NOT an applyable series. Extract final hunks.
+ios-folder-order.patch
+deletion-autosave-safety.patch
+save-open-failure.patch
+persist-deletion-fixture.patch
+incoming-bookmark-ordered-commit.patch
