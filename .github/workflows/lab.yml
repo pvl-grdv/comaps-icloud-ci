@@ -136,11 +136,24 @@ jobs:
             'Physical iPhone, iPad and Apple silicon Mac/iCloud tests remain separate.' \
             >> "$GITHUB_STEP_SUMMARY"
       - name: Package local-only IPA for local signing
+        id: local_package
         if: inputs.local_only
         run: |
           python3 ci/package-local-ipa.py \
             --archive "$RUNNER_TEMP/CoMaps-Lab-Unsigned.xcarchive" \
             --output-dir results/local-install --commit "$GITHUB_SHA"
+      - name: Inspect links after a failed local package
+        if: failure() && inputs.local_only && steps.local_package.outcome == 'failure'
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          applications = Path(os.environ['RUNNER_TEMP']) / 'CoMaps-Lab-Unsigned.xcarchive/Products/Applications'
+          for app in sorted(applications.glob('*.app')):
+            for path in sorted(app.rglob('*')):
+              if path.is_symlink():
+                print(f'{app.name}/{path.relative_to(app)} -> {os.readlink(path)}')
+          PY
       - name: Publish only the unsigned local application
         if: inputs.local_only
         uses: actions/upload-artifact@v7

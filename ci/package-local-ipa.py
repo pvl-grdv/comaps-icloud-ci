@@ -90,6 +90,44 @@ def provenance(commit):
     return commit.lower(), run_url
 
 
+def excluded(relative):
+    return relative.parts[0] == 'PlugIns' or any(part in SIGNING_FILES for part in relative.parts)
+
+
+def symlink_target(path, app):
+    relative = path.relative_to(app)
+    link = Path(os.readlink(path))
+    require(not link.is_absolute(), 'Absolute symlink is not relocatable: ' + str(relative))
+    candidate = Path(os.path.normpath(path.parent / link))
+    require(app in candidate.parents, 'Symlink escapes the application: ' + str(relative))
+    require(not excluded(candidate.relative_to(app)), 'Symlink points to excluded metadata: ' + str(relative))
+    try:
+        target = path.resolve(strict=True)
+    except (OSError, RuntimeError) as error:
+        raise ValueError('Broken or cyclic symlink: ' + str(relative)) from error
+    require(app in target.parents, 'Symlink escapes the application: ' + str(relative))
+    require(not excluded(target.relative_to(app)), 'Symlink points to excluded metadata: ' + str(relative))
+    require(target.is_file() or target.is_dir(), 'Symlink target is not a file or directory: ' + str(relative))
+    return target
+
+
+def check_directory_cycles(edges, app):
+    """Reject directory-link cycles without following symlinks during file enumeration."""
+    active, visited = set(), set()
+
+    def visit(directory):
+        require(directory not in active, 'Directory symlink cycle: ' + str(directory.relative_to(app)))
+        if directory in visited:
+            return
+        active.add(directory)
+        for child in edges.get(directory, ()):
+            visit(child)
+        active.remove(directory)
+        visited.add(directory)
+
+    visit(app)
+
+
 def package(archive, output_dir, commit=None):
     commit, run_url = provenance(commit)
     archive, output_dir = Path(archive).resolve(), Path(output_dir).resolve()
@@ -111,29 +149,39 @@ def package(archive, output_dir, commit=None):
     require(not (app / executable).is_symlink(), 'Executable symlinks are not supported')
     require((app / executable).stat().st_mode & stat.S_IXUSR, 'Main executable is not executable')
     check_device_binary(app / executable)
-    files = []
+    files, directory_edges = [], {}
     for path in sorted(app.rglob('*')):
         relative = path.relative_to(app)
-        if relative.parts[0] == 'PlugIns' or any(p in SIGNING_FILES for p in relative.parts):
+        if excluded(relative):
             continue
-        require(not path.is_symlink(), 'Symlinks are not supported in Local Lab packages')
         require('SC_Info' not in relative.parts and path.suffix.lower() not in ('.sinf', '.p12', '.p8', '.mobileprovision'),
                 'App Store encryption metadata or signing credentials found in input')
-        if path.is_file():
+        if path.is_symlink():
+            target = symlink_target(path, app)
+            if target.is_dir():
+                directory_edges.setdefault(path.parent, set()).add(target)
+            files.append((path, relative))
+        elif path.is_file():
             files.append((path, relative))
         else:
             require(path.is_dir(), 'Special files are not supported')
+            directory_edges.setdefault(path.parent, set()).add(path)
+            files.append((path, relative))
+    check_directory_cycles(directory_edges, app)
     output_dir.mkdir(parents=True, exist_ok=True)
     destination = output_dir / IPA_NAME
     with tempfile.TemporaryDirectory(dir=output_dir) as staging:
         temporary = Path(staging) / IPA_NAME
         with zipfile.ZipFile(temporary, 'w', zipfile.ZIP_DEFLATED) as zipped:
             for path, relative in files:
-                entry = zipfile.ZipInfo('Payload/CoMaps.app/' + relative.as_posix(), date_time=(1980, 1, 1, 0, 0, 0))
+                directory = path.is_dir() and not path.is_symlink()
+                entry = zipfile.ZipInfo('Payload/CoMaps.app/' + relative.as_posix() + ('/' if directory else ''),
+                                        date_time=(1980, 1, 1, 0, 0, 0))
                 entry.create_system = 3
-                entry.external_attr = (stat.S_IFREG | stat.S_IMODE(path.stat().st_mode)) << 16
+                entry.external_attr = path.lstat().st_mode << 16
                 entry.compress_type = zipfile.ZIP_DEFLATED
-                zipped.writestr(entry, path.read_bytes())
+                data = os.fsencode(os.readlink(path)) if path.is_symlink() else b'' if directory else path.read_bytes()
+                zipped.writestr(entry, data)
         temporary.replace(destination)
     manifest = {'file': IPA_NAME, 'commit': commit, 'run': run_url,
                 'bundle_id': BUNDLE, 'display_name': DISPLAY_NAME,

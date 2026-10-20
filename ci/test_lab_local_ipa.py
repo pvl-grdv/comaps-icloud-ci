@@ -69,7 +69,8 @@ class LocalIPATests(unittest.TestCase):
             self.assertIsNone(zipped.testzip())
             self.assertEqual(set(zipped.namelist()), {'Payload/CoMaps.app/Info.plist',
                              'Payload/CoMaps.app/CoMaps', 'Payload/CoMaps.app/resource.txt',
-                             'Payload/CoMaps.app/public-CA.pem'})
+                             'Payload/CoMaps.app/public-CA.pem', 'Payload/CoMaps.app/Frameworks/',
+                             'Payload/CoMaps.app/Frameworks/Core.framework/'})
             self.assertEqual(zipped.read('Payload/CoMaps.app/public-CA.pem'), b'synthetic public runtime CA resource')
             self.assertEqual(stat.S_IMODE(zipped.getinfo('Payload/CoMaps.app/CoMaps').external_attr >> 16), 0o755)
         self.assertTrue(manifest['requires_resigning'])
@@ -147,6 +148,58 @@ class LocalIPATests(unittest.TestCase):
         with self.assertRaises(ValueError):
             local_ipa.package(self.archive, self.archive / 'output')
         self.assertEqual(before, self.snapshot())
+
+    def test_internal_framework_symlinks_and_empty_directory_targets_are_preserved(self):
+        framework = self.app / 'Frameworks/Test.framework'
+        binary = framework / 'Versions/A/Test'
+        binary.parent.mkdir(parents=True)
+        binary.write_bytes(macho())
+        binary.chmod(0o755)
+        (binary.parent / 'Resources').mkdir()
+        (framework / 'Versions/Current').symlink_to('A')
+        (framework / 'Test').symlink_to('Versions/Current/Test')
+        (framework / 'Resources').symlink_to('Versions/Current/Resources')
+        before = self.snapshot()
+        local_ipa.package(self.archive, self.output)
+        self.assertEqual(before, self.snapshot())
+        with zipfile.ZipFile(self.output / local_ipa.IPA_NAME) as zipped:
+            prefix = 'Payload/CoMaps.app/Frameworks/Test.framework/'
+            for name, target in [('Versions/Current', 'A'), ('Test', 'Versions/Current/Test'),
+                                 ('Resources', 'Versions/Current/Resources')]:
+                self.assertTrue(stat.S_ISLNK(zipped.getinfo(prefix + name).external_attr >> 16))
+                self.assertEqual(zipped.read(prefix + name), target.encode())
+            self.assertEqual(stat.S_IMODE(zipped.getinfo(prefix + 'Versions/A/Test').external_attr >> 16), 0o755)
+            self.assertTrue(stat.S_ISDIR(zipped.getinfo(prefix + 'Versions/A/Resources/').external_attr >> 16))
+
+    def test_invalid_symlinks_have_actionable_diagnostics(self):
+        link = self.app / 'test-link'
+        for target, message in [(str(self.app / 'resource.txt'), 'Absolute symlink'),
+                                ('../../outside', 'escapes'), ('missing-target', 'Broken or cyclic'),
+                                ('test-link', 'Broken or cyclic'), ('.', 'escapes')]:
+            link.symlink_to(target)
+            with self.subTest(target=target), self.assertRaisesRegex(ValueError, message + '.*test-link'):
+                local_ipa.package(self.archive, self.output)
+            link.unlink()
+        # These links resolve individually, but following directory entries would loop A -> B -> A.
+        for name in ['A', 'B']:
+            (self.app / name).mkdir()
+        (self.app / 'A/to-B').symlink_to('../B')
+        (self.app / 'B/to-A').symlink_to('../A')
+        with self.assertRaisesRegex(ValueError, 'Directory symlink cycle'):
+            local_ipa.package(self.archive, self.output)
+        self.assertFalse(self.output.exists())
+
+    def test_symlinks_cannot_depend_on_excluded_payload(self):
+        link = self.app / 'kept-link'
+        for target in ['PlugIns/Test.appex/resource', '_CodeSignature/CodeResources']:
+            resource = self.app / target
+            resource.parent.mkdir(parents=True, exist_ok=True)
+            resource.write_text('synthetic excluded payload')
+            link.symlink_to(target)
+            with self.subTest(target=target), self.assertRaisesRegex(ValueError, 'excluded metadata.*kept-link'):
+                local_ipa.package(self.archive, self.output)
+            link.unlink()
+        self.assertFalse(self.output.exists())
 
 
 if __name__ == '__main__':
