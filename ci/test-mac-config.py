@@ -64,6 +64,39 @@ class MacOverlayTests(unittest.TestCase):
                         str(self.source / 'xcode/shaders/shaders.xcodeproj/project.pbxproj')], check=True,
                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 
+    def test_metal_gpu_diagnostic_compiles_for_catalyst_and_preserves_ios(self):
+        path = Path('libs/drape/metal/metal_base_context.mm')
+        original = (self.source / path).read_text()
+        transformed = MAC.metal_renderer_version(original)
+        signature = 'std::string MetalBaseContext::GetRendererVersion() const\n{\n'
+        start = transformed.index(signature)
+        end = transformed.index('\nvoid MetalBaseContext::PushDebugLabel', start)
+        method = transformed[start:end]
+        original_start = original.index(signature) + len(signature)
+        original_end = original.index('\n}\n\nvoid MetalBaseContext::PushDebugLabel', original_start)
+        self.assertIn('#else\n' + original[original_start:original_end] + '\n#endif', method)
+        self.assertIn('[m_device supportsFamily:MTLGPUFamilyMac2]', method)
+        self.assertIn('[m_device supportsFamily:MTLGPUFamilyMac1]', method)
+        self.assertIn('return "Unknown";', method)
+        # Compile the actual generated method, with the actual Apple SDK, for
+        # macabi. This catches the unavailable iOS enums that broke the CI build.
+        probe = self.source / 'metal-diagnostic.mm'
+        probe.write_text('#import <Metal/Metal.h>\n#include <TargetConditionals.h>\n#include <string>\n#include <vector>\n#include <algorithm>\nstatic_assert(TARGET_OS_MACCATALYST == 1);\nstruct MetalBaseContext {\n  id<MTLDevice> m_device;\n  std::string GetRendererVersion() const;\n};\n' + method)
+        sdk = subprocess.check_output(['xcrun', '--sdk', 'macosx', '--show-sdk-path'], text=True).strip()
+        check = subprocess.run(['xcrun', 'clang++', '-std=c++23', '-fobjc-arc',
+                                '-target', 'arm64-apple-ios15.6-macabi', '-isysroot', sdk,
+                                '-Werror=unguarded-availability-new', '-fsyntax-only', str(probe)],
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        self.assertEqual(check.returncode, 0, check.stdout)
+        old_method = original[original.index(signature):original_end + 2]
+        probe.write_text(probe.read_text().replace(method, old_method))
+        control = subprocess.run(['xcrun', 'clang++', '-std=c++23', '-fobjc-arc',
+                                  '-target', 'arm64-apple-ios15.6-macabi', '-isysroot', sdk,
+                                  '-fsyntax-only', str(probe)],
+                                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+        self.assertNotEqual(control.returncode, 0, 'Old mobile GPU enums must reproduce the Catalyst failure')
+        self.assertIn("error: 'MTLFeatureSet_iOS_GPUFamily1_v1' is unavailable", control.stdout)
+
     def test_changed_carplay_source_fails_before_any_write(self):
         path = self.source / next(iter(MAC.CARPLAY_HASHES))
         path.write_text(path.read_text() + '\n// unknown source\n')

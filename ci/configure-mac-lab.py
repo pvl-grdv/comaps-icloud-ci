@@ -83,6 +83,26 @@ def metal_view(text):
     return MARKER + "\n" + text
 
 
+def metal_renderer_version(text):
+    signature = 'std::string MetalBaseContext::GetRendererVersion() const\n{\n'
+    require(text.count(signature) == 1 and 'MTLFeatureSet_iOS_GPUFamily5_v1' in text,
+            'Expected pinned Metal renderer diagnostic')
+    start = text.index(signature) + len(signature)
+    end = text.index('\n}\n\nvoid MetalBaseContext::PushDebugLabel', start)
+    original = text[start:end]
+    catalyst = '''#if TARGET_OS_MACCATALYST
+  // Catalyst does not expose the iOS MTLFeatureSet enum values. This is a
+  // diagnostic label, based on the real device rather than assumed support.
+  if ([m_device supportsFamily:MTLGPUFamilyMac2])
+    return "Mac_GPUFamily2";
+  if ([m_device supportsFamily:MTLGPUFamilyMac1])
+    return "Mac_GPUFamily1";
+  return "Unknown";
+#else
+'''
+    return text[:start] + catalyst + original + '\n#endif' + text[end:]
+
+
 def metal_gl_functions(header, original):
     # Shared GPU classes still reference the GL wrapper ABI. Keep that ABI but
     # abort on every GL operation; silently emulating GL would hide wrong routing.
@@ -173,6 +193,7 @@ CARPLAY_HASHES = {
 
 
 BASELINE_HASHES = {
+  "libs/drape/metal/metal_base_context.mm": "e89bd97a369b229f29cfe748149466a339a63ce4",
   "iphone/Maps/Classes/EAGLView.mm": "760223d9e19b34568d13c851b3b979b5e9d6b470",
   "iphone/Maps/Classes/MapsAppDelegate.mm": "015aff419ad7b453b2fe2144d7a1817224ab8bf2",
   "iphone/Maps/Core/TrackRecorder/TrackRecordingActivityManager.swift": "723c836dcd769a9016d102935fc4197ef53d83d0",
@@ -253,6 +274,8 @@ EXCLUDED_SOURCE_FILE_NAMES = $(inherited) iosOGLContext.mm iosOGLContextFactory.
 
     path = MAPS / 'Classes/EAGLView.mm'
     put(path, metal_view(read(path)))
+    path = Path('libs/drape/metal/metal_base_context.mm')
+    put(path, metal_renderer_version(read(path)))
     path = Path('libs/drape/gl_functions.cpp')
     put(path, metal_gl_functions(read('libs/drape/gl_functions.hpp'), read(path)))
     path = Path('libs/drape/gl_includes.hpp')
