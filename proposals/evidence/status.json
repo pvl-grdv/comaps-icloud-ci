@@ -1,8 +1,8 @@
 {
-  "updated_at_utc": "2026-10-21T12:13:03.799606+00:00",
+  "updated_at_utc": "2026-10-21T12:15:39.268282+00:00",
   "full_candidate_commit": "2d3c2da80f1e4c3a850d8820c68311952744bbe4",
   "standalone_upstream_revision": "a64450d0c7cd7cdfc792c9fc6c2dd620156abecd",
-  "status": "FOLDER_VERIFIED_SEARCH_REQUIRES_LONGER_JOB_BUDGET_FULL_AND_ITEM_RUNNING",
+  "status": "FOLDER_PASS_NEW_SEARCH180_FULL_AND_ITEM120_RUNNING",
   "historical_full_verification": "combined-0237.json",
   "required_full": {
     "base_XCTest": 166,
@@ -24,12 +24,14 @@
       "required_XCTest": 19,
       "required_native_map": 1,
       "required_native_search": 11,
-      "run": null,
-      "tested_repository_commit": "427d129d9693d48bc86bab41e5e40f577c06708b",
-      "status": "Tests1+11native and19XCTest passed; Release cancelled at120-minute overall job budget during final LTO linking. New complete run required.",
+      "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39597911665",
+      "tested_repository_commit": "e5d73d2b3ec7f3a9f5561236e100c488a852ebaf",
+      "status": "New complete run in progress; test/dependency/source plans unchanged, overall budget180min",
       "verified": false,
       "previous_cancelled_run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39582197192",
-      "verification": "search-39582197192-partial.json"
+      "verification": "search-39582197192-partial.json",
+      "run_head_sha": "e5d73d2b3ec7f3a9f5561236e100c488a852ebaf",
+      "job_budget_minutes": 180
     },
     "folder-order": {
       "feature": "folder-order",
@@ -58,7 +60,8 @@
       "status": "in progress; required8native/13XCTest/Release not yet verified",
       "previous_failed_run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39581652809",
       "candidate_code_commit": "5f66a6ca934f1675f3fc2db6af77b1e36eb69499",
-      "run_head_sha": "2d3c2da80f1e4c3a850d8820c68311952744bbe4"
+      "run_head_sha": "2d3c2da80f1e4c3a850d8820c68311952744bbe4",
+      "job_budget_minutes": 120
     }
   },
   "Mac": {
@@ -105,5 +108,6 @@
   ],
   "full_Local_run_head_sha": "2d3c2da80f1e4c3a850d8820c68311952744bbe4",
   "CI_job_budget_minutes": 180,
-  "CI_budget_note": "Overall job ceiling only, not any per-test deadline, test count, runner or dependency."
+  "CI_budget_note": "Current repository default180min; already running full/item source2d3c retain120min. No test deadline/count/runner/dependency changed.",
+  "full_Local_job_budget_minutes": 120
 }

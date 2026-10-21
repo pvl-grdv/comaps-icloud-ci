@@ -337,12 +337,14 @@
         "required_XCTest": 19,
         "required_native_map": 1,
         "required_native_search": 11,
-        "run": null,
-        "tested_repository_commit": "427d129d9693d48bc86bab41e5e40f577c06708b",
-        "status": "Tests1+11native and19XCTest passed; Release cancelled at120-minute overall job budget during final LTO linking. New complete run required.",
+        "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39597911665",
+        "tested_repository_commit": "e5d73d2b3ec7f3a9f5561236e100c488a852ebaf",
+        "status": "New complete run in progress; test/dependency/source plans unchanged, overall budget180min",
         "verified": false,
         "previous_cancelled_run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39582197192",
-        "verification": "search-39582197192-partial.json"
+        "verification": "search-39582197192-partial.json",
+        "run_head_sha": "e5d73d2b3ec7f3a9f5561236e100c488a852ebaf",
+        "job_budget_minutes": 180
       }
     },
     {
