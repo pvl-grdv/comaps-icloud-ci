@@ -2,12 +2,16 @@ name: Independent saved-item proposals
 
 on:
   workflow_call:
+    inputs:
+      feature:
+        type: string
+        default: all
 
 permissions:
   contents: read
 
 concurrency:
-  group: saved-item-proposals-${{ github.ref }}
+  group: saved-item-proposals-${{ github.ref }}-${{ inputs.feature }}
   cancel-in-progress: true
 
 env:
@@ -20,7 +24,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        feature: [search, folder-order, item-order]
+        feature: ${{ fromJSON(inputs.feature == 'all' && '["search","folder-order","item-order"]' || format('["{0}"]', inputs.feature)) }}
     runs-on: xcode-27
     timeout-minutes: 120
     steps:

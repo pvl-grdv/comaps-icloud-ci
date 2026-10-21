@@ -24,6 +24,11 @@ on:
         description: Verify search and both manual-order proposals independently
         type: boolean
         default: false
+      saved_items_feature:
+        description: Independent proposal to verify
+        type: choice
+        default: all
+        options: [all, search, folder-order, item-order]
       release:
         description: Build an unsigned Release archive after regression tests
         type: boolean
@@ -33,7 +38,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: comaps-icloud-${{ github.ref }}${{ inputs.lab_mac && '-mac' || '' }}${{ inputs.saved_items_proposals && '-proposals' || '' }}
+  group: comaps-icloud-${{ github.ref }}${{ inputs.lab_mac && '-mac' || '' }}${{ inputs.saved_items_proposals && format('-proposals-{0}', inputs.saved_items_feature || 'all') || '' }}
   cancel-in-progress: true
 
 env:
@@ -45,6 +50,8 @@ jobs:
   saved-items-proposals:
     if: github.event_name == 'workflow_dispatch' && inputs.saved_items_proposals
     uses: ./.github/workflows/saved-items-proposals.yml
+    with:
+      feature: ${{ inputs.saved_items_feature || 'all' }}
 
   mac-lab:
     if: github.event_name == 'workflow_dispatch' && inputs.lab_mac && !inputs.saved_items_proposals

@@ -5,7 +5,7 @@ index 6c02ab31b9f8ec33178054b3179f625d7eee9e49..e9e9964b4225a96163dfe4b02397fa55
 @@ -22,6 +22,12 @@ typedef NS_ENUM(NSInteger, MWMBookmarksSortingType) {
    MWMBookmarksSortingTypeByName
  } NS_SWIFT_NAME(BookmarksSortingType);
- 
+
 +typedef NS_ENUM(NSInteger, MWMBookmarkCategorySortingType) {
 +  MWMBookmarkCategorySortingTypeByLastModified,
 +  MWMBookmarkCategorySortingTypeByName,
@@ -17,7 +17,7 @@ index 6c02ab31b9f8ec33178054b3179f625d7eee9e49..e9e9964b4225a96163dfe4b02397fa55
  typedef void (^SearchBookmarksCompletionBlock)(NSArray<MWMBookmark *> *bookmarks);
 @@ -130,6 +136,9 @@ NS_SWIFT_NAME(BookmarksManager)
  - (BOOL)areNotificationsEnabled;
- 
+
  - (NSArray<MWMBookmarkGroup *> *)sortedUserCategories;
 +- (MWMBookmarkCategorySortingType)categorySortingType;
 +- (BOOL)setCategorySortingType:(MWMBookmarkCategorySortingType)sortingType NS_SWIFT_NAME(setCategorySortingType(_:));
@@ -32,15 +32,15 @@ index 86ef65d4a32b49928b9ded4d70b3bbf96425bb66..cf307ca7149ccb47f5a6a366c9ba80a5
 @@ -16,6 +16,7 @@
  #include "base/stl_helpers.hpp"
  #include "base/string_utils.hpp"
- 
+
 +#include <algorithm>
  #include <utility>
- 
+
  static kml::PredefinedColor kmlColorFromBookmarkColor(MWMBookmarkColor bookmarkColor) {
 @@ -685,6 +686,52 @@ - (BOOL)areNotificationsEnabled {
    return result;
  }
- 
+
 +- (MWMBookmarkCategorySortingType)categorySortingType {
 +  switch (self.bm.GetCategorySortType()) {
 +    case BookmarkManager::CategorySortType::ByLastModified:
@@ -96,13 +96,13 @@ index fa3ebcd968d8f75c9a819cb02c0f568fa49db21b..349fa5f8b5476964459a9b4478b91523
 +++ b/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
 @@ -7,6 +7,10 @@ final class BMCViewController: MWMViewController {
    }
- 
+
    private weak var coordinator: BookmarksCoordinator?
 +  private let sortButton = UIBarButtonItem(image: UIImage(systemName: "arrow.up.arrow.down"),
 +                                           style: .plain,
 +                                           target: nil,
 +                                           action: nil)
- 
+
    @IBOutlet private weak var tableView: UITableView! {
      didSet {
 @@ -36,6 +40,9 @@ final class BMCViewController: MWMViewController {
@@ -113,12 +113,12 @@ index fa3ebcd968d8f75c9a819cb02c0f568fa49db21b..349fa5f8b5476964459a9b4478b91523
 +    sortButton.accessibilityLabel = L("sort")
 +    updateReorderingButton()
    }
- 
+
    override func viewWillAppear(_ animated: Bool) {
 @@ -44,11 +51,45 @@ final class BMCViewController: MWMViewController {
      viewModel.reloadData()
    }
- 
+
 +  override func viewWillDisappear(_ animated: Bool) {
 +    if isEditing { setEditing(false, animated: false) }
 +    super.viewWillDisappear(animated)
@@ -128,7 +128,7 @@ index fa3ebcd968d8f75c9a819cb02c0f568fa49db21b..349fa5f8b5476964459a9b4478b91523
      super.viewDidDisappear(animated)
      viewModel.removeFromObserverList()
    }
- 
+
 +  override func setEditing(_ editing: Bool, animated: Bool) {
 +    guard isViewLoaded, let viewModel else {
 +      super.setEditing(editing, animated: animated)
@@ -162,7 +162,7 @@ index fa3ebcd968d8f75c9a819cb02c0f568fa49db21b..349fa5f8b5476964459a9b4478b91523
      alertController.presentCreateBookmarkCategoryAlert(withMaxCharacterNum: viewModel.maxCategoryNameLength,
                                                         minCharacterNum: viewModel.minCategoryNameLength)
 @@ -133,23 +174,30 @@ final class BMCViewController: MWMViewController {
- 
+
      let settings = L("edit")
      actionSheet.addAction(UIAlertAction(title: settings, style: .default, handler: { _ in
 -      self.openCategorySettings(category: category)
@@ -198,7 +198,7 @@ index fa3ebcd968d8f75c9a819cb02c0f568fa49db21b..349fa5f8b5476964459a9b4478b91523
      deleteAction.isEnabled = (viewModel.canDeleteCategory())
      actionSheet.addAction(deleteAction)
 @@ -167,6 +215,7 @@ final class BMCViewController: MWMViewController {
- 
+
  extension BMCViewController: BMCView {
    func update(sections: [BMCSection]) {
 +    updateReorderingButton()
@@ -207,7 +207,7 @@ index fa3ebcd968d8f75c9a819cb02c0f568fa49db21b..349fa5f8b5476964459a9b4478b91523
      } else {
 @@ -193,6 +242,21 @@ extension BMCViewController: BMCView {
  }
- 
+
  extension BMCViewController: UITableViewDataSource {
 +  func tableView(_: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
 +    viewModel.sectionType(section: indexPath.section) == .categories && viewModel.canReorderCategories
@@ -229,7 +229,7 @@ index fa3ebcd968d8f75c9a819cb02c0f568fa49db21b..349fa5f8b5476964459a9b4478b91523
    }
 @@ -225,6 +289,27 @@ extension BMCViewController: UITableViewDataSource {
  }
- 
+
  extension BMCViewController: UITableViewDelegate {
 +  func tableView(_: UITableView, targetIndexPathForMoveFromRowAt sourceIndexPath: IndexPath,
 +                 toProposedIndexPath proposedDestinationIndexPath: IndexPath) -> IndexPath {
@@ -257,7 +257,7 @@ index fa3ebcd968d8f75c9a819cb02c0f568fa49db21b..349fa5f8b5476964459a9b4478b91523
        return false
 @@ -267,6 +352,7 @@ extension BMCViewController: UITableViewDelegate {
    }
- 
+
    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
 +    guard !tableView.isEditing else { return }
      tableView.deselectRow(at: indexPath, animated: true)
@@ -270,7 +270,7 @@ index 6198d693e28587fd217e041f43069d37fcdb5ebb..a7b1ee9a916019db259fdcc8b04a3831
 @@ -96,6 +96,54 @@ extension BMCDefaultViewModel {
      categories[index]
    }
- 
+
 +  func categoryIndex(forId categoryId: MWMMarkGroupID) -> Int? {
 +    guard manager.hasCategory(categoryId) else { return nil }
 +    return categories.firstIndex { $0.categoryId == categoryId }
@@ -325,7 +325,7 @@ index 6198d693e28587fd217e041f43069d37fcdb5ebb..a7b1ee9a916019db259fdcc8b04a3831
 @@ -128,8 +176,10 @@ extension BMCDefaultViewModel {
        return
      }
- 
+
 -    categories.insert(manager.category(withId: manager.createCategory(withName: name)), at: 0)
 -    view?.insert(at: [IndexPath(row: 0, section: section)])
 +    let categoryId = manager.createCategory(withName: name)
@@ -333,12 +333,12 @@ index 6198d693e28587fd217e041f43069d37fcdb5ebb..a7b1ee9a916019db259fdcc8b04a3831
 +    guard let index = categories.firstIndex(where: { $0.categoryId == categoryId }) else { return }
 +    view?.insert(at: [IndexPath(row: index, section: section)])
    }
- 
+
    func deleteCategory(at index: Int) {
 @@ -188,6 +238,10 @@ extension BMCDefaultViewModel: BookmarksObserver {
      reloadData()
    }
- 
+
 +  func onBookmarksFileLoadSuccess() {
 +    reloadData()
 +  }
@@ -357,7 +357,7 @@ index 74a22bad5e8ce512368bb5973167ec779079c57c..ee47b34267d2e9a0531cfd31ff98309b
 +    showsReorderControl = true
      return self
    }
- 
+
 diff --git a/iphone/Maps/Maps.xcodeproj/project.pbxproj b/iphone/Maps/Maps.xcodeproj/project.pbxproj
 index ebd7efed4ae7b0ac8380c11265c11d8f671a9035..816a27aeac8214826b8f1205d2220314980629c8 100644
 --- a/iphone/Maps/Maps.xcodeproj/project.pbxproj
@@ -574,6 +574,45 @@ index 0000000000000000000000000000000000000000..748db6094bd0d04ee8d86d95361bd901
 +    return nil
 +  }
 +}
+diff --git a/libs/map/bookmark_helpers.cpp b/libs/map/bookmark_helpers.cpp
+index e165ca6bd80add3bd1be9c10b56b254c3f31b566..69d1842f7ae86fc7109cf261a9b0c109c40d83d2 100644
+--- a/libs/map/bookmark_helpers.cpp
++++ b/libs/map/bookmark_helpers.cpp
+@@ -586,18 +586,26 @@ bool SaveGpxData(kml::FileData & kmlData, Writer & writer)
+
+ bool SaveKmlFile(kml::FileData & kmlData, std::string const & file, KmlFileType fileType)
+ {
+-  FileWriter writer(file);
+-  switch (fileType)
++  try
+   {
+-  case KmlFileType::Text:  // fallthrough
+-  case KmlFileType::Binary: return SaveKmlData(kmlData, writer, fileType);
+-  case KmlFileType::Gpx: return SaveGpxData(kmlData, writer);
+-  default:
++    FileWriter writer(file);
++    switch (fileType)
++    {
++    case KmlFileType::Text:  // fallthrough
++    case KmlFileType::Binary: return SaveKmlData(kmlData, writer, fileType);
++    case KmlFileType::Gpx: return SaveGpxData(kmlData, writer);
++    default:
++    {
++      LOG(LWARNING, ("Unexpected KmlFileType", fileType));
++      return false;
++    }
++    }
++  }
++  catch (Writer::Exception const & e)
+   {
+-    LOG(LWARNING, ("Unexpected KmlFileType", fileType));
++    LOG(LWARNING, ("KML file writing failure:", e.what()));
+     return false;
+   }
+-  }
+ }
+
+ bool SaveKmlFileSafe(kml::FileData & kmlData, std::string const & file, KmlFileType fileType)
 diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
 index 85dbd97c126c9c981c3e3a58f86a25007ddff1d5..4e9083afbddf1804bfefd830f6e1e9a7b2562900 100644
 --- a/libs/map/bookmark_manager.cpp
@@ -581,12 +620,12 @@ index 85dbd97c126c9c981c3e3a58f86a25007ddff1d5..4e9083afbddf1804bfefd830f6e1e9a7
 @@ -2638,12 +2638,14 @@ void BookmarkManager::SetCategorySortType(CategorySortType sortType)
    if (m_metadata.m_categorySortType == sortType)
      return;
- 
+
 +  auto const sorted = sortType == CategorySortType::Manual && m_metadata.m_categoryOrder.empty()
 +                          ? GetSortedBmGroupIdList()
 +                          : kml::GroupIdCollection{};
    m_metadata.m_categorySortType = sortType;
- 
+
    // When switching to Manual, seed the order from current state if empty.
    if (sortType == CategorySortType::Manual && m_metadata.m_categoryOrder.empty())
    {
@@ -615,22 +654,26 @@ index 85dbd97c126c9c981c3e3a58f86a25007ddff1d5..4e9083afbddf1804bfefd830f6e1e9a7
 +  }
 +  return saved;
  }
- 
+
  bool BookmarkManager::SaveBookmarkCategory(kml::MarkGroupId groupId, Writer & writer, KmlFileType fileType) const
 diff --git a/libs/map/map_tests/bookmarks_test.cpp b/libs/map/map_tests/bookmarks_test.cpp
-index de76b2ef560f77cb91780b806af0a695b223ef2a..48f182023efe6498e53d40b504971595f7a7b6de 100644
+index de76b2ef560f77cb91780b806af0a695b223ef2a..ce9af772a9fe41476089f4d2d2c10d0f64022a95 100644
 --- a/libs/map/map_tests/bookmarks_test.cpp
 +++ b/libs/map/map_tests/bookmarks_test.cpp
-@@ -13,6 +13,7 @@
- 
+@@ -13,16 +13,20 @@
+
  #include "coding/internal/file_data.hpp"
  #include "coding/zip_reader.hpp"
 +#include "coding/file_reader.hpp"
- 
+
  #include "i18n/localisation.hpp"
  #include "i18n/localisation_translation.hpp"
-@@ -23,6 +24,8 @@
- 
+ #include "i18n/string_utf8_multilang.hpp"
+
+ #include "base/file_name_utils.hpp"
++#include "base/logging.hpp"
+ #include "base/scope_guard.hpp"
+
  #include <array>
  #include <cstring>  // strlen
 +#include <chrono>
@@ -638,10 +681,10 @@ index de76b2ef560f77cb91780b806af0a695b223ef2a..48f182023efe6498e53d40b504971595
  #include <map>
  #include <numeric>  // std::reduce
  #include <set>
-@@ -1629,4 +1632,89 @@ UNIT_CLASS_TEST(Runner, Bookmarks_TestSaveRoute)
+@@ -1629,4 +1633,94 @@ UNIT_CLASS_TEST(Runner, Bookmarks_TestSaveRoute)
    TEST_EQUAL(line, expectedLine, ());
  }
- 
+
 +UNIT_CLASS_TEST(Runner, Bookmarks_ManualFolderOrderPersistsEmptyCategories)
 +{
 +  BookmarkManager bmManager(BM_CALLBACKS);
@@ -719,7 +762,12 @@ index de76b2ef560f77cb91780b806af0a695b223ef2a..48f182023efe6498e53d40b504971595
 +    if (!filePath.empty())
 +      (void)base::DeleteFileX(filePath);
 +  });
-+  TEST(!bmManager.SaveBookmarkCategory(groupId), ());
++  bool saved;
++  {
++    base::ScopedLogAbortLevelChanger expectedFileError;
++    saved = bmManager.SaveBookmarkCategory(groupId);
++  }
++  TEST(!saved, ());
 +  TEST(bmManager.GetCategoryFileName(groupId).empty(), ());
 +  TEST_EQUAL(bmManager.GetCategoryData(groupId).m_id, groupId, ());
 +  bmManager.GetEditSession().SetCategoryName(groupId, "Recovered folder order save");
