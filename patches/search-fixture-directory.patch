@@ -2,7 +2,7 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.
 --- a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h
 +++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h
 @@ -2,4 +2,5 @@
- 
+
  @interface SavedItemsSearchTestSupport : NSObject
  + (void)prepareSearchViewport;
 ++ (NSURL * _Nonnull)bookmarksDirectoryURL NS_SWIFT_NAME(bookmarksDirectoryURL());
@@ -12,16 +12,16 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.
 +++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm
 @@ -1,6 +1,7 @@
  #import "SavedItemsSearchTestSupport.h"
- 
+
  #include "iphone/CoreApi/CoreApi/Framework/Framework.h"
 +#include "map/bookmark_helpers.hpp"
  #include "map/search_api.hpp"
- 
+
  @implementation SavedItemsSearchTestSupport
 @@ -10,4 +11,9 @@
    GetFramework().GetSearchAPI().OnViewportChanged(m2::RectD(-1.0, -1.0, 1.0, 1.0));
  }
- 
+
 ++ (NSURL *)bookmarksDirectoryURL
 +{
 +  return [NSURL fileURLWithPath:@(GetBookmarksDirectory().c_str()) isDirectory:YES];
@@ -61,7 +61,7 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift 
      importing = nil
      categories.append(try XCTUnwrap(manager.sortedUserCategories().first { $0.title == title }))
    }
- 
+
    func onBookmarksLoadFinished() {
 -    loading?.fulfill()
 -    importing?.fulfill()
@@ -72,7 +72,7 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift 
 +    initialLoad?.fulfill()
 +    importedFile?.fulfill()
    }
- 
+
    func onBookmarksFileLoadError() {
      XCTFail("Failed to import synthetic search fixture")
 -    importing?.fulfill()
