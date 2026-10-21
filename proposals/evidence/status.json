@@ -1,8 +1,8 @@
 {
-  "updated_at_utc": "2026-10-21T12:29:40.037497+00:00",
+  "updated_at_utc": "2026-10-21T12:34:53.752871+00:00",
   "full_candidate_commit": "2d3c2da80f1e4c3a850d8820c68311952744bbe4",
   "standalone_upstream_revision": "a64450d0c7cd7cdfc792c9fc6c2dd620156abecd",
-  "status": "FOLDER_PASS_SEARCH_RUNNING_ITEM_AX_PROBE_PREPARED_FULL_OLD_HELPER_PENDING",
+  "status": "FOLDER_PASS_SEARCH_RUNNING_ITEM_AX_PROBE_RUNNING_FULL_OLD_HELPER_PENDING",
   "historical_full_verification": "combined-0237.json",
   "required_full": {
     "base_XCTest": 166,
@@ -55,14 +55,15 @@
       "required_XCTest": 13,
       "required_native_map": 8,
       "required_native_search": 0,
-      "run": null,
-      "tested_repository_commit": null,
-      "status": "Test-only public AX/UIView diagnostic probe prepared; required13 XCTest and Release not yet passed",
+      "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39600576527",
+      "tested_repository_commit": "e3d2d0316e01e73a35905fe1a1f7a1cd9fd8e7a9",
+      "status": "Running: public AX/UIView diagnostic probe, native8/XCTest13/unsigned Release required; not verified",
       "previous_failed_run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39590985347",
       "candidate_code_commit": "5f66a6ca934f1675f3fc2db6af77b1e36eb69499",
-      "run_head_sha": null,
+      "run_head_sha": "e3d2d0316e01e73a35905fe1a1f7a1cd9fd8e7a9",
       "job_budget_minutes": 180,
-      "failure_verification": "item-order-39590985347-failure.json"
+      "failure_verification": "item-order-39590985347-failure.json",
+      "verified": false
     }
   },
   "Mac": {

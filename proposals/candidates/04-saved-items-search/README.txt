@@ -16,7 +16,7 @@ AI-assisted техническая карточка для личного раз
 Независимый срез выделен: proposals/saved-items/search.patch
 SHA-256: 3145ed99469a088305894e378c1132f9dc847c37ce9ab1a5db3ab9aa3267fb09
 База: a64450d0c7cd7cdfc792c9fc6c2dd620156abecd
-CI: https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39582197192
+Текущий CI: https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39597911665
 Требуется: native map=1, search=11, XCTest=19 без пропусков, unsigned Release archive.
 Текущий статус и точный проверенный SHA: ../../evidence/status.json. Общий зелёный Lab CI не
 заменяет этот прогон.
@@ -84,12 +84,9 @@ https://github.com/pvl-grdv/comaps-icloud-ci/blob/2d3c2da80f1e4c3a850d8820c68311
 Поиск по названию самой папки или описанию в UI не заявляется. Перенос между папками —
 существующая команда Move для точек и треков, а не наша новая функция.
 
-CI39582197192: native map1/search11 и все19 XCTest прошли без ошибок/пропусков.
-Release остановлен общим120-минутным лимитом на Ld/LTO, до ARCHIVE SUCCEEDED.
-Это частичный результат; требуется новый полный прогон с общим бюджетом180мин.
-Ожидания отдельных тестов и их состав не менялись. Подробности:
-../../evidence/search-39582197192-partial.json
-
-Новый полный CI с бюджетом180мин:
-https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39597911665
-HEAD e5d73d2b3ec7f3a9f5561236e100c488a852ebaf; успешное завершение ещё не подтверждено.
+Текущий прогон использует общий бюджет180мин; состав и ожидания отдельных
+тестов не менялись. Предыдущий прогон прошёл native map1/search11 и19 XCTest,
+но Release остановился на Ld/LTO по общему120-минутному лимиту. Это частичный
+результат; подробности — ../../evidence/search-39582197192-partial.json.
+Текущий точный HEAD e5d73d2b3ec7f3a9f5561236e100c488a852ebaf, завершение
+ещё не подтверждено.

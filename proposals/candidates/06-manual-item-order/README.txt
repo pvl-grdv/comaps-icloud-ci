@@ -19,9 +19,8 @@ Edit убран. Кнопки удаления сохранены, сессия 
 Независимый срез выделен: proposals/saved-items/item-order.patch
 SHA-256: a0464a4f896877bd07e343e32c74a01e7905351d09cbfaddaa77601aef03fbc4
 База: a64450d0c7cd7cdfc792c9fc6c2dd620156abecd
-Предыдущий CI: https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39581652809 (ошибка; не успешная проверка).
-Новый CI: https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39590985347
-Точный HEAD: 2d3c2da80f1e4c3a850d8820c68311952744bbe4 (результат пока не подтверждён).
+Текущий CI: https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39600576527
+Точный HEAD: e3d2d0316e01e73a35905fe1a1f7a1cd9fd8e7a9; завершение ещё не подтверждено.
 Требуется: native map=8, search=0, XCTest=13 без пропусков, unsigned Release archive.
 Текущий статус и точный проверенный SHA: ../../evidence/status.json. Общий зелёный Lab CI не
 заменяет этот прогон.
@@ -73,19 +72,10 @@ https://github.com/pvl-grdv/comaps-icloud-ci/blob/2d3c2da80f1e4c3a850d8820c68311
 Mac Lab85: Edit/Done проверены на живом окне; пользователь подтвердил физический drag и
 сохранение после перезапуска. Отдельная Android-сборка не выполнялась.
 
-Исправления тестовой границы после падения предыдущего CI
-Host ожидает настоящее viewDidAppear, затем проверяет видимые public UIButton/
-UILabel и семантику accessibility системной кнопки (Done может быть значком).
-Отсутствующая сохранённая сортировка проверяется через hasLastSortingType;
-undefined enum не читается. После Edit ручной режим остаётся обязательным.
-Перед удалением фикстуры сохраняются строки/ожидаемые имена, а не читается
-удалённый native-backed wrapper. Число13 и проверки поведения не уменьшены.
-
-Следующая граница диагностики
-CI39590985347 выполнил13 методов:11pass,2fail (6assertions наблюдения системной
-кнопки). Сохранение/повторная загрузка теперь прошли, crash устранён. Следующая
-test-only версия обходит public UIView/AX containers, не отбрасывает видимых
-детей из-за пустых bounds неклипующего родителя; при сбое выдаёт PNG/tree.
-Собственные проверки action/state/manualmode/удаления/поиска не удалены.
-Это геометрическая/семантическая проверка English CI, не универсальный аудит
-локализации, VoiceOver, occlusion или реального физического жеста.
+Проверяемая тестовая граница
+Host ожидает настоящее viewDidAppear. Public UIView/AX-проверка ищет семантику
+Edit/Done у видимого системного control; при сбое сохраняет PNG и дерево.
+Проверки action/state/manualmode/удаления/поиска сохранены. Это наблюдение
+English CI, не универсальный аудит локализации, VoiceOver или физического жеста.
+История и точные причины предыдущих ошибок — ../../evidence/status.json и
+../../evidence/item-order-39590985347-failure.json; они не являются PASS.
