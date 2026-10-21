@@ -20,6 +20,10 @@ on:
         description: Build a direct local Mac Catalyst app without Apple credentials
         type: boolean
         default: false
+      saved_items_proposals:
+        description: Verify search and both manual-order proposals independently
+        type: boolean
+        default: false
       release:
         description: Build an unsigned Release archive after regression tests
         type: boolean
@@ -29,7 +33,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: comaps-icloud-${{ github.ref }}${{ inputs.lab_mac && '-mac' || '' }}
+  group: comaps-icloud-${{ github.ref }}${{ inputs.lab_mac && '-mac' || '' }}${{ inputs.saved_items_proposals && '-proposals' || '' }}
   cancel-in-progress: true
 
 env:
@@ -38,14 +42,18 @@ env:
   LC_ALL: en_US.UTF-8
 
 jobs:
+  saved-items-proposals:
+    if: github.event_name == 'workflow_dispatch' && inputs.saved_items_proposals
+    uses: ./.github/workflows/saved-items-proposals.yml
+
   mac-lab:
-    if: github.event_name == 'workflow_dispatch' && inputs.lab_mac
+    if: github.event_name == 'workflow_dispatch' && inputs.lab_mac && !inputs.saved_items_proposals
     uses: ./.github/workflows/mac.yml
     with:
       upload_requested: ${{ inputs.lab_upload }}
 
   lab:
-    if: github.event_name == 'workflow_dispatch' && !inputs.lab_mac && (inputs.lab || inputs.lab_local)
+    if: github.event_name == 'workflow_dispatch' && !inputs.saved_items_proposals && !inputs.lab_mac && (inputs.lab || inputs.lab_local)
     uses: ./.github/workflows/lab.yml
     with:
       upload: ${{ inputs.lab_upload }}
@@ -53,7 +61,7 @@ jobs:
     secrets: inherit
 
   file-pipeline:
-    if: github.event_name != 'workflow_dispatch' || (!inputs.lab && !inputs.lab_local && !inputs.lab_mac)
+    if: github.event_name != 'workflow_dispatch' || (!inputs.lab && !inputs.lab_local && !inputs.lab_mac && !inputs.saved_items_proposals)
     runs-on: xcode-27
     timeout-minutes: 15
     steps:
@@ -71,7 +79,7 @@ jobs:
           printf '\n```\n' >> "$GITHUB_STEP_SUMMARY"
 
   ios:
-    if: github.event_name != 'workflow_dispatch' || (!inputs.lab && !inputs.lab_local && !inputs.lab_mac)
+    if: github.event_name != 'workflow_dispatch' || (!inputs.lab && !inputs.lab_local && !inputs.lab_mac && !inputs.saved_items_proposals)
     needs: file-pipeline
     runs-on: xcode-27
     timeout-minutes: 120

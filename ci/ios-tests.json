@@ -17,7 +17,7 @@
   },
   {
     "className": "BookmarkItemOrderBridgeTests",
-    "expectedTests": 4
+    "expectedTests": 7
   },
   {
     "className": "SharedFolderOrderCoordinatorTests",

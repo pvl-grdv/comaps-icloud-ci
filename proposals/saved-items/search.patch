@@ -1,0 +1,2000 @@
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
+index 6c02ab31b9f8ec33178054b3179f625d7eee9e49..8c549dc8c83a95f2ded867927f2e561624ec443f 100644
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
+@@ -25,6 +25,23 @@ typedef NS_ENUM(NSInteger, MWMBookmarksSortingType) {
+ typedef void (^PingCompletionBlock)(BOOL success);
+ typedef void (^ElevationPointChangedBlock)(double distance);
+ typedef void (^SearchBookmarksCompletionBlock)(NSArray<MWMBookmark *> *bookmarks);
++
++typedef NS_ENUM(NSInteger, MWMSavedItemKind) {
++  MWMSavedItemKindBookmark,
++  MWMSavedItemKindTrack
++} NS_SWIFT_NAME(SavedItemKind);
++
++NS_SWIFT_NAME(SavedItemSearchResult)
++@interface MWMSavedItemSearchResult : NSObject
++@property(nonatomic, readonly) MWMSavedItemKind kind;
++@property(nonatomic, readonly) uint64_t itemId;
++@property(nonatomic, readonly) MWMMarkGroupID categoryId;
++- (instancetype)init NS_UNAVAILABLE;
++- (instancetype)initWithKind:(MWMSavedItemKind)kind itemId:(uint64_t)itemId categoryId:(MWMMarkGroupID)categoryId
++    NS_SWIFT_NAME(init(kind:itemId:categoryId:));
++@end
++
++typedef void (^SearchSavedItemsCompletionBlock)(NSArray<MWMSavedItemSearchResult *> *items);
+ typedef void (^SortBookmarksCompletionBlock)(NSArray<MWMBookmarksSection *> * _Nullable sortedSections);
+ typedef void (^SharingResultCompletionHandler)(MWMBookmarksShareStatus status, NSURL * _Nullable urlToALocalFile);
+ 
+@@ -49,6 +66,8 @@ NS_SWIFT_NAME(BookmarksManager)
+ - (BOOL)areAllCategoriesEmpty;
+ - (BOOL)isCategoryEmpty:(MWMMarkGroupID)groupId;
+ - (void)prepareForSearch:(MWMMarkGroupID)groupId;
++- (void)prepareForSearchAllGroups NS_SWIFT_NAME(prepareForSearchAllGroups());
++- (void)releaseSearch NS_SWIFT_NAME(releaseSearch());
+ - (NSString *)getCategoryName:(MWMMarkGroupID)groupId;
+ - (uint64_t)getCategoryMarksCount:(MWMMarkGroupID)groupId;
+ - (uint64_t)getCategoryTracksCount:(MWMMarkGroupID)groupId;
+@@ -95,6 +114,16 @@ NS_SWIFT_NAME(BookmarksManager)
+ - (void)searchBookmarksGroup:(MWMMarkGroupID)groupId
+                         text:(NSString *)text
+                   completion:(SearchBookmarksCompletionBlock)completion;
++- (void)searchAllBookmarks:(NSString *)text
++               completion:(SearchBookmarksCompletionBlock)completion NS_SWIFT_NAME(searchAllBookmarks(_:completion:));
++- (void)searchSavedItemsInGroup:(MWMMarkGroupID)groupId
++                          text:(NSString *)text
++                    completion:(SearchSavedItemsCompletionBlock)completion NS_SWIFT_NAME(searchSavedItems(inGroup:text:completion:));
++- (void)searchAllSavedItems:(NSString *)text
++                completion:(SearchSavedItemsCompletionBlock)completion NS_SWIFT_NAME(searchAllSavedItems(_:completion:));
++- (void)cancelSavedItemsSearch NS_SWIFT_NAME(cancelSavedItemsSearch());
++- (BOOL)hasSavedItemKind:(MWMSavedItemKind)kind itemId:(uint64_t)itemId inGroup:(MWMMarkGroupID)groupId
++    NS_SWIFT_NAME(hasSavedItem(_:itemId:inGroup:));
+ 
+ - (MWMTrackIDCollection)trackIdsForCategory:(MWMMarkGroupID)categoryId;
+ 
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+index 86ef65d4a32b49928b9ded4d70b3bbf96425bb66..1f15bd516bdbf166b332cf66e84ade4de327acbe 100644
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+@@ -10,6 +10,7 @@
+ #include "Framework.h"
+ 
+ #include "map/bookmarks_search_params.hpp"
++#include "map/saved_items_search_params.hpp"
+ 
+ #include "coding/internal/file_data.hpp"
+ 
+@@ -96,6 +97,21 @@ static KmlFileType convertFileTypeToCore(MWMKmlFileType fileType) {
+   }
+ }
+ 
++@implementation MWMSavedItemSearchResult
++
++- (instancetype)initWithKind:(MWMSavedItemKind)kind itemId:(uint64_t)itemId categoryId:(MWMMarkGroupID)categoryId
++{
++  self = [super init];
++  if (self) {
++    _kind = kind;
++    _itemId = itemId;
++    _categoryId = categoryId;
++  }
++  return self;
++}
++
++@end
++
+ @interface MWMBookmarksManager ()
+ 
+ @property(nonatomic, readonly) BookmarkManager & bm;
+@@ -241,6 +257,15 @@ - (void)prepareForSearch:(MWMMarkGroupID)groupId {
+   self.bm.PrepareForSearch(groupId);
+ }
+ 
++- (void)prepareForSearchAllGroups {
++  self.bm.PrepareForSearch(std::nullopt);
++}
++
++- (void)releaseSearch {
++  ++self.lastSearchId;
++  self.bm.ReleaseSearch();
++}
++
+ - (NSString *)getCategoryName:(MWMMarkGroupID)groupId
+ {
+   return @(self.bm.GetCategoryName(groupId).c_str());
+@@ -574,6 +599,109 @@ - (void)searchBookmarksGroup:(MWMMarkGroupID)groupId
+   GetFramework().GetSearchAPI().SearchInBookmarks(std::move(params));
+ }
+ 
++- (void)searchAllBookmarks:(NSString *)text
++               completion:(SearchBookmarksCompletionBlock)completion
++{
++  [self searchBookmarksGroup:kml::kInvalidMarkGroupId text:text completion:completion];
++}
++
++- (void)searchSavedItemsInGroup:(MWMMarkGroupID)groupId
++                          text:(NSString *)text
++                    completion:(SearchSavedItemsCompletionBlock)completion
++{
++  auto const searchId = ++self.lastSearchId;
++  __weak auto weakSelf = self;
++  search::SavedItemsSearchParams params;
++  params.m_query = text.UTF8String;
++  params.m_groupId = groupId;
++  auto const groups = groupId == kml::kInvalidMarkGroupId
++      ? self.bm.GetSortedBmGroupIdList() : std::vector<kml::MarkGroupId>{groupId};
++  for (auto const categoryId : groups) {
++    if (!self.bm.HasBmCategory(categoryId))
++      continue;
++    for (auto const bookmarkId : self.bm.GetUserMarkIds(categoryId)) {
++      auto const * bookmark = self.bm.GetBookmark(bookmarkId);
++      if (bookmark)
++        params.m_documents.push_back({{search::bookmarks::ItemKind::Bookmark, bookmarkId}, categoryId,
++                                      search::bookmarks::Data(bookmark->GetData())});
++    }
++    for (auto const trackId : self.bm.GetTrackIds(categoryId)) {
++      auto const * track = self.bm.GetTrack(trackId);
++      if (track)
++        params.m_documents.push_back({{search::bookmarks::ItemKind::Track, trackId}, categoryId,
++                                      search::bookmarks::Data(track->GetData())});
++    }
++  }
++  params.m_onResults = [weakSelf, searchId, groupId, completion](search::bookmarks::ItemResults results,
++                                                             search::SavedItemsSearchParams::Status status) {
++    __strong auto self = weakSelf;
++    if (!self || searchId != self.lastSearchId)
++      return;
++    if (status == search::SavedItemsSearchParams::Status::Cancelled) {
++      completion(@[]);
++      return;
++    }
++    NSMutableArray<MWMSavedItemSearchResult *> * items = [NSMutableArray array];
++    for (auto const & result : results) {
++      auto const itemId = result.m_item.m_id;
++      kml::MarkGroupId categoryId;
++      MWMSavedItemKind kind;
++      if (result.m_item.m_kind == search::bookmarks::ItemKind::Bookmark) {
++        auto const * bookmark = self.bm.GetBookmark(itemId);
++        if (!bookmark)
++          continue;
++        categoryId = bookmark->GetGroupId();
++        kind = MWMSavedItemKindBookmark;
++      } else {
++        auto const * track = self.bm.GetTrack(itemId);
++        if (!track)
++          continue;
++        categoryId = track->GetGroupId();
++        kind = MWMSavedItemKindTrack;
++      }
++      if (groupId != kml::kInvalidMarkGroupId) {
++        if (!self.bm.HasBmCategory(groupId))
++          continue;
++        if (kind == MWMSavedItemKindBookmark && !self.bm.GetUserMarkIds(groupId).count(itemId))
++          continue;
++        if (kind == MWMSavedItemKindTrack && !self.bm.GetTrackIds(groupId).count(itemId))
++          continue;
++        categoryId = groupId;
++      }
++      if (!self.bm.HasBmCategory(categoryId))
++        continue;
++      [items addObject:[[MWMSavedItemSearchResult alloc] initWithKind:kind itemId:itemId categoryId:categoryId]];
++    }
++    completion(items);
++  };
++  if (!GetFramework().GetSearchAPI().SearchSavedItems(std::move(params)))
++    completion(@[]);
++}
++
++- (void)searchAllSavedItems:(NSString *)text completion:(SearchSavedItemsCompletionBlock)completion
++{
++  [self searchSavedItemsInGroup:kml::kInvalidMarkGroupId text:text completion:completion];
++}
++
++- (void)cancelSavedItemsSearch
++{
++  ++self.lastSearchId;
++  GetFramework().GetSearchAPI().CancelSearch(search::Mode::Bookmarks);
++}
++
++- (BOOL)hasSavedItemKind:(MWMSavedItemKind)kind itemId:(uint64_t)itemId inGroup:(MWMMarkGroupID)groupId
++{
++  if (!self.bm.HasBmCategory(groupId))
++    return NO;
++  switch (kind) {
++    case MWMSavedItemKindBookmark:
++      return self.bm.HasBookmark(itemId) && self.bm.GetUserMarkIds(groupId).count(itemId) != 0;
++    case MWMSavedItemKindTrack:
++      return self.bm.HasTrack(itemId) && self.bm.GetTrackIds(groupId).count(itemId) != 0;
++  }
++  return NO;
++}
++
+ 
+ #pragma mark - Tracks
+ 
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift
+index fb4dff1d24cf1a7f77b126c793a10d50453e6044..f62cc9795cb73139e38f43efde19250dfce1b2c2 100644
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift
+@@ -18,17 +18,20 @@ extension BookmarksListSortingType {
+ final class BookmarksListInteractor: NSObject {
+   private var markGroupId: MWMMarkGroupID
+   private var bookmarksManager: BookmarksManager
++  private let searchModel: BMCSearchViewModel
+ 
+   var onCategoryReload: ((GroupReloadingResult) -> Void)?
+ 
+   init(markGroupId: MWMMarkGroupID) {
+     self.markGroupId = markGroupId
+     self.bookmarksManager = BookmarksManager.shared()
++    self.searchModel = BMCSearchViewModel(service: BMCSavedItemsSearchService(groupId: markGroupId))
+     super.init()
+     self.addToBookmarksManagerObserverList()
+   }
+ 
+   deinit {
++    searchModel.stop()
+     removeFromBookmarksManagerObserverList()
+   }
+ }
+@@ -43,13 +46,20 @@ extension BookmarksListInteractor: IBookmarksListInteractor {
+   }
+ 
+   func prepareForSearch() {
+-    bookmarksManager.prepare(forSearch: markGroupId)
++    searchModel.start()
+   }
+ 
+-  func search(_ text: String, completion: @escaping ([Bookmark]) -> Void) {
+-    bookmarksManager.searchBookmarksGroup(markGroupId, text: text) {
+-      completion($0)
++  func stopSearching() {
++    searchModel.stop()
++  }
++
++  func search(_ text: String, completion: @escaping ([BMCSearchResult]) -> Void) {
++    searchModel.onChange = { [weak self] in
++      guard let self else { return }
++      completion(searchModel.sections.flatMap(\.results))
+     }
++    searchModel.start()
++    searchModel.search(text)
+   }
+ 
+   func availableSortingTypes(hasMyPosition: Bool) -> [BookmarksListSortingType] {
+@@ -75,12 +85,22 @@ extension BookmarksListInteractor: IBookmarksListInteractor {
+     FrameworkHelper.show(onMap: markGroupId)
+   }
+ 
+-  func viewBookmarkOnMap(_ bookmarkId: MWMMarkID) {
++  func viewBookmarkOnMap(_ bookmarkId: MWMMarkID) -> Bool {
++    guard bookmarksManager.hasSavedItem(.bookmark, itemId: bookmarkId, inGroup: markGroupId) else {
++      reloadCategory()
++      return false
++    }
+     FrameworkHelper.showBookmark(bookmarkId)
++    return true
+   }
+ 
+-  func viewTrackOnMap(_ trackId: MWMTrackID) {
++  func viewTrackOnMap(_ trackId: MWMTrackID) -> Bool {
++    guard bookmarksManager.hasSavedItem(.track, itemId: trackId, inGroup: markGroupId) else {
++      reloadCategory()
++      return false
++    }
+     FrameworkHelper.showTrack(trackId)
++    return true
+   }
+ 
+   func setGroup(_ groupId: MWMMarkGroupID, visible: Bool) {
+@@ -176,6 +196,14 @@ extension BookmarksListInteractor: IBookmarksListInteractor {
+ 
+ // MARK: - BookmarksObserver
+ extension BookmarksListInteractor: BookmarksObserver {
++  func onBookmarksFileLoadSuccess() {
++    reloadCategory()
++  }
++
++  func onBookmarkDeleted(_ bookmarkId: MWMMarkID) {
++    reloadCategory()
++  }
++
+   func onBookmarksLoadFinished() {
+     reloadCategory()
+   }
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift
+index 6767d392d3e3a1ce0dd465bf71c73ed5625181bb..df1cc6d66fb571148df2fd748362c3536bb05c71 100644
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift
+@@ -99,11 +99,12 @@ protocol IBookmarksListInteractor {
+   func getBookmarkGroup() -> BookmarkGroup
+   func hasDescription() -> Bool
+   func prepareForSearch()
+-  func search(_ text: String, completion: @escaping ([Bookmark]) -> Void)
++  func stopSearching()
++  func search(_ text: String, completion: @escaping ([BMCSearchResult]) -> Void)
+   func availableSortingTypes(hasMyPosition: Bool) -> [BookmarksListSortingType]
+   func viewOnMap()
+-  func viewBookmarkOnMap(_ bookmarkId: MWMMarkID)
+-  func viewTrackOnMap(_ trackId: MWMTrackID)
++  func viewBookmarkOnMap(_ bookmarkId: MWMMarkID) -> Bool
++  func viewTrackOnMap(_ trackId: MWMTrackID) -> Bool
+   func setGroup(_ groupId: MWMMarkGroupID, visible: Bool)
+   func sort(_ sortingType: BookmarksListSortingType,
+             location: CLLocation?,
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift
+index 6522f885ac62c4211e6716660defad4e3d4903ee..b96cdeb3501670b1f9c6cc4c380b0c111a0c3b1f 100644
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift
+@@ -4,6 +4,8 @@ final class BookmarksListPresenter {
+   private var interactor: IBookmarksListInteractor
+   private weak var delegate: UIViewController?
+   private var bookmarkGroup: BookmarkGroup
++  private var searchQuery: String?
++  private var searchGeneration = 0
+ 
+   private enum EditableItem {
+     case bookmark(MWMMarkID)
+@@ -37,6 +39,10 @@ final class BookmarksListPresenter {
+   }
+ 
+   private func reload() {
++    if let searchQuery, !searchQuery.isEmpty {
++      search(searchQuery)
++      return
++    }
+     guard let sortingType = interactor.lastSortingType() else {
+       setDefaultSections()
+       return
+@@ -101,6 +107,35 @@ final class BookmarksListPresenter {
+     DistanceFormatter.distanceString(fromMeters: distance)
+   }
+ 
++  private func mapSearchResults(_ results: [BMCSearchResult]) -> [IBookmarksListSectionViewModel] {
++    let manager = BookmarksManager.shared()
++    var bookmarks: [Bookmark] = []
++    var tracks: [Track] = []
++    for result in results {
++      switch result.item {
++      case .bookmark(let id):
++        if manager.hasBookmark(id) { bookmarks.append(manager.bookmark(withId: id)) }
++      case .track(let id):
++        if manager.hasTrack(id) { tracks.append(manager.track(withId: id)) }
++      }
++    }
++    var sections: [IBookmarksListSectionViewModel] = []
++    if !tracks.isEmpty {
++      sections.append(TracksSectionViewModel(tracks: tracks.map { track in
++        TrackViewModel(track, formattedDistance: formatDistance(Double(track.trackLengthMeters)), colorDidTap: { [weak self] in
++          self?.view.showColorPicker(with: .defaultColorPicker(track.trackColor)) { color in
++            manager.updateTrack(track.trackId, setColor: color)
++            self?.reload()
++          }
++        })
++      }))
++    }
++    if !bookmarks.isEmpty {
++      sections.append(BookmarksSectionViewModel(title: L("bookmarks"), bookmarks: mapBookmarks(bookmarks)))
++    }
++    return sections
++  }
++
+   private func showSortMenu() {
+     var sortItems = interactor.availableSortingTypes(hasMyPosition: LocationManager.lastLocation() != nil)
+       .map { sortingType -> BookmarksListMenuItem in
+@@ -227,23 +262,30 @@ extension BookmarksListPresenter: IBookmarksListPresenter {
+   }
+ 
+   func activateSearch() {
++    if searchQuery == nil { searchQuery = "" }
+     interactor.prepareForSearch()
+   }
+ 
+   func deactivateSearch() {
+-
++    searchGeneration += 1
++    searchQuery = nil
++    interactor.stopSearching()
+   }
+ 
+   func cancelSearch() {
++    searchGeneration += 1
++    if searchQuery != nil { searchQuery = "" }
++    interactor.stopSearching()
+     reload()
+   }
+ 
+   func search(_ text: String) {
+-    interactor.search(text) { [weak self] in
+-      guard let self = self else { return }
+-      let bookmarks = self.mapBookmarks($0)
+-      self.view.setSections(bookmarks.isEmpty ? [] : [BookmarksSectionViewModel(title: L("bookmarks"),
+-                                                                                 bookmarks: bookmarks)])
++    searchQuery = text
++    searchGeneration += 1
++    let requestedGeneration = searchGeneration
++    interactor.search(text) { [weak self] results in
++      guard let self, searchGeneration == requestedGeneration, searchQuery == text else { return }
++      view.setSections(mapSearchResults(results))
+     }
+   }
+ 
+@@ -307,11 +349,11 @@ extension BookmarksListPresenter: IBookmarksListPresenter {
+     switch section {
+     case let bookmarksSection as IBookmarksSectionViewModel:
+       let bookmark = bookmarksSection.bookmarks[index] as! BookmarkViewModel
+-      interactor.viewBookmarkOnMap(bookmark.bookmarkId)
++      guard interactor.viewBookmarkOnMap(bookmark.bookmarkId) else { return }
+       router.viewOnMap(bookmarkGroup)
+     case let tracksSection as ITracksSectionViewModel:
+       let track = tracksSection.tracks[index] as! TrackViewModel
+-      interactor.viewTrackOnMap(track.trackId)
++      guard interactor.viewTrackOnMap(track.trackId) else { return }
+       router.viewOnMap(bookmarkGroup)
+     case let subgroupsSection as ISubgroupsSectionViewModel:
+       let subgroup = subgroupsSection.subgroups[index] as! SubgroupViewModel
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift
+index 7210fa7063c12dffbb1533ad4dfe8622bd33dcd7..ab05e255afb582f08250bb4398c7160aaad9e6a7 100644
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift
+@@ -39,6 +39,7 @@ final class BookmarksListViewController: MWMViewController {
+     searchController.obscuresBackgroundDuringPresentation = false
+     searchController.hidesNavigationBarDuringPresentation = alternativeSizeClass(iPhone: true, iPad: false)
+     searchController.searchBar.delegate = self
++    searchController.delegate = self
+     searchController.searchBar.applyTheme()
+     navigationItem.searchController = searchController
+     navigationItem.hidesSearchBarWhenScrolling = false
+@@ -187,7 +188,6 @@ extension BookmarksListViewController: UISearchBarDelegate {
+ 
+   func searchBarTextDidEndEditing(_ searchBar: UISearchBar) {
+     searchBar.setShowsCancelButton(false, animated: true)
+-    presenter.deactivateSearch()
+   }
+ 
+   func searchBarCancelButtonClicked(_ searchBar: UISearchBar) {
+@@ -206,6 +206,13 @@ extension BookmarksListViewController: UISearchBarDelegate {
+   }
+ }
+ 
++extension BookmarksListViewController: UISearchControllerDelegate {
++  func didDismissSearchController(_ searchController: UISearchController) {
++    presenter.deactivateSearch()
++    presenter.cancelSearch()
++  }
++}
++
+ extension BookmarksListViewController: IBookmarksListView {
+   func setTitle(_ title: String) {
+     self.title = title
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCView/BMCSearchResultsViewController.swift b/iphone/Maps/Bookmarks/Categories/BMCView/BMCSearchResultsViewController.swift
+new file mode 100644
+index 0000000000000000000000000000000000000000..ea987a012aaff37e9ad22d3fb994728332daae47
+--- /dev/null
++++ b/iphone/Maps/Bookmarks/Categories/BMCView/BMCSearchResultsViewController.swift
+@@ -0,0 +1,135 @@
++import UIKit
++
++final class BMCSearchResultsViewController: UITableViewController {
++  private let manager = BookmarksManager.shared()
++  private let model = BMCSearchViewModel(service: BMCSavedItemsSearchService())
++  var onSelect: ((BMCSearchResult) -> Void)?
++
++  init() {
++    super.init(style: .plain)
++    model.onChange = { [weak self] in self?.updateResults() }
++  }
++
++  required init?(coder: NSCoder) {
++    fatalError("init(coder:) has not been implemented")
++  }
++
++  deinit {
++    model.stop()
++  }
++
++  override func viewDidLoad() {
++    super.viewDidLoad()
++    view.setStyle(.pressBackground)
++    tableView.registerNibs([BookmarksListCell.self])
++    tableView.tableFooterView = UIView()
++    tableView.keyboardDismissMode = .onDrag
++    updateResults()
++  }
++
++  func start() {
++    manager.add(self)
++    model.start()
++  }
++
++  func stop() {
++    manager.remove(self)
++    model.stop()
++  }
++
++  private func updateResults() {
++    guard isViewLoaded else { return }
++    tableView.reloadData()
++    if model.isSearching {
++      let activity = UIActivityIndicatorView(style: .medium)
++      activity.startAnimating()
++      tableView.backgroundView = activity
++    } else if !model.query.isEmpty && model.sections.isEmpty {
++      let label = UILabel()
++      label.text = L("search_not_found")
++      label.textAlignment = .center
++      label.numberOfLines = 0
++      label.textColor = .secondaryLabel
++      tableView.backgroundView = label
++    } else {
++      tableView.backgroundView = nil
++    }
++  }
++
++  override func numberOfSections(in tableView: UITableView) -> Int {
++    model.sections.count
++  }
++
++  override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
++    model.sections[section].results.count
++  }
++
++  override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
++    model.sections[section].title
++  }
++
++  override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
++    let cell = tableView.dequeueReusableCell(cell: BookmarksListCell.self, indexPath: indexPath)
++    let result = model.sections[indexPath.section].results[indexPath.row]
++    cell.accessoryType = .none
++    var image = UIImage()
++    switch result.item {
++    case .bookmark(let id):
++      if manager.hasBookmark(id) {
++        let bookmark = manager.bookmark(withId: id)
++        image = bookmark.bookmarkColor.image(bookmark.bookmarkIconName)
++      }
++    case .track(let id):
++      if manager.hasTrack(id) {
++        image = circleImageForColor(manager.track(withId: id).trackColor, frameSize: 22)
++      }
++    }
++    cell.config(BMCSearchCellViewModel(name: result.name, subtitle: result.subtitle ?? "", image: image,
++                                       colorDidTapAction: { [weak self, weak cell] in
++      guard let self, let cell, let indexPath = self.tableView.indexPath(for: cell) else { return }
++      selectResult(at: indexPath)
++    }))
++    return cell
++  }
++
++  override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
++    tableView.deselectRow(at: indexPath, animated: true)
++    selectResult(at: indexPath)
++  }
++
++  private func selectResult(at indexPath: IndexPath) {
++    guard let result = model.selectResult(section: indexPath.section, row: indexPath.row) else { return }
++    onSelect?(result)
++  }
++}
++
++private struct BMCSearchCellViewModel: IBookmarksListItemViewModel {
++  let name: String
++  let subtitle: String
++  let image: UIImage
++  let colorDidTapAction: (() -> Void)?
++}
++
++extension BMCSearchResultsViewController: UISearchResultsUpdating {
++  func updateSearchResults(for searchController: UISearchController) {
++    model.search(searchController.searchBar.text ?? "")
++  }
++}
++
++extension BMCSearchResultsViewController: BookmarksObserver {
++  func onBookmarksLoadFinished() {
++    model.refresh()
++  }
++
++  func onBookmarksFileLoadSuccess() {
++    model.refresh()
++  }
++
++  func onBookmarksCategoryDeleted(_ groupId: MWMMarkGroupID) {
++    model.refresh()
++  }
++
++  func onBookmarkDeleted(_ bookmarkId: MWMMarkID) {
++    model.refresh()
++  }
++}
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift b/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
+index fa3ebcd968d8f75c9a819cb02c0f568fa49db21b..c4fed560cc4e2b7c97534897ad914c50d2d03edb 100644
+--- a/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
++++ b/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
+@@ -8,6 +8,9 @@ final class BMCViewController: MWMViewController {
+ 
+   private weak var coordinator: BookmarksCoordinator?
+ 
++  private let searchResultsController = BMCSearchResultsViewController()
++  private lazy var searchController = UISearchController(searchResultsController: searchResultsController)
++
+   @IBOutlet private weak var tableView: UITableView! {
+     didSet {
+       let cells = [
+@@ -36,6 +39,28 @@ final class BMCViewController: MWMViewController {
+     super.viewDidLoad()
+     view.setStyle(.pressBackground)
+     viewModel = BMCDefaultViewModel()
++    configureSearch()
++  }
++
++  private func configureSearch() {
++    searchController.searchResultsUpdater = searchResultsController
++    searchController.delegate = self
++    searchController.obscuresBackgroundDuringPresentation = false
++    searchController.hidesNavigationBarDuringPresentation = alternativeSizeClass(iPhone: true, iPad: false)
++    searchController.searchBar.placeholder = L("search")
++    searchController.searchBar.applyTheme()
++    navigationItem.searchController = searchController
++    navigationItem.hidesSearchBarWhenScrolling = false
++    definesPresentationContext = true
++    searchResultsController.onSelect = { [weak self] result in
++      guard let self else { return }
++      searchController.isActive = false
++      switch result.item {
++      case .bookmark(let id): FrameworkHelper.showBookmark(id)
++      case .track(let id): FrameworkHelper.showTrack(id)
++      }
++      coordinator?.hide(categoryId: result.categoryId)
++    }
+   }
+ 
+   override func viewWillAppear(_ animated: Bool) {
+@@ -325,3 +350,14 @@ extension BMCViewController: CategorySettingsViewControllerDelegate {
+     navigationController?.popViewController(animated: true)
+   }
+ }
++
++extension BMCViewController: UISearchControllerDelegate {
++  func willPresentSearchController(_ searchController: UISearchController) {
++    setEditing(false, animated: true)
++    searchResultsController.start()
++  }
++
++  func didDismissSearchController(_ searchController: UISearchController) {
++    searchResultsController.stop()
++  }
++}
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSavedItemsSearchService.swift b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSavedItemsSearchService.swift
+new file mode 100644
+index 0000000000000000000000000000000000000000..b6c11448606b2a2c55c98250306cda4164c0e51b
+--- /dev/null
++++ b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSavedItemsSearchService.swift
+@@ -0,0 +1,73 @@
++import Foundation
++
++final class BMCSavedItemsSearchService: BMCSearchService {
++  private let manager = BookmarksManager.shared()
++  private let groupId: MWMMarkGroupID?
++
++  init(groupId: MWMMarkGroupID? = nil) {
++    self.groupId = groupId
++  }
++
++  func prepare() {}
++
++  func release() {
++    manager.cancelSavedItemsSearch()
++  }
++
++  func search(_ text: String, completion: @escaping ([BMCSearchResult]) -> Void) {
++    let onResults: ([SavedItemSearchResult]) -> Void = { [weak self] items in
++      guard let self else { return }
++      completion(items.compactMap { item in
++        guard self.manager.hasCategory(item.categoryId) else { return nil }
++        let category = self.manager.category(withId: item.categoryId)
++        switch item.kind {
++        case .bookmark:
++          guard self.manager.hasBookmark(item.itemId) else { return nil }
++          let bookmark = self.manager.bookmark(withId: item.itemId)
++          return BMCSearchResult(item: .bookmark(item.itemId), categoryId: category.categoryId,
++                                 categoryName: category.title, name: bookmark.bookmarkName,
++                                 subtitle: bookmark.bookmarkType)
++        case .track:
++          guard self.manager.hasTrack(item.itemId) else { return nil }
++          let track = self.manager.track(withId: item.itemId)
++          let distance = DistanceFormatter.distanceString(fromMeters: Double(track.trackLengthMeters))
++          return BMCSearchResult(item: .track(item.itemId), categoryId: category.categoryId,
++                                 categoryName: category.title, name: track.trackName,
++                                 subtitle: "\(L("length")) \(distance)")
++        @unknown default:
++          return nil
++        }
++      })
++    }
++    if let groupId {
++      manager.searchSavedItems(inGroup: groupId, text: text, completion: onResults)
++    } else {
++      manager.searchAllSavedItems(text, completion: onResults)
++    }
++  }
++
++  func resolveSelection(_ result: BMCSearchResult) -> BMCSearchResult? {
++    let category: BookmarkGroup
++    switch result.item {
++    case .bookmark(let id):
++      guard manager.hasBookmark(id) else { return nil }
++      if let groupId {
++        guard manager.hasSavedItem(.bookmark, itemId: id, inGroup: groupId) else { return nil }
++        category = manager.category(withId: groupId)
++      } else {
++        category = manager.category(forBookmarkId: id)
++      }
++    case .track(let id):
++      guard manager.hasTrack(id) else { return nil }
++      if let groupId {
++        guard manager.hasSavedItem(.track, itemId: id, inGroup: groupId) else { return nil }
++        category = manager.category(withId: groupId)
++      } else {
++        category = manager.category(forTrackId: id)
++      }
++    }
++    guard manager.hasCategory(category.categoryId) else { return nil }
++    return BMCSearchResult(item: result.item, categoryId: category.categoryId,
++                           categoryName: category.title, name: result.name, subtitle: result.subtitle)
++  }
++}
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSearchViewModel.swift b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSearchViewModel.swift
+new file mode 100644
+index 0000000000000000000000000000000000000000..038261d3e7e2d138ec6fef14ea7bfc7863a5c0a3
+--- /dev/null
++++ b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSearchViewModel.swift
+@@ -0,0 +1,106 @@
++import Foundation
++
++enum BMCSearchItem: Equatable {
++  case bookmark(MWMMarkID)
++  case track(MWMTrackID)
++}
++
++struct BMCSearchResult: Equatable {
++  let item: BMCSearchItem
++  let categoryId: MWMMarkGroupID
++  let categoryName: String
++  let name: String
++  let subtitle: String?
++}
++
++struct BMCSearchSection: Equatable {
++  let categoryId: MWMMarkGroupID
++  let title: String
++  var results: [BMCSearchResult]
++}
++
++protocol BMCSearchService: AnyObject {
++  func prepare()
++  func release()
++  func search(_ text: String, completion: @escaping ([BMCSearchResult]) -> Void)
++  func resolveSelection(_ result: BMCSearchResult) -> BMCSearchResult?
++}
++
++final class BMCSearchViewModel {
++  private let service: BMCSearchService
++  private var generation = 0
++  private(set) var isActive = false
++  private(set) var query = ""
++  private(set) var isSearching = false
++  private(set) var sections: [BMCSearchSection] = []
++  var onChange: (() -> Void)?
++
++  init(service: BMCSearchService) {
++    self.service = service
++  }
++
++  func start() {
++    guard !isActive else { return }
++    isActive = true
++    service.prepare()
++    search(query)
++  }
++
++  func stop() {
++    guard isActive else { return }
++    generation += 1
++    isActive = false
++    isSearching = false
++    query = ""
++    sections = []
++    service.release()
++    onChange?()
++  }
++
++  func search(_ text: String) {
++    generation += 1
++    let requestedGeneration = generation
++    query = text.trimmingCharacters(in: .whitespacesAndNewlines)
++    sections = []
++    isSearching = isActive && !query.isEmpty
++    onChange?()
++    guard isSearching else { return }
++    service.search(query) { [weak self] results in
++      guard let self, isActive, generation == requestedGeneration else { return }
++      isSearching = false
++      sections = Self.group(results)
++      onChange?()
++    }
++  }
++
++  func refresh() {
++    guard isActive else { return }
++    service.prepare()
++    search(query)
++  }
++
++  func selectResult(section: Int, row: Int) -> BMCSearchResult? {
++    guard sections.indices.contains(section), sections[section].results.indices.contains(row) else { return nil }
++    guard let result = service.resolveSelection(sections[section].results[row]) else {
++      refresh()
++      return nil
++    }
++    return result
++  }
++
++  private static func group(_ results: [BMCSearchResult]) -> [BMCSearchSection] {
++    var sections: [BMCSearchSection] = []
++    var sectionIndexes: [MWMMarkGroupID: Int] = [:]
++    for result in results {
++      if let index = sectionIndexes[result.categoryId] {
++        sections[index].results.append(result)
++      } else {
++        sectionIndexes[result.categoryId] = sections.count
++        sections.append(BMCSearchSection(categoryId: result.categoryId,
++                                         title: result.categoryName,
++                                         results: [result]))
++      }
++    }
++    return sections
++  }
++}
+diff --git a/iphone/Maps/Maps.xcodeproj/project.pbxproj b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+index ebd7efed4ae7b0ac8380c11265c11d8f671a9035..8911db25dc3ad31fd8347ed0084b056f823c569e 100644
+--- a/iphone/Maps/Maps.xcodeproj/project.pbxproj
++++ b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+@@ -689,6 +689,12 @@
+ 		FA85D44E279B738F00B858E9 /* CopyableLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA85D44D279B738F00B858E9 /* CopyableLabel.swift */; };
+ 		FA8E808925F412E2002A1434 /* FirstSession.mm in Sources */ = {isa = PBXBuildFile; fileRef = FA8E808825F412E2002A1434 /* FirstSession.mm */; };
+ 		FAF9DDA32A86DC54000D7037 /* libharfbuzz.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FAF9DDA22A86DC54000D7037 /* libharfbuzz.a */; };
++		A421ABC00000000000000101 /* BMCSearchViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000201 /* BMCSearchViewModel.swift */; };
++		A421ABC00000000000000102 /* BMCSearchResultsViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000202 /* BMCSearchResultsViewController.swift */; };
++		A421ABC00000000000000103 /* BMCSearchViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000203 /* BMCSearchViewModelTests.swift */; };
++		A421ABC00000000000000104 /* BMCSavedItemsSearchService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000204 /* BMCSavedItemsSearchService.swift */; };
++		A421ABC00000000000000105 /* SavedItemsSearchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000205 /* SavedItemsSearchTests.swift */; };
++		A421ABC40000000000000101 /* SavedItemsSearchTestSupport.mm in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC40000000000000201 /* SavedItemsSearchTestSupport.mm */; };
+ /* End PBXBuildFile section */
+ 
+ /* Begin PBXContainerItemProxy section */
+@@ -1830,6 +1836,14 @@
+ 		FAF9A8A82CE0CEC000F6604D /* lv */ = {isa = PBXFileReference; lastKnownFileType = text.plist.stringsdict; name = lv; path = lv.lproj/Localizable.stringsdict; sourceTree = "<group>"; };
+ 		FAF9DDA22A86DC54000D7037 /* libharfbuzz.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; path = libharfbuzz.a; sourceTree = BUILT_PRODUCTS_DIR; };
+ 		FAFF42291347F101009BBB14 /* World.mwm */ = {isa = PBXFileReference; lastKnownFileType = file; name = World.mwm; path = ../../data/World.mwm; sourceTree = "<group>"; };
++		A421ABC00000000000000201 /* BMCSearchViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMCSearchViewModel.swift; sourceTree = "<group>"; };
++		A421ABC00000000000000202 /* BMCSearchResultsViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMCSearchResultsViewController.swift; sourceTree = "<group>"; };
++		A421ABC00000000000000203 /* BMCSearchViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMCSearchViewModelTests.swift; sourceTree = "<group>"; };
++		A421ABC00000000000000204 /* BMCSavedItemsSearchService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BMCSavedItemsSearchService.swift; sourceTree = "<group>"; };
++		A421ABC00000000000000205 /* SavedItemsSearchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedItemsSearchTests.swift; sourceTree = "<group>"; };
++		A421ABC40000000000000201 /* SavedItemsSearchTestSupport.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = SavedItemsSearchTestSupport.mm; sourceTree = "<group>"; };
++		A421ABC40000000000000202 /* SavedItemsSearchTestSupport.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SavedItemsSearchTestSupport.h; sourceTree = "<group>"; };
++		A421ABC40000000000000203 /* Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Bridging-Header.h"; sourceTree = "<group>"; };
+ /* End PBXFileReference section */
+ 
+ /* Begin PBXFrameworksBuildPhase section */
+@@ -2405,6 +2419,8 @@
+ 			isa = PBXGroup;
+ 			children = (
+ 				34B846A72029E8110081ECCD /* BMCDefaultViewModel.swift */,
++				A421ABC00000000000000201 /* BMCSearchViewModel.swift */,
++				A421ABC00000000000000204 /* BMCSavedItemsSearchService.swift */,
+ 			);
+ 			path = BMCViewModel;
+ 			sourceTree = "<group>";
+@@ -2413,6 +2429,7 @@
+ 			isa = PBXGroup;
+ 			children = (
+ 				3404F489202894EA0090E401 /* BMCViewController.swift */,
++				A421ABC00000000000000202 /* BMCSearchResultsViewController.swift */,
+ 				3404F48A202894EA0090E401 /* BMCViewController.xib */,
+ 			);
+ 			path = BMCView;
+@@ -3292,6 +3309,7 @@
+ 		ED1ADA312BC6B19E0029209F /* Tests */ = {
+ 			isa = PBXGroup;
+ 			children = (
++				A421ABC40000000000000203 /* Bridging-Header.h */,
+ 				ED810EC02D566E6F00ECDE2C /* UI */,
+ 				EDC4E3442C5D1BD3009286A2 /* Bookmarks */,
+ 				4B4153B82BF970B800EE4B02 /* Classes */,
+@@ -3435,6 +3453,10 @@
+ 			isa = PBXGroup;
+ 			children = (
+ 				EDC4E3422C5D1BD3009286A2 /* RecentlyDeletedTests */,
++				A421ABC00000000000000203 /* BMCSearchViewModelTests.swift */,
++				A421ABC00000000000000205 /* SavedItemsSearchTests.swift */,
++				A421ABC40000000000000201 /* SavedItemsSearchTestSupport.mm */,
++				A421ABC40000000000000202 /* SavedItemsSearchTestSupport.h */,
+ 			);
+ 			path = Categories;
+ 			sourceTree = "<group>";
+@@ -4466,6 +4488,8 @@
+ 				F6E2FDE91E097BA00083EBEC /* MWMObjectsCategorySelectorController.mm in Sources */,
+ 				34AB665F1FC5AA330078E451 /* TransportTransitIntermediatePoint.swift in Sources */,
+ 				34B846A82029E8110081ECCD /* BMCDefaultViewModel.swift in Sources */,
++				A421ABC00000000000000101 /* BMCSearchViewModel.swift in Sources */,
++				A421ABC00000000000000104 /* BMCSavedItemsSearchService.swift in Sources */,
+ 				993DF12123F6BDB100AC231A /* UIViewControllerRenderer.swift in Sources */,
+ 				34D3AFF61E37A36A004100F9 /* UICollectionView+Cells.swift in Sources */,
+ 				4767CDA420AAF66B00BD8166 /* NSAttributedString+HTML.swift in Sources */,
+@@ -4523,6 +4547,7 @@
+ 				6741A9B81BF340DE002C974C /* MapViewController.mm in Sources */,
+ 				34AB662C1FC5AA330078E451 /* RouteManagerViewModel.swift in Sources */,
+ 				3404F48B202894EA0090E401 /* BMCViewController.swift in Sources */,
++				A421ABC00000000000000102 /* BMCSearchResultsViewController.swift in Sources */,
+ 				F6E2FDE01E097BA00083EBEC /* MWMEditorViewController.mm in Sources */,
+ 				6741A9C01BF340DE002C974C /* MWMTextView.m in Sources */,
+ 				F6E2FDB61E097BA00083EBEC /* MWMEditorAdditionalNamesHeader.m in Sources */,
+@@ -4943,6 +4968,9 @@
+ 				4B83AE4B2C2E642100B0C3BC /* TTSTesterTest.m in Sources */,
+ 				EDF838C22C00B9D6007E4E67 /* MetadataItemStubs.swift in Sources */,
+ 				EDC4E3612C5E2576009286A2 /* RecentlyDeletedCategoriesViewModelTests.swift in Sources */,
++				A421ABC00000000000000103 /* BMCSearchViewModelTests.swift in Sources */,
++				A421ABC00000000000000105 /* SavedItemsSearchTests.swift in Sources */,
++				A421ABC40000000000000101 /* SavedItemsSearchTestSupport.mm in Sources */,
+ 				4B4153B52BF9695500EE4B02 /* MWMTextToSpeechTests.mm in Sources */,
+ 				EDF838C42C00B9D6007E4E67 /* FileManagerMock.swift in Sources */,
+ 			);
+@@ -5279,6 +5307,7 @@
+ 			baseConfigurationReference = 347526FA1DC0B00F00918CF5 /* common-debug.xcconfig */;
+ 			buildSettings = {
+ 				BUNDLE_LOADER = "$(TEST_HOST)";
++				SWIFT_OBJC_BRIDGING_HEADER = "Tests/Bridging-Header.h";
+ 				CODE_SIGN_IDENTITY = "Apple Development";
+ 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+ 				CODE_SIGN_STYLE = Automatic;
+@@ -5294,6 +5323,7 @@
+ 			baseConfigurationReference = 347526FB1DC0B00F00918CF5 /* common-release.xcconfig */;
+ 			buildSettings = {
+ 				BUNDLE_LOADER = "$(TEST_HOST)";
++				SWIFT_OBJC_BRIDGING_HEADER = "Tests/Bridging-Header.h";
+ 				CODE_SIGN_IDENTITY = "Apple Development";
+ 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+ 				CODE_SIGN_STYLE = Automatic;
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift
+new file mode 100644
+index 0000000000000000000000000000000000000000..cef5157089251efe861ce36e8a236bdb01efe712
+--- /dev/null
++++ b/iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift
+@@ -0,0 +1,159 @@
++import XCTest
++@testable import CoMaps__Debug_
++
++final class BMCSearchViewModelTests: XCTestCase {
++  private var service: BMCSearchServiceMock!
++  private var model: BMCSearchViewModel!
++
++  override func setUp() {
++    super.setUp()
++    service = BMCSearchServiceMock()
++    model = BMCSearchViewModel(service: service)
++  }
++
++  func testRepeatedStartAndStopPrepareAndReleaseOnlyOnce() {
++    model.start()
++    model.start()
++    model.stop()
++    model.stop()
++    XCTAssertEqual(service.prepareCount, 1)
++    XCTAssertEqual(service.releaseCount, 1)
++    XCTAssertTrue(service.requests.isEmpty)
++  }
++
++  func testResultsAreGroupedByCategoryIdentityInResultOrder() {
++    model.start()
++    model.search("park")
++    let first = result(id: 1, category: 10, name: "Same folder")
++    let second = result(id: 2, category: 20, name: "Same folder")
++    let third = result(id: 3, category: 10, name: "Same folder")
++    service.requests[0].completion([first, second, third])
++    XCTAssertEqual(model.sections.map(\.categoryId), [10, 20])
++    XCTAssertEqual(model.sections[0].results.map(\.item), [.bookmark(1), .bookmark(3)])
++    XCTAssertEqual(model.sections[1].results.map(\.item), [.bookmark(2)])
++    XCTAssertFalse(model.isSearching)
++  }
++
++  func testEarlierQueryCannotReplaceCurrentResults() {
++    model.start()
++    model.search("old")
++    model.search("new")
++    service.requests[1].completion([result(id: 2, category: 10)])
++    service.requests[0].completion([result(id: 1, category: 10)])
++    XCTAssertEqual(model.sections[0].results.map(\.item), [.bookmark(2)])
++  }
++
++  func testDismissedSearchIgnoresPendingResults() {
++    model.start()
++    model.search("park")
++    model.stop()
++    service.requests[0].completion([result(id: 1, category: 10)])
++    XCTAssertTrue(model.sections.isEmpty)
++    XCTAssertFalse(model.isActive)
++    XCTAssertFalse(model.isSearching)
++  }
++
++  func testClearingQueryClearsResultsAndInvalidatesOldCompletion() {
++    model.start()
++    model.search("park")
++    service.requests[0].completion([result(id: 1, category: 10)])
++    model.search(" \n ")
++    service.requests[0].completion([result(id: 2, category: 10)])
++    XCTAssertTrue(model.sections.isEmpty)
++    XCTAssertEqual(service.requests.count, 1)
++    XCTAssertFalse(model.isSearching)
++  }
++
++  func testRefreshReindexesAndRepeatsCurrentQuery() {
++    model.start()
++    model.search("park")
++    model.refresh()
++    XCTAssertEqual(service.prepareCount, 2)
++    XCTAssertEqual(service.requests.map(\.text), ["park", "park"])
++    service.requests[0].completion([result(id: 1, category: 10)])
++    XCTAssertTrue(model.sections.isEmpty)
++    service.requests[1].completion([result(id: 2, category: 20)])
++    XCTAssertEqual(model.sections[0].categoryId, 20)
++  }
++
++  func testInactiveRefreshDoesNotAcquireIndex() {
++    model.refresh()
++    XCTAssertEqual(service.prepareCount, 0)
++    XCTAssertTrue(service.requests.isEmpty)
++  }
++
++  func testRestartDoesNotAcceptCompletionFromPreviousSession() {
++    model.start()
++    model.search("park")
++    model.stop()
++    model.start()
++    model.search("park")
++    service.requests[0].completion([result(id: 1, category: 10)])
++    XCTAssertTrue(model.sections.isEmpty)
++    service.requests[1].completion([result(id: 2, category: 20)])
++    XCTAssertEqual(model.sections[0].results[0].item, .bookmark(2))
++  }
++
++  func testSelectingDeletedResultRefreshesInsteadOfReturningStaleIdentity() {
++    model.start()
++    model.search("park")
++    service.requests[0].completion([result(id: 1, category: 10)])
++    service.selectionResolver = { _ in nil }
++    XCTAssertNil(model.selectResult(section: 0, row: 0))
++    XCTAssertEqual(service.requests.count, 2)
++  }
++
++  func testBookmarkAndTrackWithSameNumericIdRemainDistinct() {
++    model.start()
++    model.search("park")
++    let bookmark = result(id: 1, category: 10)
++    let track = BMCSearchResult(item: .track(1), categoryId: 10,
++                                categoryName: "Folder", name: "Track", subtitle: nil)
++    service.requests[0].completion([bookmark, track])
++    XCTAssertEqual(model.sections[0].results.map(\.item), [.bookmark(1), .track(1)])
++    XCTAssertEqual(model.selectResult(section: 0, row: 1)?.item, .track(1))
++  }
++
++  func testSelectingMovedResultUsesItsCurrentCategory() {
++    model.start()
++    model.search("park")
++    service.requests[0].completion([result(id: 1, category: 10)])
++    service.selectionResolver = { old in
++      BMCSearchResult(item: old.item, categoryId: 20, categoryName: "Moved",
++                      name: old.name, subtitle: old.subtitle)
++    }
++    XCTAssertEqual(model.selectResult(section: 0, row: 0)?.categoryId, 20)
++  }
++
++  private func result(id: MWMMarkID, category: MWMMarkGroupID, name: String = "Folder") -> BMCSearchResult {
++    BMCSearchResult(item: .bookmark(id), categoryId: category, categoryName: name,
++                    name: "Result", subtitle: nil)
++  }
++}
++
++private final class BMCSearchServiceMock: BMCSearchService {
++  struct Request {
++    let text: String
++    let completion: ([BMCSearchResult]) -> Void
++  }
++  var prepareCount = 0
++  var releaseCount = 0
++  var requests: [Request] = []
++  var selectionResolver: (BMCSearchResult) -> BMCSearchResult? = { $0 }
++
++  func prepare() {
++    prepareCount += 1
++  }
++
++  func release() {
++    releaseCount += 1
++  }
++
++  func search(_ text: String, completion: @escaping ([BMCSearchResult]) -> Void) {
++    requests.append(Request(text: text, completion: completion))
++  }
++
++  func resolveSelection(_ result: BMCSearchResult) -> BMCSearchResult? {
++    selectionResolver(result)
++  }
++}
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..c054940d524050715a829bf3da41d2accfe0dc4e
+--- /dev/null
++++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h
+@@ -0,0 +1,5 @@
++#import <Foundation/Foundation.h>
++
++@interface SavedItemsSearchTestSupport : NSObject
+++ (void)prepareSearchViewport;
++@end
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm
+new file mode 100644
+index 0000000000000000000000000000000000000000..98affff2e1d4d7e53e0bf6fb96fd07d7d3e1be91
+--- /dev/null
++++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm
+@@ -0,0 +1,13 @@
++#import "SavedItemsSearchTestSupport.h"
++
++#include "iphone/CoreApi/CoreApi/Framework/Framework.h"
++#include "map/search_api.hpp"
++
++@implementation SavedItemsSearchTestSupport
++
+++ (void)prepareSearchViewport
++{
++  GetFramework().GetSearchAPI().OnViewportChanged(m2::RectD(-1.0, -1.0, 1.0, 1.0));
++}
++
++@end
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift
+new file mode 100644
+index 0000000000000000000000000000000000000000..4461dd94d1b8ad8a479abf2e3cd45efb5f3ba382
+--- /dev/null
++++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift
+@@ -0,0 +1,192 @@
++import XCTest
++@testable import CoMaps__Debug_
++
++final class SavedItemsSearchTests: XCTestCase, BookmarksObserver {
++  private var manager: BookmarksManager { BookmarksManager.shared() }
++  private var loading: XCTestExpectation?
++  private var importing: XCTestExpectation?
++  private var categories: [BookmarkGroup] = []
++  private var files: [URL] = []
++
++  override func setUp() async throws {
++    try await super.setUp()
++    try await prepareFixtures()
++  }
++
++  @MainActor
++  private func prepareFixtures() async throws {
++    SavedItemsSearchTestSupport.prepareSearchViewport()
++    manager.add(self)
++    if !manager.areBookmarksLoaded() {
++      loading = expectation(description: "Bookmark loading")
++      manager.loadBookmarks()
++      await fulfillment(of: [loading!], timeout: 30)
++      loading = nil
++    }
++    try await importCategory()
++    try await importCategory()
++  }
++
++  override func tearDown() async throws {
++    await cleanupFixtures()
++    try await super.tearDown()
++  }
++
++  @MainActor
++  private func cleanupFixtures() {
++    manager.cancelSavedItemsSearch()
++    manager.releaseSearch()
++    manager.remove(self)
++    for category in categories where manager.hasCategory(category.categoryId) {
++      manager.deleteCategory(category.categoryId)
++    }
++    for file in files { try? FileManager.default.removeItem(at: file) }
++    categories = []
++    files = []
++  }
++
++  @MainActor
++  func testTypedResultPreservesKindWithEqualNumericIds() async {
++    let bookmark = SavedItemSearchResult(kind: .bookmark, itemId: 42, categoryId: categories[0].categoryId)
++    let track = SavedItemSearchResult(kind: .track, itemId: 42, categoryId: categories[0].categoryId)
++    XCTAssertEqual(bookmark.itemId, track.itemId)
++    XCTAssertNotEqual(bookmark.kind, track.kind)
++  }
++
++  @MainActor
++  func testCurrentFolderSearchReturnsBothKindsFromOnlyThatFolder() async {
++    let group = categories[0]
++    let items = await search("needle", in: group.categoryId)
++    XCTAssertEqual(items.count, 2)
++    XCTAssertTrue(items.contains { $0.kind == .bookmark })
++    XCTAssertTrue(items.contains { $0.kind == .track })
++    XCTAssertTrue(items.allSatisfy { $0.categoryId == group.categoryId })
++  }
++
++  @MainActor
++  func testGlobalSearchIncludesBothFoldersAndBothKinds() async {
++    let ids = Set(categories.map(\.categoryId))
++    let items = await search("needle").filter { ids.contains($0.categoryId) }
++    XCTAssertEqual(items.count, 4)
++    XCTAssertEqual(Set(items.map(\.categoryId)), ids)
++    XCTAssertEqual(items.filter { $0.kind == .track }.count, 2)
++  }
++
++  @MainActor
++  func testChildCollectionSearchUsesMembershipInsteadOfPrimaryParent() async throws {
++    let root = categories[0]
++    let child = try XCTUnwrap(root.collections.first)
++    let bookmark = try XCTUnwrap(child.bookmarks.first)
++    XCTAssertEqual(manager.category(forBookmarkId: bookmark.bookmarkId).categoryId, root.categoryId)
++    XCTAssertNotEqual(root.categoryId, child.categoryId)
++    let items = await search("needle", in: child.categoryId)
++    XCTAssertEqual(items.map(\.itemId), [bookmark.bookmarkId])
++    XCTAssertEqual(items.map(\.categoryId), [child.categoryId])
++    XCTAssertEqual(items.first?.kind, .bookmark)
++    XCTAssertTrue(manager.hasSavedItem(.bookmark, itemId: bookmark.bookmarkId, inGroup: child.categoryId))
++  }
++
++  @MainActor
++  func testRenamedTrackIsReplacedInTheNextSearchSnapshot() async throws {
++    let category = categories[0]
++    let track = try XCTUnwrap(category.tracks.first)
++    manager.updateTrack(track.trackId, setGroupId: category.categoryId, color: track.trackColor, title: "Different route")
++    let oldNameResults = await search("needle", in: category.categoryId)
++    let newNameResults = await search("different", in: category.categoryId)
++    XCTAssertFalse(oldNameResults.contains { $0.kind == .track })
++    XCTAssertEqual(newNameResults.filter { $0.kind == .track }.map(\.itemId), [track.trackId])
++  }
++
++  @MainActor
++  func testMovedTrackLeavesOldScopeAndAppearsInNewScope() async throws {
++    let source = categories[0]
++    let target = categories[1]
++    let track = try XCTUnwrap(source.tracks.first)
++    manager.moveTrack(track.trackId, toGroupId: target.categoryId)
++    XCTAssertFalse(manager.hasSavedItem(.track, itemId: track.trackId, inGroup: source.categoryId))
++    XCTAssertTrue(manager.hasSavedItem(.track, itemId: track.trackId, inGroup: target.categoryId))
++    let sourceResults = await search("needle", in: source.categoryId)
++    let targetResults = await search("needle", in: target.categoryId)
++    XCTAssertFalse(sourceResults.contains { $0.kind == .track && $0.itemId == track.trackId })
++    XCTAssertTrue(targetResults.contains { $0.kind == .track && $0.itemId == track.trackId })
++  }
++
++  @MainActor
++  func testDeletedTrackIsNotSearchableOrSelectable() async throws {
++    let category = categories[0]
++    let track = try XCTUnwrap(category.tracks.first)
++    manager.deleteTrack(track.trackId)
++    XCTAssertFalse(manager.hasSavedItem(.track, itemId: track.trackId, inGroup: category.categoryId))
++    let results = await search("needle", in: category.categoryId)
++    XCTAssertFalse(results.contains { $0.kind == .track })
++  }
++
++  @MainActor
++  func testLegacyBookmarkSearchStillReturnsOnlyBookmarks() async {
++    let category = categories[0]
++    manager.prepare(forSearch: category.categoryId)
++    let finished = expectation(description: "Legacy bookmark search")
++    var returned: [Bookmark] = []
++    var didFinish = false
++    manager.searchBookmarksGroup(category.categoryId, text: "needle") { bookmarks in
++      returned = bookmarks
++      if !didFinish && bookmarks.count == category.bookmarks.count {
++        didFinish = true
++        finished.fulfill()
++      }
++    }
++    await fulfillment(of: [finished], timeout: 30)
++    XCTAssertEqual(returned.map(\.bookmarkId), category.bookmarks.map(\.bookmarkId))
++  }
++
++  @MainActor
++  private func search(_ text: String, in groupId: MWMMarkGroupID? = nil) async -> [SavedItemSearchResult] {
++    let finished = expectation(description: "Saved item search")
++    var items: [SavedItemSearchResult] = []
++    let completion: ([SavedItemSearchResult]) -> Void = { results in
++      items = results
++      finished.fulfill()
++    }
++    if let groupId {
++      manager.searchSavedItems(inGroup: groupId, text: text, completion: completion)
++    } else {
++      manager.searchAllSavedItems(text, completion: completion)
++    }
++    await fulfillment(of: [finished], timeout: 30)
++    return items
++  }
++
++  @MainActor
++  private func importCategory() async throws {
++    let title = "Search fixture \(UUID().uuidString)"
++    let file = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).kml")
++    let data = """
++    <?xml version="1.0" encoding="UTF-8"?>
++    <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:mwm="https://comaps.app"><Document><name>\(title)</name>
++    <ExtendedData><mwm:compilation id="1" type="Collection">
++    <mwm:name><mwm:lang code="default">Child collection</mwm:lang></mwm:name>
++    </mwm:compilation></ExtendedData>
++    <Placemark><name>Needle point</name><Point><coordinates>0,0</coordinates></Point>
++    <ExtendedData><mwm:compilations>1</mwm:compilations></ExtendedData></Placemark>
++    <Placemark><name>Needle route</name><LineString><coordinates>0,0,0 0.001,0.001,0</coordinates></LineString></Placemark>
++    </Document></kml>
++    """
++    try Data(data.utf8).write(to: file)
++    files.append(file)
++    importing = expectation(description: "Import search fixture")
++    manager.loadBookmarkFile(file)
++    await fulfillment(of: [importing!], timeout: 30)
++    importing = nil
++    categories.append(try XCTUnwrap(manager.sortedUserCategories().first { $0.title == title }))
++  }
++
++  func onBookmarksLoadFinished() {
++    loading?.fulfill()
++    importing?.fulfill()
++  }
++
++  func onBookmarksFileLoadError() {
++    XCTFail("Failed to import synthetic search fixture")
++    importing?.fulfill()
++  }
++}
+diff --git a/iphone/Maps/Tests/Bridging-Header.h b/iphone/Maps/Tests/Bridging-Header.h
+new file mode 100644
+index 0000000000000000000000000000000000000000..cdc1cf20d3e052320c8eb46c6bf3dd4e45ab91d8
+--- /dev/null
++++ b/iphone/Maps/Tests/Bridging-Header.h
+@@ -0,0 +1,2 @@
++#import "../Bridging-Header.h"
++#import "Bookmarks/Categories/SavedItemsSearchTestSupport.h"
+diff --git a/libs/map/saved_items_search_params.hpp b/libs/map/saved_items_search_params.hpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..08fcc72c278d25a087ea85282de972da62e5d871
+--- /dev/null
++++ b/libs/map/saved_items_search_params.hpp
+@@ -0,0 +1,23 @@
++#pragma once
++
++#include "map/bookmarks_search_params.hpp"
++#include "search/bookmarks/saved_items.hpp"
++
++#include <functional>
++#include <string>
++#include <vector>
++
++namespace search
++{
++struct SavedItemsSearchParams
++{
++  using Status = BookmarksSearchParams::Status;
++  using OnResults = std::function<void(bookmarks::ItemResults results, Status status)>;
++
++  std::string m_query;
++  kml::MarkGroupId m_groupId = kml::kInvalidMarkGroupId;
++  std::vector<bookmarks::ItemDocument> m_documents;
++  bool m_indexDescriptions = false;
++  OnResults m_onResults;
++};
++}
+diff --git a/libs/map/search_api.cpp b/libs/map/search_api.cpp
+index 826ba75ea4af168a1106a05818be07b515dfd280..f922ba5c29155b8345fa36442365397fa2b0c989 100644
+--- a/libs/map/search_api.cpp
++++ b/libs/map/search_api.cpp
+@@ -2,6 +2,7 @@
+ 
+ #include "map/bookmark_helpers.hpp"
+ #include "map/bookmarks_search_params.hpp"
++#include "map/saved_items_search_params.hpp"
+ #include "map/everywhere_search_params.hpp"
+ 
+ #include "search/bookmarks/types.hpp"
+@@ -264,6 +265,31 @@ bool SearchAPI::SearchInBookmarks(search::BookmarksSearchParams params)
+   return Search(std::move(p), true /* forceSearch */);
+ }
+ 
++bool SearchAPI::SearchSavedItems(search::SavedItemsSearchParams params)
++{
++  CHECK(static_cast<bool>(params.m_onResults), ());
++  SearchParams p;
++  p.m_query = std::move(params.m_query);
++  p.m_position = m_delegate.GetCurrentPosition();
++  SetViewportIfPossible(p);
++  p.m_maxNumResults = SearchParams::kDefaultNumBookmarksResults;
++  p.m_mode = Mode::Bookmarks;
++  p.m_suggestsEnabled = false;
++  p.m_needAddress = false;
++  p.m_bookmarksGroupId = KmlGroupIdToSearchGroupId(params.m_groupId);
++  p.m_savedItems = std::make_shared<std::vector<bookmarks::ItemDocument> const>(std::move(params.m_documents));
++  p.m_savedItemsDescriptions = params.m_indexDescriptions;
++  p.m_onResults = [](Results const &) {};
++  p.m_onSavedItemsResults =
++      [delegate = &m_delegate, onResults = std::move(params.m_onResults)](bookmarks::ItemResults results, bool cancelled)
++  {
++    auto const status = cancelled ? SavedItemsSearchParams::Status::Cancelled : SavedItemsSearchParams::Status::Completed;
++    delegate->RunUITask([onResults, results = std::move(results), status]() mutable
++    { onResults(std::move(results), status); });
++  };
++  return Search(std::move(p), true);
++}
++
+ void SearchAPI::PokeSearchInViewport(bool forceSearch)
+ {
+   if (!m_isViewportInitialized || !IsViewportSearchActive())
+diff --git a/libs/map/search_api.hpp b/libs/map/search_api.hpp
+index 9d87e7aac6a6dc978455bc5c87cd184bf6f7dd6e..0632c094217c9018e8174e5f627cb76ee1af3eb5 100644
+--- a/libs/map/search_api.hpp
++++ b/libs/map/search_api.hpp
+@@ -32,6 +32,7 @@ struct BookmarkInfo;
+ namespace search
+ {
+ struct BookmarksSearchParams;
++struct SavedItemsSearchParams;
+ struct EverywhereSearchParams;
+ struct DiscoverySearchParams;
+ }  // namespace search
+@@ -92,6 +93,7 @@ public:
+ 
+   // Search for bookmarks.
+   bool SearchInBookmarks(search::BookmarksSearchParams params);
++  bool SearchSavedItems(search::SavedItemsSearchParams params);
+ 
+   search::Engine & GetEngine() { return m_engine; }
+   search::Engine const & GetEngine() const { return m_engine; }
+diff --git a/libs/search/bookmarks/data.hpp b/libs/search/bookmarks/data.hpp
+index 2f2a5b4bcd072db1cfe4fb46e6f4fc563da89a87..a624ce90f0c2792dff46b4438b00d6f8f904c4a1 100644
+--- a/libs/search/bookmarks/data.hpp
++++ b/libs/search/bookmarks/data.hpp
+@@ -11,6 +11,7 @@
+ #include "base/string_utils.hpp"
+ 
+ #include <string>
++#include <utility>
+ #include <vector>
+ 
+ namespace search
+@@ -28,6 +29,15 @@ public:
+     , m_description(kml::GetDefaultStr(bookmarkData.m_description))
+   {}
+ 
++  Data(kml::TrackData const & trackData)
++    : m_description(kml::GetDefaultStr(trackData.m_description))
++  {
++    auto name = kml::GetPreferredBookmarkStrForKml(trackData.m_name, localisation::GetMapLanguageIndexes());
++    strings::Trim(name);
++    if (!name.empty())
++      m_names.push_back(std::move(name));
++  }
++
+   template <typename Fn>
+   void ForEachNameToken(Fn && fn) const
+   {
+@@ -61,6 +71,7 @@ private:
+ 
+     // Same as GetPreferredBookmarkName from the map library. Duplicated here to avoid dependency.
+     names.emplace_back(kml::GetPreferredBookmarkNameForKml(bookmarkData));
++    names.emplace_back(kml::GetPreferredBookmarkStrForKml(bookmarkData.m_name, localisation::GetMapLanguageIndexes()));
+ 
+     // todo(@m) Platform's API does not allow to use |locale| here.
+     names.emplace_back(kml::GetLocalizedFeatureType(bookmarkData.m_featureTypes));
+diff --git a/libs/search/bookmarks/saved_items.hpp b/libs/search/bookmarks/saved_items.hpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..42c602fdf15c282d664abe7ee60c23f9008f92ab
+--- /dev/null
++++ b/libs/search/bookmarks/saved_items.hpp
+@@ -0,0 +1,57 @@
++#pragma once
++
++#include "search/bookmarks/data.hpp"
++#include "search/bookmarks/types.hpp"
++
++#include <string>
++#include <tuple>
++#include <vector>
++
++namespace search::bookmarks
++{
++enum class ItemKind
++{
++  Bookmark,
++  Track
++};
++
++struct ItemId
++{
++  ItemKind m_kind = ItemKind::Bookmark;
++  uint64_t m_id = 0;
++
++  bool operator==(ItemId const &) const = default;
++  bool operator<(ItemId const & other) const
++  {
++    return std::tie(m_kind, m_id) < std::tie(other.m_kind, other.m_id);
++  }
++};
++
++inline std::string DebugPrint(ItemId const & id)
++{
++  return std::string(id.m_kind == ItemKind::Bookmark ? "Bookmark:" : "Track:") + std::to_string(id.m_id);
++}
++
++struct ItemDocument
++{
++  ItemId m_item;
++  GroupId m_groupId = kInvalidGroupId;
++  Data m_data;
++};
++
++struct ItemResult
++{
++  ItemId m_item;
++  GroupId m_groupId = kInvalidGroupId;
++
++  bool operator==(ItemResult const &) const = default;
++};
++
++inline std::string DebugPrint(ItemResult const & result)
++{
++  return DebugPrint(result.m_item) + "@" + std::to_string(result.m_groupId);
++}
++
++using ItemResults = std::vector<ItemResult>;
++
++}
+diff --git a/libs/search/bookmarks/saved_items_index.hpp b/libs/search/bookmarks/saved_items_index.hpp
+new file mode 100644
+index 0000000000000000000000000000000000000000..070f4ad9af2a8c760bbdf52330c2221e1ff1b171
+--- /dev/null
++++ b/libs/search/bookmarks/saved_items_index.hpp
+@@ -0,0 +1,77 @@
++#pragma once
++
++#include "search/bookmarks/processor.hpp"
++#include "search/bookmarks/saved_items.hpp"
++#include "search/bookmarks/results.hpp"
++#include "search/emitter.hpp"
++
++#include <map>
++#include <set>
++#include <vector>
++
++namespace search::bookmarks
++{
++class SavedItemsIndex
++{
++public:
++  explicit SavedItemsIndex(base::Cancellable const & cancellable, bool indexDescriptions = false)
++    : m_cancellable(cancellable)
++    , m_processor(m_emitter, cancellable)
++    , m_indexDescriptions(indexDescriptions)
++  {}
++
++  bool Replace(std::vector<ItemDocument> const & documents)
++  {
++    std::map<ItemId, ItemDocument const *> ordered;
++    for (auto const & document : documents)
++    {
++      ::search::BailIfCancelled(m_cancellable);
++      if (document.m_groupId == kInvalidGroupId || !ordered.emplace(document.m_item, &document).second)
++        return false;
++    }
++
++    m_valid = false;
++    m_processor.Reset();
++    m_processor.EnableIndexingOfDescriptions(m_indexDescriptions);
++    m_items.clear();
++    m_items.reserve(ordered.size());
++    std::set<GroupId> groups;
++    for (auto const & [item, document] : ordered)
++    {
++      ::search::BailIfCancelled(m_cancellable);
++      auto const indexId = static_cast<Id>(m_items.size());
++      m_processor.Add(indexId, document->m_data);
++      m_processor.AttachToGroup(indexId, document->m_groupId);
++      m_items.push_back({item, document->m_groupId});
++      groups.insert(document->m_groupId);
++    }
++    for (auto const & group : groups)
++    {
++      ::search::BailIfCancelled(m_cancellable);
++      m_processor.EnableIndexingOfBookmarkGroup(group, true);
++    }
++    m_valid = true;
++    return true;
++  }
++
++  ItemResults Search(Processor::Params const & params)
++  {
++    if (!m_valid)
++      return {};
++    m_emitter.Init([](::search::Results const &) {});
++    m_processor.Search(params);
++    ItemResults results;
++    for (auto const & result : m_emitter.GetResults().GetBookmarksResults())
++      results.push_back(m_items.at(result.m_id));
++    return results;
++  }
++
++private:
++  base::Cancellable const & m_cancellable;
++  Emitter m_emitter;
++  Processor m_processor;
++  bool const m_indexDescriptions;
++  bool m_valid = true;
++  ItemResults m_items;
++};
++}
+diff --git a/libs/search/processor.cpp b/libs/search/processor.cpp
+index d8bb80f79085a6ebc01c36839040ed409dced1ba..b79975abb441b803167f82f1dd1528d81fa46e71 100644
+--- a/libs/search/processor.cpp
++++ b/libs/search/processor.cpp
+@@ -3,6 +3,7 @@
+ #include "ge0/parser.hpp"
+ 
+ #include "search/cancel_exception.hpp"
++#include "search/bookmarks/saved_items_index.hpp"
+ #include "search/common.hpp"
+ #include "search/filtering_params.hpp"
+ #include "search/geometry_utils.hpp"
+@@ -547,6 +548,8 @@ void Processor::Search(SearchParams params)
+   {
+     Results results;
+     results.SetEndMarker(true /* isCancelled */);
++    if (params.m_onSavedItemsResults)
++      params.m_onSavedItemsResults({}, true);
+     params.m_onResults(std::move(results));
+     return;
+   }
+@@ -618,7 +621,12 @@ void Processor::Search(SearchParams params)
+     m_geocoder.Finish(cancellationStatus == Cancellable::Status::CancelCalled);
+     break;
+   }
+-  case Mode::Bookmarks: SearchBookmarks(params.m_bookmarksGroupId); break;
++  case Mode::Bookmarks:
++    if (params.m_savedItems)
++      SearchSavedItems(params);
++    else
++      SearchBookmarks(params.m_bookmarksGroupId);
++    break;
+   case Mode::Count: ASSERT(false, ("Invalid mode")); break;
+   }
+ 
+@@ -812,6 +820,35 @@ void Processor::SearchBookmarks(bookmarks::GroupId const & groupId)
+   m_bookmarksProcessor.Finish(IsCancelled());
+ }
+ 
++void Processor::SearchSavedItems(SearchParams const & searchParams)
++{
++  bookmarks::ItemResults results;
++  try
++  {
++    bookmarks::SavedItemsIndex index(static_cast<base::Cancellable const &>(*this),
++                                    searchParams.m_savedItemsDescriptions);
++    if (index.Replace(*searchParams.m_savedItems))
++    {
++      bookmarks::Processor::Params params;
++      InitParams(params);
++      params.m_groupId = searchParams.m_bookmarksGroupId;
++      params.m_maxNumResults = searchParams.m_maxNumResults;
++      results = index.Search(params);
++    }
++    else
++    {
++      LOG(LWARNING, ("Invalid saved items search snapshot"));
++    }
++  }
++  catch (CancelException const &)
++  {
++    LOG(LDEBUG, ("Saved items search has been cancelled."));
++  }
++
++  searchParams.m_onSavedItemsResults(std::move(results), IsCancelled());
++  m_emitter.Finish(IsCancelled());
++}
++
+ void Processor::InitParams(QueryParams & params) const
+ {
+   /// @todo Prettify
+diff --git a/libs/search/processor.hpp b/libs/search/processor.hpp
+index 038b8e896d4e032208e3b0ae3cf3c7bb683d5787..84b487aca90afa6b7cda7328eb12a628bf3eb5a8 100644
+--- a/libs/search/processor.hpp
++++ b/libs/search/processor.hpp
+@@ -86,6 +86,7 @@ public:
+   void SearchPostcode();
+ 
+   void SearchBookmarks(bookmarks::GroupId const & groupId);
++  void SearchSavedItems(SearchParams const & params);
+ 
+   void InitParams(QueryParams & params) const;
+ 
+diff --git a/libs/search/search_params.hpp b/libs/search/search_params.hpp
+index c4742da271bcc84679d146f3cc7a9405a0104e71..ee72d391bdf5f9cdf29f7721b60f168e506eea87 100644
+--- a/libs/search/search_params.hpp
++++ b/libs/search/search_params.hpp
+@@ -1,6 +1,7 @@
+ #pragma once
+ 
+ #include "search/bookmarks/types.hpp"
++#include "search/bookmarks/saved_items.hpp"
+ #include "search/filtering_params.hpp"
+ #include "search/mode.hpp"
+ 
+@@ -38,7 +39,12 @@ struct SearchParams
+ 
+   bool IsEqualCommon(SearchParams const & rhs) const;
+ 
+-  void Clear() { m_query.clear(); }
++  void Clear()
++  {
++    m_query.clear();
++    m_savedItems.reset();
++    m_onSavedItemsResults = {};
++  }
+ 
+   OnStarted m_onStarted;
+ 
+@@ -76,6 +82,9 @@ struct SearchParams
+   RecommendedFilteringParams m_filteringParams;
+ 
+   bookmarks::GroupId m_bookmarksGroupId = bookmarks::kInvalidGroupId;
++  std::shared_ptr<std::vector<bookmarks::ItemDocument> const> m_savedItems;
++  std::function<void(bookmarks::ItemResults results, bool cancelled)> m_onSavedItemsResults;
++  bool m_savedItemsDescriptions = false;
+ 
+   // Amount of time after which the search is aborted.
+   TimeDurationT m_timeout = kDefaultTimeout;
+diff --git a/libs/search/search_tests/bookmarks_processor_tests.cpp b/libs/search/search_tests/bookmarks_processor_tests.cpp
+index c75aa74075e0bf940df6ffec34a983ece7d53e48..a64af2ee63fc7bb38c65530be4409a3bf4adcfc9 100644
+--- a/libs/search/search_tests/bookmarks_processor_tests.cpp
++++ b/libs/search/search_tests/bookmarks_processor_tests.cpp
+@@ -4,11 +4,19 @@
+ 
+ #include "search/bookmarks/data.hpp"
+ #include "search/bookmarks/processor.hpp"
++#include "search/bookmarks/saved_items_index.hpp"
+ #include "search/emitter.hpp"
++#include "search/processor.hpp"
++#include "search/search_params.hpp"
++#include "search/suggest.hpp"
+ 
+ #include "indexer/classificator.hpp"
++#include "indexer/categories_holder.hpp"
++#include "indexer/data_source.hpp"
+ #include "indexer/search_string_utils.hpp"
+ 
++#include "storage/country_info_getter.hpp"
++
+ #include "base/cancellable.hpp"
+ #include "base/string_utils.hpp"
+ 
+@@ -28,7 +36,7 @@ class BookmarksProcessorTest : public generator::tests_support::TestWithClassifi
+ public:
+   BookmarksProcessorTest() : m_processor(m_emitter, m_cancellable) {}
+ 
+-  Processor & GetProcessor() { return m_processor; }
++  bookmarks::Processor & GetProcessor() { return m_processor; }
+ 
+   void Add(Id const & id, GroupId const & group, kml::BookmarkData const & data)
+   {
+@@ -55,7 +63,7 @@ public:
+     vector<strings::UniString> tokens;
+     auto const isPrefix = TokenizeStringAndCheckIfLastTokenIsPrefix(query, tokens);
+ 
+-    Processor::Params params;
++    bookmarks::Processor::Params params;
+     params.Init(query, tokens, isPrefix);
+ 
+     params.m_groupId = groupId;
+@@ -70,7 +78,7 @@ public:
+ protected:
+   Emitter m_emitter;
+   base::Cancellable m_cancellable;
+-  Processor m_processor;
++  bookmarks::Processor m_processor;
+ };
+ 
+ kml::BookmarkData MakeBookmarkData(string const & name, string const & customName, string const & description,
+@@ -198,4 +206,183 @@ UNIT_CLASS_TEST(BookmarksProcessorTest, IndexDescriptions)
+   TEST_EQUAL(Search("cherry pie"), Ids{}, ());
+ }
+ 
++class SavedItemsIndexTest : public generator::tests_support::TestWithClassificator
++{
++public:
++  SavedItemsIndexTest() : m_index(m_cancellable, true) {}
++
++  bool Replace(std::vector<ItemDocument> const & documents) { return m_index.Replace(documents); }
++  void Cancel() { m_cancellable.Cancel(); }
++
++  ItemResults Search(std::string const & query, GroupId group = kInvalidGroupId,
++                     size_t limit = SearchParams::kDefaultNumResultsEverywhere)
++  {
++    std::vector<strings::UniString> tokens;
++    auto const isPrefix = TokenizeStringAndCheckIfLastTokenIsPrefix(query, tokens);
++    bookmarks::Processor::Params params;
++    params.Init(query, tokens, isPrefix);
++    params.m_groupId = group;
++    params.m_maxNumResults = limit;
++    return m_index.Search(params);
++  }
++
++  ItemDocument BookmarkDocument(uint64_t id, GroupId group, std::string const & name)
++  {
++    auto data = MakeBookmarkData(name, "", "", {});
++    return {{ItemKind::Bookmark, id}, group, Data(data)};
++  }
++
++  ItemDocument TrackDocument(uint64_t id, GroupId group, std::string const & name,
++                             std::string const & description = {})
++  {
++    kml::TrackData data;
++    kml::SetDefaultStr(data.m_name, name);
++    kml::SetDefaultStr(data.m_description, description);
++    return {{ItemKind::Track, id}, group, Data(data)};
++  }
++
++private:
++  base::Cancellable m_cancellable;
++  SavedItemsIndex m_index;
++};
++
++UNIT_CLASS_TEST(SavedItemsIndexTest, CollidingNumericIds)
++{
++  auto const id = std::numeric_limits<uint64_t>::max();
++  TEST(Replace({BookmarkDocument(id, 10, "River"), TrackDocument(id, 20, "River")}), ());
++  auto const results = Search("river");
++  TEST_EQUAL(results.size(), 2, ());
++  std::set<ItemId> ids;
++  for (auto const & result : results)
++    ids.insert(result.m_item);
++  TEST_EQUAL(ids, (std::set<ItemId>{{ItemKind::Bookmark, id}, {ItemKind::Track, id}}), ());
++  TEST_EQUAL(Search("river", 10), (ItemResults{{{ItemKind::Bookmark, id}, 10}}), ());
++  TEST_EQUAL(Search("river", 20), (ItemResults{{{ItemKind::Track, id}, 20}}), ());
++  TEST_EQUAL(Search("river", kInvalidGroupId, 1).size(), 1, ());
++}
++
++UNIT_CLASS_TEST(SavedItemsIndexTest, UnicodePrefixAndDescription)
++{
++  TEST(Replace({BookmarkDocument(1, 10, "Riverside"),
++                TrackDocument(2, 10, "Café Тропа", "Сосновый лес")}), ());
++  auto const expected = ItemResults{{{ItemKind::Track, 2}, 10}};
++  TEST_EQUAL(Search("cafe"), expected, ());
++  TEST_EQUAL(Search("тро"), expected, ());
++  TEST_EQUAL(Search("сосн"), expected, ());
++}
++
++UNIT_CLASS_TEST(SavedItemsIndexTest, OriginalAndCustomNamesSurviveUpdates)
++{
++  auto data = MakeBookmarkData("Double R Diner", "2R Diner", "", {});
++  auto const expected = ItemResults{{{ItemKind::Bookmark, 7}, 10}};
++  TEST(Replace({{{ItemKind::Bookmark, 7}, 10, Data(data)}}), ());
++  TEST_EQUAL(Search("double"), expected, ());
++  TEST_EQUAL(Search("2r"), expected, ());
++
++  kml::SetDefaultStr(data.m_customName, "Renamed Label");
++  TEST(Replace({{{ItemKind::Bookmark, 7}, 10, Data(data)}}), ());
++  TEST_EQUAL(Search("double"), expected, ());
++  TEST_EQUAL(Search("renamed"), expected, ());
++
++  kml::SetDefaultStr(data.m_name, "Glacier Cabin");
++  TEST(Replace({{{ItemKind::Bookmark, 7}, 10, Data(data)}}), ());
++  TEST(Search("double").empty(), ());
++  TEST_EQUAL(Search("glacier"), expected, ());
++  TEST_EQUAL(Search("renamed"), expected, ());
++}
++
++UNIT_CLASS_TEST(SavedItemsIndexTest, SnapshotRenameMoveDeleteReload)
++{
++  TEST(Replace({TrackDocument(7, 10, "Sequoia")}), ());
++  TEST_EQUAL(Search("sequoia", 10), (ItemResults{{{ItemKind::Track, 7}, 10}}), ());
++  TEST(Replace({TrackDocument(7, 11, "Glacier")}), ());
++  TEST(Search("sequoia").empty(), ());
++  TEST(Search("glacier", 10).empty(), ());
++  TEST_EQUAL(Search("glacier", 11), (ItemResults{{{ItemKind::Track, 7}, 11}}), ());
++  TEST(Replace({TrackDocument(77, 11, "Glacier")}), ());
++  TEST_EQUAL(Search("glacier"), (ItemResults{{{ItemKind::Track, 77}, 11}}), ());
++  TEST(Replace({}), ());
++  TEST(Search("glacier").empty(), ());
++}
++
++UNIT_CLASS_TEST(SavedItemsIndexTest, InvalidSnapshotRetainsPreviousIndex)
++{
++  TEST(Replace({BookmarkDocument(4, 10, "Lagoon")}), ());
++  TEST(!Replace({BookmarkDocument(4, 10, "Lagoon"), BookmarkDocument(4, 20, "Desert")}), ());
++  TEST_EQUAL(Search("lagoon"), (ItemResults{{{ItemKind::Bookmark, 4}, 10}}), ());
++  auto invalid = TrackDocument(9, kInvalidGroupId, "Glacier");
++  TEST(!Replace({invalid}), ());
++  TEST_EQUAL(Search("lagoon"), (ItemResults{{{ItemKind::Bookmark, 4}, 10}}), ());
++}
++
++UNIT_CLASS_TEST(SavedItemsIndexTest, CancelledSearch)
++{
++  TEST(Replace({TrackDocument(7, 10, "Sequoia")}), ());
++  Cancel();
++  bool cancelled = false;
++  try
++  {
++    Search("sequoia");
++  }
++  catch (::search::CancelException const &)
++  {
++    cancelled = true;
++  }
++  TEST(cancelled, ());
++}
++
+ }  // namespace bookmarks_processor_tests
++
++namespace saved_items_processor_tests
++{
++using SavedItemsProcessorTest = generator::tests_support::TestWithClassificator;
++
++UNIT_CLASS_TEST(SavedItemsProcessorTest, CancelledBeforeProcessingCompletesTypedCallback)
++{
++  FrozenDataSource dataSource;
++  storage::CountryInfoGetterForTesting infoGetter;
++  std::vector<search::Suggest> suggestions;
++  search::Processor processor(dataSource, GetDefaultCategories(), suggestions, infoGetter);
++  search::SearchParams params;
++  params.m_mode = search::Mode::Bookmarks;
++  params.m_savedItems = std::make_shared<std::vector<search::bookmarks::ItemDocument> const>();
++  params.m_onStarted = [&] { processor.Cancel(); };
++  size_t typedCallbacks = 0;
++  size_t legacyCallbacks = 0;
++  params.m_onSavedItemsResults = [&](search::bookmarks::ItemResults results, bool cancelled)
++  {
++    ++typedCallbacks;
++    TEST(cancelled, ());
++    TEST(results.empty(), ());
++  };
++  params.m_onResults = [&](search::Results const & results)
++  {
++    ++legacyCallbacks;
++    TEST(results.IsEndMarker(), ());
++    TEST(results.IsEndedCancelled(), ());
++  };
++  processor.Search(std::move(params));
++  TEST_EQUAL(typedCallbacks, 1, ());
++  TEST_EQUAL(legacyCallbacks, 1, ());
++}
++
++UNIT_CLASS_TEST(SavedItemsProcessorTest, CancelledLegacyRequestStillCompletes)
++{
++  FrozenDataSource dataSource;
++  storage::CountryInfoGetterForTesting infoGetter;
++  std::vector<search::Suggest> suggestions;
++  search::Processor processor(dataSource, GetDefaultCategories(), suggestions, infoGetter);
++  search::SearchParams params;
++  params.m_mode = search::Mode::Bookmarks;
++  params.m_onStarted = [&] { processor.Cancel(); };
++  size_t callbacks = 0;
++  params.m_onResults = [&](search::Results const & results)
++  {
++    ++callbacks;
++    TEST(results.IsEndMarker(), ());
++    TEST(results.IsEndedCancelled(), ());
++  };
++  processor.Search(std::move(params));
++  TEST_EQUAL(callbacks, 1, ());
++}
++}

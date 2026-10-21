@@ -1,0 +1,13 @@
+[
+  "bookmarks_processor_tests.cpp::BookmarksProcessorTest_Smoke",
+  "bookmarks_processor_tests.cpp::BookmarksProcessorTest_SearchByType",
+  "bookmarks_processor_tests.cpp::BookmarksProcessorTest_IndexDescriptions",
+  "bookmarks_processor_tests.cpp::SavedItemsIndexTest_CollidingNumericIds",
+  "bookmarks_processor_tests.cpp::SavedItemsIndexTest_UnicodePrefixAndDescription",
+  "bookmarks_processor_tests.cpp::SavedItemsIndexTest_SnapshotRenameMoveDeleteReload",
+  "bookmarks_processor_tests.cpp::SavedItemsIndexTest_InvalidSnapshotRetainsPreviousIndex",
+  "bookmarks_processor_tests.cpp::SavedItemsIndexTest_CancelledSearch",
+  "bookmarks_processor_tests.cpp::SavedItemsProcessorTest_CancelledBeforeProcessingCompletesTypedCallback",
+  "bookmarks_processor_tests.cpp::SavedItemsProcessorTest_CancelledLegacyRequestStillCompletes",
+  "bookmarks_processor_tests.cpp::SavedItemsIndexTest_OriginalAndCustomNamesSurviveUpdates"
+]

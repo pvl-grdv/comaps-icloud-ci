@@ -1,0 +1,77 @@
+name: Independent saved-item proposals
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: saved-item-proposals-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
+  LANG: en_US.UTF-8
+  LC_ALL: en_US.UTF-8
+
+jobs:
+  verify:
+    strategy:
+      fail-fast: false
+      matrix:
+        feature: [search, folder-order, item-order]
+    runs-on: xcode-27
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+      - name: Validate patch and test manifests
+        run: python3 ci/check-feature-slice.py "${{ matrix.feature }}"
+      - name: Inspect the existing build toolchain
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks
+          if ! xcrun metal -v >/dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain
+            xcrun -k
+          fi
+          xcrun metal -v
+          for formula in wget optipng cmake ninja qt jq coreutils gnu-getopt icu4c; do
+            if ! brew list --versions "$formula" >/dev/null 2>&1; then brew install "$formula"; fi
+          done
+          printf '%s\n' "$(brew --prefix gnu-getopt)/bin" >> "$GITHUB_PATH"
+          printf '%s\n' "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
+          printf '%s\n' "$(brew --prefix icu4c)/bin" >> "$GITHUB_PATH"
+      - name: Apply only this proposal to pinned current CoMaps
+        run: bash ci/prepare-feature.sh "${{ matrix.feature }}"
+      - name: Execute native regressions and existing automatic sorting
+        run: bash ci/test-feature-native.sh "${{ matrix.feature }}"
+      - name: Build the application and run exact feature XCTest plan
+        env:
+          IOS_TEST_PLAN: ${{ github.workspace }}/proposals/saved-items/${{ matrix.feature }}-ios-tests.json
+        run: bash ci/test-ios.sh
+      - name: Build an unsigned Release archive
+        working-directory: comaps
+        run: |
+          xcodebuild archive \
+            -workspace xcode/CoMaps.xcworkspace -scheme CoMaps -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/comaps-derived-data" \
+            -archivePath "$RUNNER_TEMP/CoMaps-Feature-Release.xcarchive" \
+            CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            > "$GITHUB_WORKSPACE/results/feature-release-archive.log" 2>&1
+      - name: Retain exact proposal diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: saved-items-${{ matrix.feature }}
+          path: |
+            results/feature-*.log
+            results/feature-*.json
+            results/feature-*.txt
+            results/ios-summary.json
+            results/xcodebuild-tests.log
+            proposals/saved-items/
+          if-no-files-found: error
+          retention-days: 7

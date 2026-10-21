@@ -1,0 +1,10 @@
+[
+  {
+    "className": "BookmarkItemOrderModelTests",
+    "expectedTests": 6
+  },
+  {
+    "className": "BookmarkItemOrderBridgeTests",
+    "expectedTests": 7
+  }
+]

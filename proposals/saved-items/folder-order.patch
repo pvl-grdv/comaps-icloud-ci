@@ -1,0 +1,730 @@
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
+index 6c02ab31b9f8ec33178054b3179f625d7eee9e49..e9e9964b4225a96163dfe4b02397fa55f06c39d5 100644
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
+@@ -22,6 +22,12 @@ typedef NS_ENUM(NSInteger, MWMBookmarksSortingType) {
+   MWMBookmarksSortingTypeByName
+ } NS_SWIFT_NAME(BookmarksSortingType);
+ 
++typedef NS_ENUM(NSInteger, MWMBookmarkCategorySortingType) {
++  MWMBookmarkCategorySortingTypeByLastModified,
++  MWMBookmarkCategorySortingTypeByName,
++  MWMBookmarkCategorySortingTypeManual
++} NS_SWIFT_NAME(BookmarkCategorySortingType);
++
+ typedef void (^PingCompletionBlock)(BOOL success);
+ typedef void (^ElevationPointChangedBlock)(double distance);
+ typedef void (^SearchBookmarksCompletionBlock)(NSArray<MWMBookmark *> *bookmarks);
+@@ -130,6 +136,9 @@ NS_SWIFT_NAME(BookmarksManager)
+ - (BOOL)areNotificationsEnabled;
+ 
+ - (NSArray<MWMBookmarkGroup *> *)sortedUserCategories;
++- (MWMBookmarkCategorySortingType)categorySortingType;
++- (BOOL)setCategorySortingType:(MWMBookmarkCategorySortingType)sortingType NS_SWIFT_NAME(setCategorySortingType(_:));
++- (BOOL)moveCategory:(MWMMarkGroupID)groupId toPosition:(NSInteger)position NS_SWIFT_NAME(moveCategory(_:toPosition:));
+ - (size_t)userCategoriesCount;
+ - (MWMBookmarkGroup *)categoryWithId:(MWMMarkGroupID)groupId;
+ - (MWMBookmarkGroup *)categoryForBookmarkId:(MWMMarkID)bookmarkId;
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+index 86ef65d4a32b49928b9ded4d70b3bbf96425bb66..cf307ca7149ccb47f5a6a366c9ba80a5c22032d6 100644
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+@@ -16,6 +16,7 @@
+ #include "base/stl_helpers.hpp"
+ #include "base/string_utils.hpp"
+ 
++#include <algorithm>
+ #include <utility>
+ 
+ static kml::PredefinedColor kmlColorFromBookmarkColor(MWMBookmarkColor bookmarkColor) {
+@@ -685,6 +686,52 @@ - (BOOL)areNotificationsEnabled {
+   return result;
+ }
+ 
++- (MWMBookmarkCategorySortingType)categorySortingType {
++  switch (self.bm.GetCategorySortType()) {
++    case BookmarkManager::CategorySortType::ByLastModified:
++      return MWMBookmarkCategorySortingTypeByLastModified;
++    case BookmarkManager::CategorySortType::ByName:
++      return MWMBookmarkCategorySortingTypeByName;
++    case BookmarkManager::CategorySortType::Manual:
++      return MWMBookmarkCategorySortingTypeManual;
++  }
++}
++
++- (BOOL)setCategorySortingType:(MWMBookmarkCategorySortingType)sortingType {
++  BookmarkManager::CategorySortType type;
++  switch (sortingType) {
++    case MWMBookmarkCategorySortingTypeByLastModified:
++      type = BookmarkManager::CategorySortType::ByLastModified;
++      break;
++    case MWMBookmarkCategorySortingTypeByName:
++      type = BookmarkManager::CategorySortType::ByName;
++      break;
++    case MWMBookmarkCategorySortingTypeManual:
++      for (auto const groupId : self.bm.GetUnsortedBmGroupsIdList()) {
++        if (self.bm.GetCategoryFileName(groupId).empty() && !self.bm.SaveBookmarkCategory(groupId))
++          return NO;
++      }
++      type = BookmarkManager::CategorySortType::Manual;
++      break;
++    default:
++      return NO;
++  }
++  self.bm.SetCategorySortType(type);
++  return YES;
++}
++
++- (BOOL)moveCategory:(MWMMarkGroupID)groupId toPosition:(NSInteger)position {
++  if (self.bm.GetCategorySortType() != BookmarkManager::CategorySortType::Manual)
++    return NO;
++  auto const & categories = self.bm.GetUnsortedBmGroupsIdList();
++  if (position < 0 || static_cast<size_t>(position) >= categories.size() ||
++      std::find(categories.begin(), categories.end(), groupId) == categories.end())
++    return NO;
++  self.bm.MoveCategoryToPosition(groupId, static_cast<size_t>(position));
++  auto const order = self.bm.GetSortedBmGroupIdList();
++  return static_cast<size_t>(position) < order.size() && order[position] == groupId;
++}
++
+ - (MWMBookmarkGroup *)categoryWithId:(MWMMarkGroupID)groupId {
+   return [[MWMBookmarkGroup alloc] initWithCategoryId:groupId bookmarksManager:self];
+ }
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift b/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
+index fa3ebcd968d8f75c9a819cb02c0f568fa49db21b..349fa5f8b5476964459a9b4478b91523fffb3af9 100644
+--- a/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
++++ b/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift
+@@ -7,6 +7,10 @@ final class BMCViewController: MWMViewController {
+   }
+ 
+   private weak var coordinator: BookmarksCoordinator?
++  private let sortButton = UIBarButtonItem(image: UIImage(systemName: "arrow.up.arrow.down"),
++                                           style: .plain,
++                                           target: nil,
++                                           action: nil)
+ 
+   @IBOutlet private weak var tableView: UITableView! {
+     didSet {
+@@ -36,6 +40,9 @@ final class BMCViewController: MWMViewController {
+     super.viewDidLoad()
+     view.setStyle(.pressBackground)
+     viewModel = BMCDefaultViewModel()
++    navigationItem.rightBarButtonItems = [editButtonItem, sortButton]
++    sortButton.accessibilityLabel = L("sort")
++    updateReorderingButton()
+   }
+ 
+   override func viewWillAppear(_ animated: Bool) {
+@@ -44,11 +51,45 @@ final class BMCViewController: MWMViewController {
+     viewModel.reloadData()
+   }
+ 
++  override func viewWillDisappear(_ animated: Bool) {
++    if isEditing { setEditing(false, animated: false) }
++    super.viewWillDisappear(animated)
++  }
++
+   override func viewDidDisappear(_ animated: Bool) {
+     super.viewDidDisappear(animated)
+     viewModel.removeFromObserverList()
+   }
+ 
++  override func setEditing(_ editing: Bool, animated: Bool) {
++    guard isViewLoaded, let viewModel else {
++      super.setEditing(editing, animated: animated)
++      return
++    }
++    if editing, !viewModel.beginCategoryReordering() {
++      MWMAlertViewController.activeAlert().presentInfoAlert(L("dialog_routing_system_error"),
++                                                          text: L("dialog_routing_try_again"))
++      return
++    }
++    super.setEditing(editing, animated: animated)
++    tableView.setEditing(editing, animated: animated)
++    updateReorderingButton()
++  }
++
++  private func updateReorderingButton() {
++    editButtonItem.isEnabled = isEditing || viewModel.canBeginCategoryReordering
++    sortButton.isEnabled = !isEditing && viewModel.numberOfRows(section: .categories) > 0
++    let sortingType = viewModel.categorySortingType
++    sortButton.menu = UIMenu(children: [
++      UIAction(title: L("sort_name"), state: sortingType == .byName ? .on : .off) { [weak self] _ in
++        self?.viewModel.sortCategories(.byName)
++      },
++      UIAction(title: L("sort_date"), state: sortingType == .byLastModified ? .on : .off) { [weak self] _ in
++        self?.viewModel.sortCategories(.byLastModified)
++      }
++    ])
++  }
++
+   private func createNewCategory() {
+     alertController.presentCreateBookmarkCategoryAlert(withMaxCharacterNum: viewModel.maxCategoryNameLength,
+                                                        minCharacterNum: viewModel.minCategoryNameLength)
+@@ -133,23 +174,30 @@ final class BMCViewController: MWMViewController {
+ 
+     let settings = L("edit")
+     actionSheet.addAction(UIAlertAction(title: settings, style: .default, handler: { _ in
+-      self.openCategorySettings(category: category)
++      guard let index = self.viewModel.categoryIndex(forId: category.categoryId) else { return }
++      self.openCategorySettings(category: self.viewModel.category(at: index))
+     }))
++    let desiredVisible = !category.isVisible
+     let showHide = L(category.isVisible ? "hide_from_map" : "zoom_to_country")
+     actionSheet.addAction(UIAlertAction(title: showHide, style: .default, handler: { _ in
+-      self.setCategoryVisible(!category.isVisible, at: index)
++      guard let index = self.viewModel.categoryIndex(forId: category.categoryId) else { return }
++      self.setCategoryVisible(desiredVisible, at: index)
+       let sectionIndex = self.viewModel.sectionIndex(section: .categories)
+       self.tableView.reloadRows(at: [IndexPath(row: index, section: sectionIndex)], with: .none)
+     }))
+     actionSheet.addAction(UIAlertAction(title: L("export_file"), style: .default, handler: { _ in
+-      self.shareCategoryFile(at: index, fileType: .text, anchor: anchor)
++      guard let index = self.viewModel.categoryIndex(forId: category.categoryId) else { return }
++      self.shareCategoryFile(at: index, fileType: .text, anchor: anchor.window == nil ? self.view : anchor)
+     }))
+     actionSheet.addAction(UIAlertAction(title: L("export_file_gpx"), style: .default, handler: { _ in
+-      self.shareCategoryFile(at: index, fileType: .gpx, anchor: anchor)
++      guard let index = self.viewModel.categoryIndex(forId: category.categoryId) else { return }
++      self.shareCategoryFile(at: index, fileType: .gpx, anchor: anchor.window == nil ? self.view : anchor)
+     }))
+     let delete = L("delete_list")
+     let deleteAction = UIAlertAction(title: delete, style: .destructive, handler: { [viewModel] _ in
+-      viewModel!.deleteCategory(at: index)
++      guard let viewModel, viewModel.canDeleteCategory(),
++            let index = viewModel.categoryIndex(forId: category.categoryId) else { return }
++      viewModel.deleteCategory(at: index)
+     })
+     deleteAction.isEnabled = (viewModel.canDeleteCategory())
+     actionSheet.addAction(deleteAction)
+@@ -167,6 +215,7 @@ final class BMCViewController: MWMViewController {
+ 
+ extension BMCViewController: BMCView {
+   func update(sections: [BMCSection]) {
++    updateReorderingButton()
+     if sections.isEmpty {
+       tableView.reloadData()
+     } else {
+@@ -193,6 +242,21 @@ extension BMCViewController: BMCView {
+ }
+ 
+ extension BMCViewController: UITableViewDataSource {
++  func tableView(_: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
++    viewModel.sectionType(section: indexPath.section) == .categories && viewModel.canReorderCategories
++  }
++
++  func tableView(_ tableView: UITableView, moveRowAt sourceIndexPath: IndexPath, to destinationIndexPath: IndexPath) {
++    guard viewModel.sectionType(section: sourceIndexPath.section) == .categories,
++          destinationIndexPath.section == sourceIndexPath.section else {
++      tableView.reloadData()
++      return
++    }
++    if !viewModel.moveCategory(from: sourceIndexPath.row, to: destinationIndexPath.row) {
++      tableView.reloadData()
++    }
++  }
++
+   func numberOfSections(in _: UITableView) -> Int {
+     return viewModel.numberOfSections()
+   }
+@@ -225,6 +289,27 @@ extension BMCViewController: UITableViewDataSource {
+ }
+ 
+ extension BMCViewController: UITableViewDelegate {
++  func tableView(_: UITableView, targetIndexPathForMoveFromRowAt sourceIndexPath: IndexPath,
++                 toProposedIndexPath proposedDestinationIndexPath: IndexPath) -> IndexPath {
++    let count = viewModel.numberOfRows(section: sourceIndexPath.section)
++    guard count > 0 else { return sourceIndexPath }
++    if proposedDestinationIndexPath.section < sourceIndexPath.section {
++      return IndexPath(row: 0, section: sourceIndexPath.section)
++    }
++    if proposedDestinationIndexPath.section > sourceIndexPath.section {
++      return IndexPath(row: count - 1, section: sourceIndexPath.section)
++    }
++    return IndexPath(row: min(proposedDestinationIndexPath.row, count - 1), section: sourceIndexPath.section)
++  }
++
++  func tableView(_ tableView: UITableView, editingStyleForRowAt indexPath: IndexPath) -> UITableViewCell.EditingStyle {
++    tableView.isEditing ? .none : .delete
++  }
++
++  func tableView(_: UITableView, shouldIndentWhileEditingRowAt _: IndexPath) -> Bool {
++    false
++  }
++
+   func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
+     if viewModel.sectionType(section: indexPath.section) != .categories {
+       return false
+@@ -267,6 +352,7 @@ extension BMCViewController: UITableViewDelegate {
+   }
+ 
+   func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
++    guard !tableView.isEditing else { return }
+     tableView.deselectRow(at: indexPath, animated: true)
+     switch viewModel.sectionType(section: indexPath.section) {
+     case .categories:
+diff --git a/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift
+index 6198d693e28587fd217e041f43069d37fcdb5ebb..a7b1ee9a916019db259fdcc8b04a3831a4109e67 100644
+--- a/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift
++++ b/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift
+@@ -96,6 +96,54 @@ extension BMCDefaultViewModel {
+     categories[index]
+   }
+ 
++  func categoryIndex(forId categoryId: MWMMarkGroupID) -> Int? {
++    guard manager.hasCategory(categoryId) else { return nil }
++    return categories.firstIndex { $0.categoryId == categoryId }
++  }
++
++  var categorySortingType: BookmarkCategorySortingType {
++    manager.categorySortingType()
++  }
++
++  @discardableResult
++  func sortCategories(_ sortingType: BookmarkCategorySortingType) -> Bool {
++    guard manager.setCategorySortingType(sortingType) else { return false }
++    reloadData()
++    return true
++  }
++
++  var canBeginCategoryReordering: Bool {
++    manager.areBookmarksLoaded() && categories.count > 1
++  }
++
++  var canReorderCategories: Bool {
++    canBeginCategoryReordering && manager.categorySortingType() == .manual
++  }
++
++  func beginCategoryReordering() -> Bool {
++    guard canBeginCategoryReordering, manager.setCategorySortingType(.manual) else { return false }
++    categories = getCategories()
++    view?.update(sections: [])
++    return true
++  }
++
++  @discardableResult
++  func moveCategory(from source: Int, to destination: Int) -> Bool {
++    guard canReorderCategories,
++          categories.indices.contains(source),
++          categories.indices.contains(destination),
++          categories.map(\.categoryId) == getCategories().map(\.categoryId) else {
++      reloadData()
++      return false
++    }
++    guard manager.moveCategory(categories[source].categoryId, toPosition: destination) else {
++      reloadData()
++      return false
++    }
++    categories = getCategories()
++    return true
++  }
++
+   func canDeleteCategory() -> Bool {
+     categories.count > 1
+   }
+@@ -128,8 +176,10 @@ extension BMCDefaultViewModel {
+       return
+     }
+ 
+-    categories.insert(manager.category(withId: manager.createCategory(withName: name)), at: 0)
+-    view?.insert(at: [IndexPath(row: 0, section: section)])
++    let categoryId = manager.createCategory(withName: name)
++    categories = getCategories()
++    guard let index = categories.firstIndex(where: { $0.categoryId == categoryId }) else { return }
++    view?.insert(at: [IndexPath(row: index, section: section)])
+   }
+ 
+   func deleteCategory(at index: Int) {
+@@ -188,6 +238,10 @@ extension BMCDefaultViewModel: BookmarksObserver {
+     reloadData()
+   }
+ 
++  func onBookmarksFileLoadSuccess() {
++    reloadData()
++  }
++
+   func onBookmarksCategoryDeleted(_ groupId: MWMMarkGroupID) {
+     reloadData()
+   }
+diff --git a/iphone/Maps/Bookmarks/Categories/Categories/BMCCategoryCell.swift b/iphone/Maps/Bookmarks/Categories/Categories/BMCCategoryCell.swift
+index 74a22bad5e8ce512368bb5973167ec779079c57c..ee47b34267d2e9a0531cfd31ff98309bc8411f02 100644
+--- a/iphone/Maps/Bookmarks/Categories/Categories/BMCCategoryCell.swift
++++ b/iphone/Maps/Bookmarks/Categories/Categories/BMCCategoryCell.swift
+@@ -26,6 +26,7 @@ final class BMCCategoryCell: MWMTableViewCell {
+   func config(category: BookmarkGroup, delegate: BMCCategoryCellDelegate) -> UITableViewCell {
+     self.category = category
+     self.delegate = delegate
++    showsReorderControl = true
+     return self
+   }
+ 
+diff --git a/iphone/Maps/Maps.xcodeproj/project.pbxproj b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+index ebd7efed4ae7b0ac8380c11265c11d8f671a9035..816a27aeac8214826b8f1205d2220314980629c8 100644
+--- a/iphone/Maps/Maps.xcodeproj/project.pbxproj
++++ b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+@@ -551,6 +551,7 @@
+ 		EDC4E34B2C5D1BEF009286A2 /* RecentlyDeletedCategoriesViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDC4E3472C5D1BEF009286A2 /* RecentlyDeletedCategoriesViewController.swift */; };
+ 		EDC4E34C2C5D1BEF009286A2 /* RecentlyDeletedCategoriesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDC4E3482C5D1BEF009286A2 /* RecentlyDeletedCategoriesViewModel.swift */; };
+ 		EDC4E34D2C5D1BEF009286A2 /* RecentlyDeletedTableViewCell.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDC4E3492C5D1BEF009286A2 /* RecentlyDeletedTableViewCell.swift */; };
++		A421ABC10000000000000101 /* BookmarkFolderOrderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC10000000000000201 /* BookmarkFolderOrderTests.swift */; };
+ 		EDC4E3612C5E2576009286A2 /* RecentlyDeletedCategoriesViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDC4E3412C5D1BD3009286A2 /* RecentlyDeletedCategoriesViewModelTests.swift */; };
+ 		EDC4E3692C5E6F5B009286A2 /* MockRecentlyDeletedCategoriesManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDC4E3402C5D1BD3009286A2 /* MockRecentlyDeletedCategoriesManager.swift */; };
+ 		EDCA7CDF2D317DF9003366CE /* StyleSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDCA7CDE2D317DF9003366CE /* StyleSheet.swift */; };
+@@ -1564,6 +1565,7 @@
+ 		EDBD680A2B62572E005DD151 /* LocationServicesDisabledAlert.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationServicesDisabledAlert.swift; sourceTree = "<group>"; };
+ 		EDC3573A2B7B5029001AE9CA /* CALayer+SetCorner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CALayer+SetCorner.swift"; sourceTree = "<group>"; };
+ 		EDC4E3402C5D1BD3009286A2 /* MockRecentlyDeletedCategoriesManager.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MockRecentlyDeletedCategoriesManager.swift; sourceTree = "<group>"; };
++		A421ABC10000000000000201 /* BookmarkFolderOrderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkFolderOrderTests.swift; sourceTree = "<group>"; };
+ 		EDC4E3412C5D1BD3009286A2 /* RecentlyDeletedCategoriesViewModelTests.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RecentlyDeletedCategoriesViewModelTests.swift; sourceTree = "<group>"; };
+ 		EDC4E3472C5D1BEF009286A2 /* RecentlyDeletedCategoriesViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RecentlyDeletedCategoriesViewController.swift; sourceTree = "<group>"; };
+ 		EDC4E3482C5D1BEF009286A2 /* RecentlyDeletedCategoriesViewModel.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RecentlyDeletedCategoriesViewModel.swift; sourceTree = "<group>"; };
+@@ -3434,6 +3436,7 @@
+ 		EDC4E3432C5D1BD3009286A2 /* Categories */ = {
+ 			isa = PBXGroup;
+ 			children = (
++				A421ABC10000000000000201 /* BookmarkFolderOrderTests.swift */,
+ 				EDC4E3422C5D1BD3009286A2 /* RecentlyDeletedTests */,
+ 			);
+ 			path = Categories;
+@@ -4942,6 +4945,7 @@
+ 				ED810EC52D566E9B00ECDE2C /* SearchOnMapTests.swift in Sources */,
+ 				4B83AE4B2C2E642100B0C3BC /* TTSTesterTest.m in Sources */,
+ 				EDF838C22C00B9D6007E4E67 /* MetadataItemStubs.swift in Sources */,
++				A421ABC10000000000000101 /* BookmarkFolderOrderTests.swift in Sources */,
+ 				EDC4E3612C5E2576009286A2 /* RecentlyDeletedCategoriesViewModelTests.swift in Sources */,
+ 				4B4153B52BF9695500EE4B02 /* MWMTextToSpeechTests.mm in Sources */,
+ 				EDF838C42C00B9D6007E4E67 /* FileManagerMock.swift in Sources */,
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift
+new file mode 100644
+index 0000000000000000000000000000000000000000..748db6094bd0d04ee8d86d95361bd901bd25536e
+--- /dev/null
++++ b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift
+@@ -0,0 +1,174 @@
++import UIKit
++import XCTest
++@testable import CoMaps__Debug_
++
++final class BookmarkFolderOrderTests: XCTestCase {
++  private var manager: BookmarksManager!
++  private var originalSortingType: BookmarkCategorySortingType!
++  private var categoryIds: [MWMMarkGroupID] = []
++
++  override func setUpWithError() throws {
++    try super.setUpWithError()
++    manager = BookmarksManager.shared()
++    manager.loadBookmarks()
++    let loaded = XCTNSPredicateExpectation(predicate: NSPredicate { [weak self] _, _ in
++      self?.manager?.areBookmarksLoaded() == true
++    }, object: nil)
++    guard XCTWaiter.wait(for: [loaded], timeout: 30) == .completed else {
++      throw NSError(domain: "BookmarkFolderOrderTests", code: 1,
++                    userInfo: [NSLocalizedDescriptionKey: "Bookmarks did not finish loading"])
++    }
++    originalSortingType = manager.categorySortingType()
++    let suffix = UUID().uuidString
++    categoryIds = [
++      manager.createCategory(withName: "Folder order A " + suffix),
++      manager.createCategory(withName: "Folder order B " + suffix)
++    ]
++  }
++
++  override func tearDown() {
++    categoryIds.forEach { manager.deleteCategory($0) }
++    if let originalSortingType {
++      _ = manager.setCategorySortingType(originalSortingType)
++    }
++    manager = nil
++    originalSortingType = nil
++    categoryIds = []
++    super.tearDown()
++  }
++
++  private var sortedIds: [MWMMarkGroupID] {
++    manager.sortedUserCategories().map(\.categoryId)
++  }
++
++  func testManualOrderMovesNewEmptyCategories() {
++    XCTAssertTrue(manager.setCategorySortingType(.manual))
++    let originalIds = sortedIds
++    let movingId = categoryIds[1]
++    XCTAssertTrue(manager.moveCategory(movingId, toPosition: 0))
++    XCTAssertEqual(manager.categorySortingType(), .manual)
++    XCTAssertEqual(sortedIds.first, movingId)
++    XCTAssertEqual(Set(sortedIds), Set(originalIds))
++    XCTAssertEqual(sortedIds.filter { $0 != movingId }, originalIds.filter { $0 != movingId })
++    XCTAssertTrue(manager.moveCategory(movingId, toPosition: originalIds.count - 1))
++    XCTAssertEqual(sortedIds.last, movingId)
++  }
++
++  func testAutomaticModeRejectsMoves() {
++    XCTAssertTrue(manager.setCategorySortingType(.byName))
++    let originalIds = sortedIds
++    XCTAssertFalse(manager.moveCategory(categoryIds[1], toPosition: 0))
++    XCTAssertEqual(manager.categorySortingType(), .byName)
++    XCTAssertEqual(sortedIds, originalIds)
++  }
++
++  func testInvalidDestinationsLeaveOrderUntouched() {
++    XCTAssertTrue(manager.setCategorySortingType(.manual))
++    let originalIds = sortedIds
++    XCTAssertFalse(manager.moveCategory(categoryIds[0], toPosition: -1))
++    XCTAssertFalse(manager.moveCategory(categoryIds[0], toPosition: originalIds.count))
++    XCTAssertEqual(sortedIds, originalIds)
++  }
++
++  func testUnknownCategoryLeavesOrderUntouched() {
++    XCTAssertTrue(manager.setCategorySortingType(.manual))
++    let originalIds = sortedIds
++    XCTAssertFalse(manager.moveCategory(MWMMarkGroupID.max, toPosition: 0))
++    XCTAssertEqual(sortedIds, originalIds)
++  }
++
++  func testNewFolderIsAppendedToExistingManualOrder() {
++    XCTAssertTrue(manager.setCategorySortingType(.manual))
++    XCTAssertTrue(manager.moveCategory(categoryIds[1], toPosition: 0))
++    let originalIds = sortedIds
++    let newId = manager.createCategory(withName: "Folder order new " + UUID().uuidString)
++    categoryIds.append(newId)
++    XCTAssertTrue(manager.setCategorySortingType(.manual))
++    XCTAssertEqual(Array(sortedIds.prefix(originalIds.count)), originalIds)
++    XCTAssertEqual(sortedIds.last, newId)
++  }
++
++  func testAutomaticSortRestoresCategoryNameOrder() {
++    XCTAssertTrue(manager.setCategorySortingType(.manual))
++    XCTAssertTrue(manager.moveCategory(categoryIds[1], toPosition: 0))
++    XCTAssertTrue(manager.setCategorySortingType(.byName))
++    let ids = sortedIds.filter { categoryIds.contains($0) }
++    XCTAssertEqual(ids, [categoryIds[0], categoryIds[1]])
++  }
++
++  @MainActor
++  func testMenuTargetRemainsSameCategoryAfterOrderChanges() throws {
++    XCTAssertTrue(manager.setCategorySortingType(.manual))
++    let model = BMCDefaultViewModel()
++    let targetId = categoryIds[1]
++    let oldIndex = try XCTUnwrap(model.categoryIndex(forId: targetId))
++    let destination = oldIndex == 0 ? sortedIds.count - 1 : 0
++    XCTAssertTrue(manager.moveCategory(targetId, toPosition: destination))
++    model.reloadData()
++    let currentIndex = try XCTUnwrap(model.categoryIndex(forId: targetId))
++    XCTAssertNotEqual(currentIndex, oldIndex)
++    model.deleteCategory(at: currentIndex)
++    XCTAssertFalse(manager.hasCategory(targetId))
++    XCTAssertTrue(manager.hasCategory(categoryIds[0]))
++  }
++
++  @MainActor
++  func testRemovedMenuTargetNoLongerResolvesToAnotherCategory() {
++    let model = BMCDefaultViewModel()
++    let targetId = categoryIds[1]
++    XCTAssertNotNil(model.categoryIndex(forId: targetId))
++    XCTAssertTrue(manager.deleteCategory(targetId))
++    model.reloadData()
++    XCTAssertNil(model.categoryIndex(forId: targetId))
++    XCTAssertTrue(manager.hasCategory(categoryIds[0]))
++  }
++
++  @MainActor
++  func testHostedFolderReorderingUpdatesDisplayedAndStoredOrder() throws {
++    let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
++      .first { $0.session.role == .windowApplication })
++    let window = try XCTUnwrap(scene.windows.first { $0.isKeyWindow && $0.rootViewController != nil }
++      ?? scene.windows.first { $0.rootViewController != nil })
++    let previousRoot = try XCTUnwrap(window.rootViewController)
++    let wasHidden = window.isHidden
++    let controller = BMCViewController(coordinator: nil)
++    window.rootViewController = UINavigationController(rootViewController: controller)
++    window.makeKeyAndVisible()
++    defer {
++      controller.setEditing(false, animated: false)
++      window.rootViewController = previousRoot
++      window.isHidden = wasHidden
++    }
++    controller.loadViewIfNeeded()
++    window.layoutIfNeeded()
++    let table = try XCTUnwrap(findTable(in: controller.view))
++    XCTAssertTrue(controller.view.window === window)
++    XCTAssertEqual(table.numberOfRows(inSection: 0), sortedIds.count)
++    controller.setEditing(true, animated: false)
++    XCTAssertTrue(controller.isEditing)
++    XCTAssertTrue(table.isEditing)
++    XCTAssertEqual(manager.categorySortingType(), .manual)
++    let movingId = categoryIds[1]
++    let source = IndexPath(row: try XCTUnwrap(sortedIds.firstIndex(of: movingId)), section: 0)
++    let target = IndexPath(row: source.row == 0 ? sortedIds.count - 1 : 0, section: 0)
++    XCTAssertTrue(controller.tableView(table, canMoveRowAt: source))
++    XCTAssertFalse(controller.tableView(table, canMoveRowAt: IndexPath(row: 0, section: 1)))
++    XCTAssertTrue(table.visibleCells.contains { $0.showsReorderControl })
++    // Exercise the native table's visual move and its data-source commit.
++    // This hosted test does not synthesize a physical drag or an AX action.
++    table.moveRow(at: source, to: target)
++    controller.tableView(table, moveRowAt: source, to: target)
++    XCTAssertEqual(sortedIds[target.row], movingId)
++    controller.setEditing(false, animated: false)
++    XCTAssertFalse(table.isEditing)
++    XCTAssertEqual(BMCDefaultViewModel().category(at: target.row).categoryId, movingId)
++  }
++
++  private func findTable(in view: UIView) -> UITableView? {
++    if let table = view as? UITableView { return table }
++    for subview in view.subviews {
++      if let table = findTable(in: subview) { return table }
++    }
++    return nil
++  }
++}
+diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
+index 85dbd97c126c9c981c3e3a58f86a25007ddff1d5..4e9083afbddf1804bfefd830f6e1e9a7b2562900 100644
+--- a/libs/map/bookmark_manager.cpp
++++ b/libs/map/bookmark_manager.cpp
+@@ -2638,12 +2638,14 @@ void BookmarkManager::SetCategorySortType(CategorySortType sortType)
+   if (m_metadata.m_categorySortType == sortType)
+     return;
+ 
++  auto const sorted = sortType == CategorySortType::Manual && m_metadata.m_categoryOrder.empty()
++                          ? GetSortedBmGroupIdList()
++                          : kml::GroupIdCollection{};
+   m_metadata.m_categorySortType = sortType;
+ 
+   // When switching to Manual, seed the order from current state if empty.
+   if (sortType == CategorySortType::Manual && m_metadata.m_categoryOrder.empty())
+   {
+-    auto const sorted = GetSortedBmGroupIdList();
+     for (auto const & id : sorted)
+     {
+       auto const fn = GetMetadataEntryName(id);
+@@ -3079,12 +3081,21 @@ std::unique_ptr<kml::FileData> BookmarkManager::CollectBmGroupKMLData(BookmarkCa
+ bool BookmarkManager::SaveBookmarkCategory(kml::MarkGroupId groupId)
+ {
+   CHECK_THREAD_CHECKER(m_threadChecker, ());
++  auto * group = GetBmCategory(groupId);
++  auto const originalFileName = group->GetFileName();
++  auto const originalCategoryOrder = originalFileName.empty() ? m_metadata.m_categoryOrder : std::vector<std::string>{};
+   auto collection = PrepareToSaveBookmarks({groupId});
+   if (!collection || collection->empty())
+     return false;
+   auto const & file = collection->front().first;
+   auto & kmlData = *collection->front().second;
+-  return SaveKmlFileByExt(kmlData, file);
++  auto const saved = SaveKmlFileByExt(kmlData, file);
++  if (!saved && originalFileName.empty())
++  {
++    group->SetFileName(originalFileName);
++    m_metadata.m_categoryOrder = originalCategoryOrder;
++  }
++  return saved;
+ }
+ 
+ bool BookmarkManager::SaveBookmarkCategory(kml::MarkGroupId groupId, Writer & writer, KmlFileType fileType) const
+diff --git a/libs/map/map_tests/bookmarks_test.cpp b/libs/map/map_tests/bookmarks_test.cpp
+index de76b2ef560f77cb91780b806af0a695b223ef2a..48f182023efe6498e53d40b504971595f7a7b6de 100644
+--- a/libs/map/map_tests/bookmarks_test.cpp
++++ b/libs/map/map_tests/bookmarks_test.cpp
+@@ -13,6 +13,7 @@
+ 
+ #include "coding/internal/file_data.hpp"
+ #include "coding/zip_reader.hpp"
++#include "coding/file_reader.hpp"
+ 
+ #include "i18n/localisation.hpp"
+ #include "i18n/localisation_translation.hpp"
+@@ -23,6 +24,8 @@
+ 
+ #include <array>
+ #include <cstring>  // strlen
++#include <chrono>
++#include <filesystem>
+ #include <map>
+ #include <numeric>  // std::reduce
+ #include <set>
+@@ -1629,4 +1632,89 @@ UNIT_CLASS_TEST(Runner, Bookmarks_TestSaveRoute)
+   TEST_EQUAL(line, expectedLine, ());
+ }
+ 
++UNIT_CLASS_TEST(Runner, Bookmarks_ManualFolderOrderPersistsEmptyCategories)
++{
++  BookmarkManager bmManager(BM_CALLBACKS);
++  bmManager.EnableTestMode(true);
++  auto makeCategory = [&](std::string const & name, std::time_t modified)
++  {
++    kml::CategoryData data;
++    kml::SetDefaultStr(data.m_name, name);
++    data.m_lastModified = kml::TimestampClock::from_time_t(modified);
++    return bmManager.CreateBookmarkCategory(std::move(data), false);
++  };
++  auto const first = makeCategory("Folder A", 1000);
++  auto const second = makeCategory("Folder B", 2000);
++  TEST(bmManager.GetCategoryFileName(first).empty(), ());
++  TEST(bmManager.GetCategoryFileName(second).empty(), ());
++  TEST(bmManager.SaveBookmarkCategory(first), ());
++  TEST(bmManager.SaveBookmarkCategory(second), ());
++  auto const firstFile = bmManager.GetCategoryFileName(first);
++  auto const secondFile = bmManager.GetCategoryFileName(second);
++  SCOPE_GUARD(filesDeleter, [&]()
++  {
++    (void)base::DeleteFileX(firstFile);
++    (void)base::DeleteFileX(secondFile);
++  });
++  TEST(Platform::IsFileExistsByFullPath(firstFile), ());
++  TEST(Platform::IsFileExistsByFullPath(secondFile), ());
++  std::filesystem::last_write_time(firstFile,
++                                  std::filesystem::file_time_type::clock::now() - std::chrono::hours(24));
++  std::filesystem::last_write_time(secondFile,
++                                  std::filesystem::file_time_type::clock::now() - std::chrono::hours(24));
++  auto const firstModified = Platform::GetFileModificationTime(firstFile);
++  auto const secondModified = Platform::GetFileModificationTime(secondFile);
++  std::string firstContents, secondContents;
++  FileReader(firstFile).ReadAsString(firstContents);
++  FileReader(secondFile).ReadAsString(secondContents);
++
++  bmManager.SetCategorySortType(BookmarkManager::CategorySortType::ByName);
++  kml::GroupIdCollection const nameOrder = {first, second};
++  TEST_EQUAL(bmManager.GetSortedBmGroupIdList(), nameOrder, ());
++  bmManager.SetCategorySortType(BookmarkManager::CategorySortType::Manual);
++  TEST_EQUAL(bmManager.GetSortedBmGroupIdList(), nameOrder, ());
++  bmManager.MoveCategoryToPosition(second, 0);
++  kml::GroupIdCollection const manualOrder = {second, first};
++  TEST_EQUAL(bmManager.GetSortedBmGroupIdList(), manualOrder, ());
++  TEST_EQUAL(bmManager.GetCategoryData(first).m_id, first, ());
++  TEST_EQUAL(bmManager.GetCategoryData(second).m_id, second, ());
++  TEST_EQUAL(bmManager.GetCategorySortType(), BookmarkManager::CategorySortType::Manual, ());
++  TEST_EQUAL(Platform::GetFileModificationTime(firstFile), firstModified, ());
++  TEST_EQUAL(Platform::GetFileModificationTime(secondFile), secondModified, ());
++  std::string firstAfter, secondAfter;
++  FileReader(firstFile).ReadAsString(firstAfter);
++  FileReader(secondFile).ReadAsString(secondAfter);
++  TEST_EQUAL(firstAfter, firstContents, ());
++  TEST_EQUAL(secondAfter, secondContents, ());
++
++  std::string metadata;
++  FileReader(base::JoinPath(GetPlatform().WritableDir(), "bm.json")).ReadAsString(metadata);
++  auto const orderPosition = metadata.find("categoryOrder");
++  TEST_NOT_EQUAL(orderPosition, std::string::npos, ());
++  auto const firstPosition = metadata.find(base::FileNameFromFullPath(firstFile), orderPosition);
++  auto const secondPosition = metadata.find(base::FileNameFromFullPath(secondFile), orderPosition);
++  TEST_NOT_EQUAL(firstPosition, std::string::npos, ());
++  TEST_NOT_EQUAL(secondPosition, std::string::npos, ());
++  TEST_LESS(secondPosition, firstPosition, ());
++}
++
++UNIT_CLASS_TEST(Runner, Bookmarks_NewCategorySaveFailureRestoresUnsavedState)
++{
++  BookmarkManager bmManager(BM_CALLBACKS);
++  bmManager.EnableTestMode(true);
++  auto const groupId = bmManager.CreateBookmarkCategory(std::string(1024, 'x'), false);
++  SCOPE_GUARD(fileDeleter, [&]()
++  {
++    auto const filePath = bmManager.GetCategoryFileName(groupId);
++    if (!filePath.empty())
++      (void)base::DeleteFileX(filePath);
++  });
++  TEST(!bmManager.SaveBookmarkCategory(groupId), ());
++  TEST(bmManager.GetCategoryFileName(groupId).empty(), ());
++  TEST_EQUAL(bmManager.GetCategoryData(groupId).m_id, groupId, ());
++  bmManager.GetEditSession().SetCategoryName(groupId, "Recovered folder order save");
++  TEST(bmManager.SaveBookmarkCategory(groupId), ());
++  TEST(Platform::IsFileExistsByFullPath(bmManager.GetCategoryFileName(groupId)), ());
++}
++
+ }  // namespace bookmarks_test

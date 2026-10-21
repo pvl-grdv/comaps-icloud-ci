@@ -1,0 +1,10 @@
+[
+  {
+    "className": "BMCSearchViewModelTests",
+    "expectedTests": 11
+  },
+  {
+    "className": "SavedItemsSearchTests",
+    "expectedTests": 8
+  }
+]

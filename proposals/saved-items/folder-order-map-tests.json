@@ -1,0 +1,5 @@
+[
+  "bookmarks_test.cpp::Runner_Bookmarks_ManualFolderOrderPersistsEmptyCategories",
+  "bookmarks_test.cpp::Runner_Bookmarks_NewCategorySaveFailureRestoresUnsavedState",
+  "bookmarks_test.cpp::Bookmarks_Sorting"
+]

@@ -1,0 +1,313 @@
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift
+@@ -85,6 +85,7 @@
+   func selectItem(in section: IBookmarksListSectionViewModel, at index: Int)
+   func checkItem(in section: IBookmarksListSectionViewModel, at index: Int, checked: Bool)
+   func toggleVisibility(in section: IBookmarksListSectionViewModel)
++  func beginItemReordering() -> Bool
+   func finishItemReordering()
+   func reorderItem(in section: IBookmarksListSectionViewModel, from source: Int, to target: Int)
+   func showDescription()
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift
+@@ -131,22 +131,24 @@
+     }
+   }
+ 
+-  private func beginItemReordering() {
+-    guard searchQuery == nil, interactor.canManuallyOrderItems() else { return }
++  func beginItemReordering() -> Bool {
++    guard searchQuery == nil, interactor.canManuallyOrderItems() else { return false }
+     let bookmarks = displayedSections.compactMap { $0 as? IBookmarksSectionViewModel }
+       .flatMap { $0.bookmarks }.compactMap { ($0 as? BookmarkViewModel)?.bookmarkId }
+     let tracks = displayedSections.compactMap { $0 as? ITracksSectionViewModel }
+       .flatMap { $0.tracks }.compactMap { ($0 as? TrackViewModel)?.trackId }
++    guard !bookmarks.isEmpty || !tracks.isEmpty else { return false }
+     guard let order = BookmarkItemOrder(bookmarkIds: bookmarks, trackIds: tracks),
+           interactor.setManualItemOrder(order) else {
+       reload()
+-      return
++      return false
+     }
+     itemOrder = order
+     sort(.manual) { [weak self] in
+       guard let self, itemOrder != nil else { return }
+       view.setItemReordering(true)
+     }
++    return true
+   }
+ 
+   private func mapSearchResults(_ results: [BMCSearchResult]) -> [IBookmarksListSectionViewModel] {
+@@ -180,7 +182,7 @@
+ 
+   private func showSortMenu() {
+     var sortItems = interactor.availableSortingTypes(hasMyPosition: LocationManager.lastLocation() != nil)
+-      .map { sortingType -> BookmarksListMenuItem in
++      .compactMap { sortingType -> BookmarksListMenuItem? in
+         switch sortingType {
+         case .distance:
+           return BookmarksListMenuItem(title: L("sort_distance"), action: { [weak self] in
+@@ -195,15 +197,12 @@
+             self?.sort(.type)
+           })
+         case .manual:
+-          return BookmarksListMenuItem(title: L("edit"), action: { [weak self] in self?.beginItemReordering() })
++          return nil
+         case .name:
+           return BookmarksListMenuItem(title: L("sort_name"), action: { [weak self] in
+             self?.sort(.name)
+           })
+         }
+-    }
+-    if interactor.canManuallyOrderItems() && searchQuery == nil {
+-      sortItems.append(BookmarksListMenuItem(title: L("edit"), action: { [weak self] in self?.beginItemReordering() }))
+     }
+     sortItems.append(BookmarksListMenuItem(title: L("sort_default"), action: { [weak self] in
+       self?.setDefaultSections()
+@@ -383,6 +382,7 @@
+   }
+ 
+   func deleteItem(in section: IBookmarksListSectionViewModel, at index: Int) {
++    finishItemReordering()
+     switch section {
+     case let bookmarksSection as IBookmarksSectionViewModel:
+       guard let bookmark = bookmarksSection.bookmarks[index] as? BookmarkViewModel else { fatalError() }
+diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift
+--- a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift
++++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift
+@@ -91,13 +91,14 @@
+   }
+ 
+   override func setEditing(_ editing: Bool, animated: Bool) {
+-    guard !isReorderingItems else { return }
++    guard !editing || (canEdit && !searchController.isActive) else { return }
++    if isReorderingItems {
++      if !editing { presenter.finishItemReordering() }
++      return
++    }
++    if editing && presenter.beginItemReordering() { return }
+     super.setEditing(editing, animated: animated)
+     tableView.setEditing(editing, animated: animated)
+-  }
+-
+-  @objc private func finishItemReordering() {
+-    presenter.finishItemReordering()
+   }
+     
+   private func updateTableViewInsets() {
+@@ -121,6 +122,13 @@
+     presenter.reorderItem(in: section, from: source.row, to: destination.row)
+   }
+ 
++  func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle,
++                 forRowAt indexPath: IndexPath) {
++    guard editingStyle == .delete, self.tableView(tableView, canEditRowAt: indexPath),
++          let section = sections?[indexPath.section], indexPath.row < section.numberOfItems else { return }
++    presenter.deleteItem(in: section, at: indexPath.row)
++  }
++
+   func numberOfSections(in tableView: UITableView) -> Int {
+     sections?.count ?? 0
+   }
+@@ -146,11 +154,11 @@
+   }
+ 
+   func tableView(_ tableView: UITableView, editingStyleForRowAt indexPath: IndexPath) -> UITableViewCell.EditingStyle {
+-    isReorderingItems ? .none : .delete
++    .delete
+   }
+ 
+   func tableView(_ tableView: UITableView, shouldIndentWhileEditingRowAt indexPath: IndexPath) -> Bool {
+-    !isReorderingItems
++    true
+   }
+ 
+   func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+@@ -250,6 +258,7 @@
+ extension BookmarksListViewController: UISearchControllerDelegate {
+   func willPresentSearchController(_ searchController: UISearchController) {
+     presenter.finishItemReordering()
++    editButtonItem.isEnabled = false
+     sortToolbarItem.isEnabled = false
+     moreToolbarItem.isEnabled = false
+   }
+@@ -257,6 +266,7 @@
+   func didDismissSearchController(_ searchController: UISearchController) {
+     presenter.deactivateSearch()
+     presenter.cancelSearch()
++    editButtonItem.isEnabled = canEdit
+     sortToolbarItem.isEnabled = true
+     moreToolbarItem.isEnabled = true
+   }
+@@ -268,12 +278,11 @@
+   }
+ 
+   func setItemReordering(_ enabled: Bool) {
+-    if enabled && isEditing { setEditing(false, animated: false) }
+     isReorderingItems = enabled
++    super.setEditing(enabled, animated: true)
+     tableView.setEditing(enabled, animated: true)
+-    navigationItem.rightBarButtonItem = enabled
+-      ? UIBarButtonItem(barButtonSystemItem: .done, target: self, action: #selector(finishItemReordering))
+-      : (canEdit ? editButtonItem : nil)
++    navigationItem.rightBarButtonItem = canEdit ? editButtonItem : nil
++    editButtonItem.isEnabled = canEdit && !searchController.isActive
+     sortToolbarItem.isEnabled = !enabled
+     moreToolbarItem.isEnabled = !enabled
+     searchController.searchBar.isUserInteractionEnabled = !enabled
+@@ -322,6 +331,7 @@
+ 
+   func enableEditing(_ enable: Bool) {
+     canEdit = enable
++    editButtonItem.isEnabled = enable && !searchController.isActive
+     navigationItem.rightBarButtonItem = enable ? editButtonItem : nil
+   }
+ 
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
+--- a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
++++ b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
+@@ -1,3 +1,4 @@
++import UIKit
+ import XCTest
+ @testable import CoMaps__Debug_
+ 
+@@ -170,6 +171,137 @@
+   }
+ 
+   @MainActor
++  func testTopEditStartsManualOrderWithDeleteAndReorderControls() async throws {
++    let category = try XCTUnwrap(category)
++    try await withHostedItemList { controller, table in
++      XCTAssertFalse(controller.isEditing)
++      try tapItemEditButton(controller)
++      XCTAssertTrue(controller.isEditing)
++      XCTAssertTrue(table.isEditing)
++      XCTAssertEqual(manager.lastSortingType(category.categoryId), .manual)
++      XCTAssertTrue(table.visibleCells.contains { $0.showsReorderControl })
++      let section = try XCTUnwrap((0..<table.numberOfSections).first { section in
++        table.numberOfRows(inSection: section) > 0 &&
++          controller.tableView(table, canMoveRowAt: IndexPath(row: 0, section: section))
++      })
++      XCTAssertEqual(controller.tableView(table, editingStyleForRowAt: IndexPath(row: 0, section: section)), .delete)
++      XCTAssertTrue(controller.tableView(table, shouldIndentWhileEditingRowAt: IndexPath(row: 0, section: section)))
++    }
++  }
++
++  @MainActor
++  func testDoneEndsItemEditingAndSearchDisablesThenRestoresEdit() async throws {
++    try await withHostedItemList { controller, table in
++      try tapItemEditButton(controller)
++      XCTAssertTrue(controller.isEditing)
++      try tapItemEditButton(controller)
++      XCTAssertFalse(controller.isEditing)
++      XCTAssertFalse(table.isEditing)
++      let search = try XCTUnwrap(controller.navigationItem.searchController)
++      search.isActive = true
++      for _ in 0..<30 {
++        if !controller.editButtonItem.isEnabled { break }
++        try await Task.sleep(nanoseconds: 100_000_000)
++      }
++      XCTAssertFalse(controller.editButtonItem.isEnabled)
++      XCTAssertFalse(controller.isEditing)
++      search.isActive = false
++      for _ in 0..<30 {
++        if controller.editButtonItem.isEnabled { break }
++        try await Task.sleep(nanoseconds: 100_000_000)
++      }
++      XCTAssertTrue(controller.editButtonItem.isEnabled)
++      try tapItemEditButton(controller)
++      XCTAssertTrue(controller.isEditing)
++    }
++  }
++
++  @MainActor
++  func testDeleteInItemEditEndsStaleOrderAndPersistsRemainingItems() async throws {
++    let category = try XCTUnwrap(category)
++    let originalBookmarks = category.bookmarks
++    let expectedBookmarks = Array(originalBookmarks.dropFirst().map(\.bookmarkId))
++    let removedName = try XCTUnwrap(originalBookmarks.first).bookmarkName
++    let expectedTracks = category.tracks.map(\.trackId)
++    try await withHostedItemList { controller, table in
++      try tapItemEditButton(controller)
++      let section = try XCTUnwrap((0..<table.numberOfSections).last { section in
++        table.numberOfRows(inSection: section) > 0 &&
++          controller.tableView(table, canMoveRowAt: IndexPath(row: 0, section: section))
++      })
++      controller.tableView(table, commit: .delete, forRowAt: IndexPath(row: 0, section: section))
++      XCTAssertFalse(controller.isEditing)
++      XCTAssertFalse(table.isEditing)
++      // Re-entering must build a new complete permutation, without the deleted ID.
++      try tapItemEditButton(controller)
++      XCTAssertTrue(controller.isEditing)
++      try tapItemEditButton(controller)
++    }
++    let sections = await sortedSections(category.categoryId)
++    XCTAssertEqual(sections.flatMap { $0.bookmarks ?? [] }.map(\.bookmarkId), expectedBookmarks)
++    XCTAssertEqual(sections.flatMap { $0.tracks ?? [] }.map(\.trackId), expectedTracks)
++    let saved = expectation(description: "Complete deletion and remaining-order save")
++    manager.shareCategory(category.categoryId, fileType: .text) { status, _ in
++      XCTAssertEqual(status, .success)
++      saved.fulfill()
++    }
++    await fulfillment(of: [saved], timeout: 30)
++    manager.finishSharing()
++    let files = try FileManager.default.contentsOfDirectory(at: FileManager.default.bookmarksDirectoryUrl,
++                                                            includingPropertiesForKeys: nil)
++    let file = try XCTUnwrap(files.first {
++      $0.pathExtension == "kml" && (try? String(contentsOf: $0, encoding: .utf8).contains(category.title)) == true
++    })
++    let kml = try String(contentsOf: file, encoding: .utf8)
++    XCTAssertFalse(kml.contains(removedName))
++    XCTAssertTrue(kml.contains("comaps:itemOrder"))
++    XCTAssertTrue(kml.contains("comaps:itemSorting"))
++  }
++
++  @MainActor
++  private func tapItemEditButton(_ controller: BookmarksListViewController) throws {
++    let button = try XCTUnwrap(controller.navigationItem.rightBarButtonItem)
++    XCTAssertTrue(button === controller.editButtonItem)
++    XCTAssertTrue(button.isEnabled)
++    let action = try XCTUnwrap(button.action)
++    XCTAssertTrue(UIApplication.shared.sendAction(action, to: button.target, from: button, for: nil))
++  }
++
++  @MainActor
++  private func withHostedItemList(_ body: (BookmarksListViewController, UITableView) async throws -> Void) async throws {
++    let category = try XCTUnwrap(category)
++    let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
++      .first { $0.session.role == .windowApplication })
++    let window = try XCTUnwrap(scene.windows.first { $0.isKeyWindow && $0.rootViewController != nil }
++      ?? scene.windows.first { $0.rootViewController != nil })
++    let previousRoot = try XCTUnwrap(window.rootViewController)
++    let previousKeyWindow = scene.windows.first { $0.isKeyWindow }
++    let wasHidden = window.isHidden
++    let animationsWereEnabled = UIView.areAnimationsEnabled
++    UIView.setAnimationsEnabled(false)
++    let controller = BookmarksListBuilder.build(markGroupId: category.categoryId, bookmarksCoordinator: nil)
++    window.rootViewController = UINavigationController(rootViewController: controller)
++    window.makeKeyAndVisible()
++    defer {
++      controller.setEditing(false, animated: false)
++      controller.navigationItem.searchController?.isActive = false
++      window.rootViewController = previousRoot
++      window.isHidden = wasHidden
++      if let previousKeyWindow { previousKeyWindow.makeKey() } else { window.resignKey() }
++      UIView.setAnimationsEnabled(animationsWereEnabled)
++    }
++    controller.loadViewIfNeeded()
++    window.layoutIfNeeded()
++    func descendants(_ view: UIView) -> [UIView] {
++      view.subviews + view.subviews.flatMap { descendants($0) }
++    }
++    let table = try XCTUnwrap(descendants(controller.view).compactMap { $0 as? UITableView }.first)
++    XCTAssertTrue(controller.view.window === window)
++    XCTAssertFalse(table.visibleCells.isEmpty)
++    try await body(controller, table)
++  }
++
++  @MainActor
+   private func save(bookmarks: [MWMMarkID], tracks: [MWMTrackID], in group: MWMMarkGroupID) -> Bool {
+     manager.setManualItemOrder(group, bookmarkIds: bookmarks.map { NSNumber(value: $0) },
+                                trackIds: tracks.map { NSNumber(value: $0) })

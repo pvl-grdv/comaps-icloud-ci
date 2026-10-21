@@ -1,0 +1,10 @@
+[
+  "bookmarks_test.cpp::Runner_ManualItemOrder_PersistenceAfterReload",
+  "bookmarks_test.cpp::Runner_ManualItemOrder_RejectsStaleForeignAndDuplicateIds",
+  "bookmarks_test.cpp::Runner_ManualItemOrder_InvalidRanksAndNewItems",
+  "bookmarks_test.cpp::Runner_ManualItemOrder_SharedModeAndDefault",
+  "bookmarks_test.cpp::Runner_ManualItemOrder_AppendsNewMovedItemsAndHandlesDeletion",
+  "bookmarks_test.cpp::Runner_ManualItemOrder_AppendsNormallyCreatedBookmarks",
+  "bookmarks_test.cpp::Runner_ManualItemOrder_UndoKeepsOriginalBookmarkPosition",
+  "bookmarks_test.cpp::Bookmarks_Sorting"
+]
