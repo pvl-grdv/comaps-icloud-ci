@@ -33,4 +33,4 @@ TrackRename_AutoSave
 https://codeberg.org/comaps/comaps/issues/4232
 
 Исторические патчи (НЕ порядок применения)
-https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/track-rename.patch
+https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/track-rename.patch

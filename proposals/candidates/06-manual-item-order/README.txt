@@ -17,9 +17,10 @@ Edit убран. Кнопки удаления сохранены, сессия 
 
 Готовность
 Независимый срез выделен: proposals/saved-items/item-order.patch
-SHA-256: ab294976fc4d8a32f3cf318444c83d2bfbfeb617dead32abe17f2b693cf2482a
+SHA-256: b339dfa9daa34dca49724a4caf13ebd9d0508e311b9ff0f0a88f52a27496d9a5
 База: a64450d0c7cd7cdfc792c9fc6c2dd620156abecd
-CI: https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39581652809
+Предыдущий CI: https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39581652809 (ошибка; не успешная проверка).
+Новый запуск исправленной версии требуется; ссылка появится в ../../evidence/status.json.
 Требуется: native map=8, search=0, XCTest=13 без пропусков, unsigned Release archive.
 Текущий статус и точный проверенный SHA: ../../evidence/status.json. Общий зелёный Lab CI не
 заменяет этот прогон.
@@ -61,12 +62,20 @@ BookmarkItemOrderBridgeTests.testDeleteInItemEditEndsStaleOrderAndPersistsRemain
 https://codeberg.org/comaps/comaps/issues/4881
 
 Исторические патчи (НЕ порядок применения)
-https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/manual-item-order.patch
-https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/ios-manual-item-order.patch
-https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/manual-bookmark-creation.patch
-https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/invalidate-default-sort.patch
-https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/show-reorder-controls.patch
-https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/unified-saved-item-editing.patch
+https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/manual-item-order.patch
+https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/ios-manual-item-order.patch
+https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/manual-bookmark-creation.patch
+https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/invalidate-default-sort.patch
+https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/show-reorder-controls.patch
+https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/unified-saved-item-editing.patch
 
 Mac Lab85: Edit/Done проверены на живом окне; пользователь подтвердил физический drag и
 сохранение после перезапуска. Отдельная Android-сборка не выполнялась.
+
+Исправления тестовой границы после падения предыдущего CI
+Host ожидает настоящее viewDidAppear, затем проверяет видимые public UIButton/
+UILabel и семантику accessibility системной кнопки (Done может быть значком).
+Отсутствующая сохранённая сортировка проверяется через hasLastSortingType;
+undefined enum не читается. После Edit ручной режим остаётся обязательным.
+Перед удалением фикстуры сохраняются строки/ожидаемые имена, а не читается
+удалённый native-backed wrapper. Число13 и проверки поведения не уменьшены.

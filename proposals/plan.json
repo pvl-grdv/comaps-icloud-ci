@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "status": "CoMaps contribution study material; current CI pending; no upstream submission",
-  "candidate": "427d129d9693d48bc86bab41e5e40f577c06708b",
+  "status": "CoMaps study material; corrected item/full test fixtures require a new CI run; independent search/folder Release pending",
+  "candidate": "5f66a6ca934f1675f3fc2db6af77b1e36eb69499",
   "patch_catalog": "catalog.json",
   "source_manifest": "patches/om13232-source-manifest.json",
   "test_mapping": "patches/om13232-coverage-map.json",
@@ -20,7 +20,7 @@
         "track-rename.patch"
       ],
       "source_links": [
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/track-rename.patch"
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/track-rename.patch"
       ],
       "native_core_tests": [
         "TrackRename_AutoSave"
@@ -55,8 +55,8 @@
         "category-info-compile-fix.patch"
       ],
       "source_links": [
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/category-reload.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/category-info-compile-fix.patch"
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/category-reload.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/category-info-compile-fix.patch"
       ],
       "native_core_tests": [
         "Bookmarks_ReloadPreservesCategoryIdentityAndMetadata",
@@ -102,11 +102,11 @@
         "incoming-bookmark-ordered-commit.patch"
       ],
       "source_links": [
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/ios-folder-order.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/deletion-autosave-safety.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/save-open-failure.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/persist-deletion-fixture.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/incoming-bookmark-ordered-commit.patch"
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/ios-folder-order.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/deletion-autosave-safety.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/save-open-failure.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/persist-deletion-fixture.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/incoming-bookmark-ordered-commit.patch"
       ],
       "native_core_tests": [
         "Bookmarks_DeletionFailurePreservesCategoryAndChildren",
@@ -170,17 +170,17 @@
         "search-fixture-directory.patch"
       ],
       "source_links": [
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/global-bookmark-search.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/typed-saved-items-search.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/typed-saved-items-ios.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/typed-search-cancellation.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/hosted-bookmarks-ui-smoke.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/search-viewport-test-setup.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/cancellation-test-explicit-catch.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/bookmark-original-name-search-alias.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/explicit-search-service-capture.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/hosted-ui-window-lifecycle.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/search-fixture-directory.patch"
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/global-bookmark-search.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/typed-saved-items-search.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/typed-saved-items-ios.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/typed-search-cancellation.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/hosted-bookmarks-ui-smoke.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/search-viewport-test-setup.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/cancellation-test-explicit-catch.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/bookmark-original-name-search-alias.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/explicit-search-service-capture.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/hosted-ui-window-lifecycle.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/search-fixture-directory.patch"
       ],
       "native_core_tests": [],
       "native_search_tests": [
@@ -361,12 +361,12 @@
         "hosted-ui-window-lifecycle.patch"
       ],
       "source_links": [
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/ios-folder-order.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/hosted-bookmarks-ui-smoke.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/show-reorder-controls.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/folder-order-lifecycle.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/stable-category-menu-target.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/hosted-ui-window-lifecycle.patch"
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/ios-folder-order.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/hosted-bookmarks-ui-smoke.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/show-reorder-controls.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/folder-order-lifecycle.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/stable-category-menu-target.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/hosted-ui-window-lifecycle.patch"
       ],
       "native_core_tests": [
         "Bookmarks_ManualFolderOrderPersistsEmptyCategories",
@@ -480,12 +480,12 @@
         "unified-saved-item-editing.patch"
       ],
       "source_links": [
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/manual-item-order.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/ios-manual-item-order.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/manual-bookmark-creation.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/invalidate-default-sort.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/show-reorder-controls.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/unified-saved-item-editing.patch"
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/manual-item-order.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/ios-manual-item-order.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/manual-bookmark-creation.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/invalidate-default-sort.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/show-reorder-controls.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/unified-saved-item-editing.patch"
       ],
       "native_core_tests": [
         "ManualItemOrder_PersistenceAfterReload",
@@ -592,14 +592,16 @@
       "standalone": {
         "feature": "item-order",
         "patch": "proposals/saved-items/item-order.patch",
-        "sha256": "ab294976fc4d8a32f3cf318444c83d2bfbfeb617dead32abe17f2b693cf2482a",
+        "sha256": "b339dfa9daa34dca49724a4caf13ebd9d0508e311b9ff0f0a88f52a27496d9a5",
         "upstream_revision": "a64450d0c7cd7cdfc792c9fc6c2dd620156abecd",
         "required_XCTest": 13,
         "required_native_map": 8,
         "required_native_search": 0,
-        "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39581652809",
-        "tested_repository_commit": "aefb76ef79235fce72a3b054b8467efd1a1bab3e",
-        "status": "native passed; exact XCTest/Release terminal verification pending"
+        "run": null,
+        "tested_repository_commit": null,
+        "status": "Corrected test-only fixture/control observation; new exact13-XCTest/Release CI required",
+        "previous_failed_run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39581652809",
+        "candidate_code_commit": "5f66a6ca934f1675f3fc2db6af77b1e36eb69499"
       }
     },
     {
@@ -620,9 +622,9 @@
         "stable-category-menu-target.patch"
       ],
       "source_links": [
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/shared-folder-order.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/folder-order-lifecycle.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/stable-category-menu-target.patch"
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/shared-folder-order.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/folder-order-lifecycle.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/stable-category-menu-target.patch"
       ],
       "native_core_tests": [
         "Bookmarks_ApplySharedFolderOrderPreservesSavedManualOrderAndKML"
@@ -789,18 +791,18 @@
         "store-tests-functional-io-deadline.patch"
       ],
       "source_links": [
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/initial-conflict.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/incoming-bookmark-ordered-commit.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/incoming-category-staging.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/explicit-fixture-callbacks.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/parser-rejected-invalid-snapshot-fixture.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/declare-fill-empty-names.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/icloud-content-reconciliation.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/fingerprint-tests-coordination-budget.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/per-operation-coordinators.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/writer-tests-file-worker-adapter.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/fingerprint-tests-functional-io-deadline.patch",
-        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/store-tests-functional-io-deadline.patch"
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/initial-conflict.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/incoming-bookmark-ordered-commit.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/incoming-category-staging.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/explicit-fixture-callbacks.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/parser-rejected-invalid-snapshot-fixture.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/declare-fill-empty-names.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/icloud-content-reconciliation.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/fingerprint-tests-coordination-budget.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/per-operation-coordinators.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/writer-tests-file-worker-adapter.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/fingerprint-tests-functional-io-deadline.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/store-tests-functional-io-deadline.patch"
       ],
       "native_core_tests": [
         "Bookmarks_IncomingQueuedSaveKeepsIncomingVersion",
@@ -1408,7 +1410,7 @@
     "Patches38/39 only unify item Edit/Done behavior and deterministic search test setup. All37 earlier inputs retained byte-for-byte. Mac Catalyst/Local identity overlays are excluded from proposals."
   ],
   "historical_verified_candidate": "0237ee3737e6b2deeb80fbe03b6c72d82aee43d8",
-  "updated_at_utc": "2026-10-21T10:58:30.560887+00:00",
+  "updated_at_utc": "2026-10-21T11:17:21.140520+00:00",
   "standalone_manifest": "saved-items/manifest.json",
   "verification": "evidence/status.json",
   "current_full_test_plan": "ci/ios-tests.json"

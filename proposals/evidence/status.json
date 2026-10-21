@@ -1,8 +1,8 @@
 {
-  "updated_at_utc": "2026-10-21T10:58:30.560887+00:00",
-  "full_candidate_commit": "427d129d9693d48bc86bab41e5e40f577c06708b",
+  "updated_at_utc": "2026-10-21T11:17:21.140520+00:00",
+  "full_candidate_commit": "5f66a6ca934f1675f3fc2db6af77b1e36eb69499",
   "standalone_upstream_revision": "a64450d0c7cd7cdfc792c9fc6c2dd620156abecd",
-  "status": "current full iOS and independent Release checks pending",
+  "status": "CORRECTED_TEST_FIXTURES_AWAIT_NEW_FULL_AND_ITEM_CI",
   "historical_full_verification": "combined-0237.json",
   "required_full": {
     "base_XCTest": 166,
@@ -14,7 +14,7 @@
     "unsigned_Release_archive": true,
     "fresh_UI_images": 3
   },
-  "full_Local_run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39582203955",
+  "full_Local_run": null,
   "standalone": {
     "search": {
       "feature": "search",
@@ -43,14 +43,16 @@
     "item-order": {
       "feature": "item-order",
       "patch": "proposals/saved-items/item-order.patch",
-      "sha256": "ab294976fc4d8a32f3cf318444c83d2bfbfeb617dead32abe17f2b693cf2482a",
+      "sha256": "b339dfa9daa34dca49724a4caf13ebd9d0508e311b9ff0f0a88f52a27496d9a5",
       "upstream_revision": "a64450d0c7cd7cdfc792c9fc6c2dd620156abecd",
       "required_XCTest": 13,
       "required_native_map": 8,
       "required_native_search": 0,
-      "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39581652809",
-      "tested_repository_commit": "aefb76ef79235fce72a3b054b8467efd1a1bab3e",
-      "status": "native passed; exact XCTest/Release terminal verification pending"
+      "run": null,
+      "tested_repository_commit": null,
+      "status": "Corrected test-only fixture/control observation; new exact13-XCTest/Release CI required",
+      "previous_failed_run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39581652809",
+      "candidate_code_commit": "5f66a6ca934f1675f3fc2db6af77b1e36eb69499"
     }
   },
   "Mac": {
@@ -63,12 +65,36 @@
     "actual_restart": true,
     "user_confirmed_drag_persistence": true,
     "new_automated_physical_drag": false,
-    "production_source_equivalence": "All82 search/order source files reconstructed at427d match installed85 manifest; no binary reproducibility claim."
+    "production_source_equivalence": "Application sources unchanged: only item-order test code changed after427d; exact source equivalence report remains local with independent reconstruction.",
+    "current_code_candidate": "5f66a6ca934f1675f3fc2db6af77b1e36eb69499"
   },
   "limits": [
     "No live three-device iCloud test. Local cloud disabled.",
     "No actual iPhone/iPad installation or Android build.",
     "No upstream submission, DCO or maintainer acceptance.",
     "No personal screenshot, KML, folder name, coordinate or credential included."
+  ],
+  "previous_failed_full_Local_run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39582203955",
+  "failure_history": [
+    {
+      "run": 39582203955,
+      "head": "427d129d9693d48bc86bab41e5e40f577c06708b",
+      "executed": 167,
+      "failed_methods": 2,
+      "failed_assertions": 3,
+      "archive_IPA_UI": "not executed after XCTest failure",
+      "proof": "full-427d-failure.json"
+    },
+    {
+      "run": 39581652809,
+      "head": "aefb76ef79235fce72a3b054b8467efd1a1bab3e",
+      "native_map_passed": 8,
+      "causes": [
+        "System control observation through UILabel only",
+        "Reading lastSortingType without checking saved-value presence",
+        "Reading a deleted native-backed wrapper in standalone re-import fixture"
+      ],
+      "result": "failure; not a completed verification"
+    }
   ]
 }

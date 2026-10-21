@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "base": "a70fce4243e5c7eb4fc3f92ea0750e2b93c8ffb8",
-  "candidate": "427d129d9693d48bc86bab41e5e40f577c06708b",
+  "candidate": "5f66a6ca934f1675f3fc2db6af77b1e36eb69499",
   "patches": [
     {
       "position": 1,
@@ -599,7 +599,7 @@
     {
       "position": 38,
       "patch": "unified-saved-item-editing.patch",
-      "sha256": "fd8ac43112e836a18e1adf75b9495528f97a531d0f5a1411351744b59d1cb8b6",
+      "sha256": "19113b317389df5ad46af48492eea037156e88f2cdcdb18a9e797abe94a8fd72",
       "files": [
         "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift",
         "iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift",

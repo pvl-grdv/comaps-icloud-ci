@@ -1,0 +1,21 @@
+{
+  "run_id": 39582203955,
+  "head_sha": "427d129d9693d48bc86bab41e5e40f577c06708b",
+  "status": "failure",
+  "log_sha256": "a0b0ffb1af837f0ec5713e64da8a8795920df99432f382094a5fbffeb4d546f5",
+  "xctests": {
+    "executed": 167,
+    "failed_assertions": 3,
+    "failed_methods": [
+      "BookmarkItemOrderBridgeTests/testDoneEndsItemEditingAndSearchDisablesThenRestoresEdit",
+      "BookmarkItemOrderBridgeTests/testTopEditStartsManualOrderWithDeleteAndReorderControls"
+    ],
+    "cause": "UILabel-only test helper could not observe native system Edit/Done controls; visible text set contained only fixture navigation title"
+  },
+  "native_steps": {
+    "core": "success",
+    "negative_control": "success",
+    "search_and_automatic_sort": "success"
+  },
+  "archive_ipa_and_fresh_ui_images": "Not executed after XCTest failure; this run is not complete verification"
+}
