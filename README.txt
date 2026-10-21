@@ -1,4 +1,11 @@
-CoMaps Lab: saved-items and iCloud experiments
+CoMaps Lab: improvements for CoMaps
+
+Карта улучшений CoMaps на русском, все восемь тем, связанные запросы CoMaps,
+отдельные патчи, тесты и границы результата:
+https://github.com/pvl-grdv/comaps-icloud-ci/blob/comaps-lab/proposals/README.txt
+Точные результаты по каждому SHA:
+https://github.com/pvl-grdv/comaps-icloud-ci/blob/comaps-lab/proposals/evidence/status.json
+Organic Maps is referenced for borrowed code/ideas only; CoMaps is the target.
 
 Independent, AI-assisted diagnostic repository. Not an official CoMaps release
 or an upstream submission. CoMaps Lab branch: comaps-lab. Read LAB-SETUP-RU.txt
@@ -11,7 +18,7 @@ This variant disables iCloud and excludes widgets from the IPA. No local Xcode
 or Apple credentials in GitHub are needed; actual device installation is separate.
 
 The base feature candidate at 0237ee3737e6b2deeb80fbe03b6c72d82aee43d8 passed
-163 native XCTest, 48 native core cases, 11 search cases, legacy sorting,
+163 XCTest, 48 native core cases, 11 search cases, legacy sorting,
 18 historical/candidate file scenarios and an unsigned Release archive:
 https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39345457120
 This does not validate subsequent Lab configuration, signing, Apple upload
@@ -20,7 +27,10 @@ or live synchronization. Each Lab result belongs to its own Actions HEAD.
 Lab adds a distribution-only configuration overlay after the portable feature
 patch series: distinct app/widget identities, display name, iCloud container
 and own-team signing configuration. The existing Swift module/scheme and all
-37 feature patches remain intact for later upstream review.
+37 original feature patches remain intact. The current series has 39 inputs:
+38 unifies Edit/Done and 39 makes search fixtures deterministic. Three separate
+search/folder/item proposals are in proposals/saved-items; other topics remain
+integration-only. Their own exact CI results are tracked separately.
 
 The candidate ports the principal reconciliation mechanism from Organic Maps
 PR #13232 at 5f24813d6fd93f26cb216d823ab4d5996d49d192, including its deletion
@@ -87,8 +97,10 @@ The iOS job builds actual application source files individually, runs selected
 XCTest classes in a simulator, then builds an unsigned Release archive. One
 hosted UIKit test exercises the real favorites screen and attaches three small
 synthetic screenshots for visual review. Physical drag gestures and real-device
-sync are outside this test. No DerivedData, signing credentials or app binaries
-are uploaded; only small UI images and test summaries are retained.
+sync are outside this test. No DerivedData or signing credentials are uploaded. The product-check job
+retains small UI images and test summaries. Separate Local distribution modes
+produce an unsigned iOS IPA or ad-hoc sandbox-signed Catalyst .app; these are
+not proof of live synchronization or installed iPhone/iPad operation.
 
 Limits
 

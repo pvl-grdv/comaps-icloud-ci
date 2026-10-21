@@ -1,0 +1,116 @@
+{
+  "candidate": "0237ee3737e6b2deeb80fbe03b6c72d82aee43d8",
+  "run_id": 39345457120,
+  "run_url": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39345457120",
+  "result": "success",
+  "scope": "combined portable product candidate only; not isolated proposals or Lab overlay",
+  "core_positive": 48,
+  "search": 11,
+  "search_legacy_compatibility_cases": 3,
+  "automatic_sort_compatibility": 1,
+  "xctest": 163,
+  "xctest_failed": 0,
+  "xctest_skipped": 0,
+  "xctest_classes": [
+    {
+      "className": "BMCSearchViewModelTests",
+      "expectedTests": 11
+    },
+    {
+      "className": "BookmarkFolderOrderTests",
+      "expectedTests": 10
+    },
+    {
+      "className": "SavedItemsSearchTests",
+      "expectedTests": 8
+    },
+    {
+      "className": "BookmarkItemOrderModelTests",
+      "expectedTests": 6
+    },
+    {
+      "className": "BookmarkItemOrderBridgeTests",
+      "expectedTests": 4
+    },
+    {
+      "className": "SharedFolderOrderCoordinatorTests",
+      "expectedTests": 22
+    },
+    {
+      "className": "HostedBookmarksUISmokeTests",
+      "expectedTests": 1
+    },
+    {
+      "className": "DefaultLocalDirectoryMonitorTests",
+      "expectedTests": 12
+    },
+    {
+      "className": "FileContentFingerprintProviderTests",
+      "expectedTests": 4
+    },
+    {
+      "className": "SynchronizationFileWriterTests",
+      "expectedTests": 24
+    },
+    {
+      "className": "SynchronizationIncomingFileWriterTests",
+      "expectedTests": 4
+    },
+    {
+      "className": "SynchronizationManagerTests",
+      "expectedTests": 10
+    },
+    {
+      "className": "SynchronizationStateResolverTests",
+      "expectedTests": 39
+    },
+    {
+      "className": "SynchronizedStateStoreTests",
+      "expectedTests": 2
+    },
+    {
+      "className": "iCloudDirectoryMonitorTests",
+      "expectedTests": 6
+    }
+  ],
+  "file_scenarios": {
+    "historical": 6,
+    "candidate": 12
+  },
+  "negative_control": {
+    "count": 1,
+    "exit_code": 1,
+    "normal_assertion_failure_confirmed": true,
+    "scope": "Emulation of previous incoming Swift/Core boundary in current native core; not a whole old upstream build.",
+    "marker": "INCOMING_PREVIOUS_BOUNDARY_OBSERVED_A_ON_DISK_AND_IN_MEMORY"
+  },
+  "unsigned_release_archive": "success",
+  "archive_completed_utc": "2026-10-20T01:04:57.4939740Z",
+  "ui": {
+    "images": 3,
+    "visually_inspected": true,
+    "synthetic_fixtures": true,
+    "physical_drag": false,
+    "scope": "global search and folder ordering; no item-order screen or physical drag"
+  },
+  "runner": "xcode-27 standard public runner",
+  "simulator": "iPhone 18 Pro Max / iOS 27",
+  "final_ios_log_sha256": "c5603fbc24e84773c38b61b44180a3a97f8b00f9265e26d9bdb941303898cb85",
+  "patches": 37,
+  "baseline_files": 45,
+  "swift_parse_files": 43,
+  "final_changed_files": 71,
+  "union_paths": 72,
+  "live_icloud_three_devices": false,
+  "physical_device_installation": false,
+  "actual_NSFileVersion_conflict": false,
+  "isolated_proposals_tested": false,
+  "lab": {
+    "head": "ddc384632b4d13c5a9990bda17b5de304b980a4d",
+    "run_url": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39415357683",
+    "result_at_inventory": "pending-separate-run",
+    "expected_xctest": 164,
+    "cloud_enabled": false
+  },
+  "authority_note": "This fixed result supersedes pending historical status in earlier source manifests. Never transfer this result to a new commit or isolated slice."
+}

@@ -1,0 +1,629 @@
+{
+  "schema_version": 1,
+  "base": "a70fce4243e5c7eb4fc3f92ea0750e2b93c8ffb8",
+  "candidate": "427d129d9693d48bc86bab41e5e40f577c06708b",
+  "patches": [
+    {
+      "position": 1,
+      "patch": "initial-conflict.patch",
+      "sha256": "baebd78a4a6779fb07ea7a92173169d805cd2460dae0b0bb8b8375a28c0ca19e",
+      "files": [
+        "iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift",
+        "iphone/Maps/Core/iCloud/SynchronizationStateResolver.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift"
+      ],
+      "owner": "08-icloud-reconciliation",
+      "related": [],
+      "state": "superseded-intermediate",
+      "note": {
+        "status": "superseded_in_final_source",
+        "reason": "Early equal-byte/different-date special case was an incremental experiment. Final canonical fingerprint/common-base resolver and writer replace those decisions. Keep the file in historical build order for reproducibility, but do not propose it as an additional current algorithm/PR beside the full engine."
+      }
+    },
+    {
+      "position": 2,
+      "patch": "category-reload.patch",
+      "sha256": "882f577c6693b1c29dd867ca8319c6b0207d34b0392cd19fc29c013fd6513355",
+      "files": [
+        "libs/map/bookmark_manager.cpp",
+        "libs/map/bookmark_manager.hpp",
+        "libs/map/map_tests/bookmarks_test.cpp",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInfoViewController.swift"
+      ],
+      "owner": "02-category-reload",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 3,
+      "patch": "track-rename.patch",
+      "sha256": "f8dc8de7b65e4312a4b94987ac742ec6ffc08a7e7a9495025f0ae265d6dcd4bf",
+      "files": [
+        "libs/map/track.cpp",
+        "libs/map/map_tests/bookmarks_test.cpp"
+      ],
+      "owner": "01-track-rename",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 4,
+      "patch": "global-bookmark-search.patch",
+      "sha256": "6536922417198e07249115db29ce075bb63bce3918ae2a5abe19df6bf941d87b",
+      "files": [
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
+        "iphone/Maps/Bookmarks/Categories/BMCView/BMCSearchResultsViewController.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSearchViewModel.swift",
+        "iphone/Maps/Maps.xcodeproj/project.pbxproj",
+        "iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift"
+      ],
+      "owner": "04-saved-items-search",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 5,
+      "patch": "ios-folder-order.patch",
+      "sha256": "5f09fcfa8d4ee5e7b1754c190532c25a30fb96172284b3b93b45f49a00966502",
+      "files": [
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
+        "iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift",
+        "iphone/Maps/Bookmarks/Categories/Categories/BMCCategoryCell.swift",
+        "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift",
+        "libs/map/bookmark_manager.cpp",
+        "libs/map/map_tests/bookmarks_test.cpp",
+        "iphone/Maps/Maps.xcodeproj/project.pbxproj"
+      ],
+      "owner": "05-manual-folder-order",
+      "related": [
+        "03-save-delete-safety"
+      ],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 6,
+      "patch": "typed-saved-items-search.patch",
+      "sha256": "690cfd324c15af1635fbf656dddbfd91f3e3f466b186fd254c91f282f7d38fed",
+      "files": [
+        "libs/map/saved_items_search_params.hpp",
+        "libs/map/search_api.cpp",
+        "libs/map/search_api.hpp",
+        "libs/search/bookmarks/data.hpp",
+        "libs/search/bookmarks/saved_items.hpp",
+        "libs/search/bookmarks/saved_items_index.hpp",
+        "libs/search/processor.cpp",
+        "libs/search/processor.hpp",
+        "libs/search/search_params.hpp",
+        "libs/search/search_tests/bookmarks_processor_tests.cpp"
+      ],
+      "owner": "04-saved-items-search",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 7,
+      "patch": "typed-saved-items-ios.patch",
+      "sha256": "d571149cc42d1149a2c9c0464e11302d8ead145fe2f13f8300bf08df5fbde161",
+      "files": [
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCView/BMCSearchResultsViewController.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSavedItemsSearchService.swift",
+        "iphone/Maps/Maps.xcodeproj/project.pbxproj",
+        "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift"
+      ],
+      "owner": "04-saved-items-search",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 8,
+      "patch": "manual-item-order.patch",
+      "sha256": "fa2c0b1171e876a1d7a3af8fd4ddb2c3fd6cfcdf50f4c679c0559ea956c2c43b",
+      "files": [
+        "android/sdk/src/main/cpp/app/organicmaps/sdk/bookmarks/data/BookmarkManager.cpp",
+        "libs/map/bookmark_manager.cpp",
+        "libs/map/bookmark_manager.hpp",
+        "libs/map/map_tests/bookmarks_test.cpp",
+        "libs/map/track.cpp",
+        "libs/map/track.hpp"
+      ],
+      "owner": "06-manual-item-order",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 9,
+      "patch": "ios-manual-item-order.patch",
+      "sha256": "f658c0fdc61e11663d024833e35c5c73721a82e74aa32c6c7b71b74281ab9196",
+      "files": [
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarkItemOrder.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift",
+        "iphone/Maps/Maps.xcodeproj/project.pbxproj",
+        "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift"
+      ],
+      "owner": "06-manual-item-order",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 10,
+      "patch": "typed-search-cancellation.patch",
+      "sha256": "a4a231c229e48897846f4c71d47ec57d0eb2f6d9ef7a0911368e83856d4a84e5",
+      "files": [
+        "libs/search/processor.cpp",
+        "libs/search/search_tests/bookmarks_processor_tests.cpp"
+      ],
+      "owner": "04-saved-items-search",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 11,
+      "patch": "manual-bookmark-creation.patch",
+      "sha256": "1fd3f6001512a2d06ced13dbe0763d4103f2836bc374ee8c21e57552ef4f7bed",
+      "files": [
+        "libs/map/bookmark_manager.cpp",
+        "libs/map/map_tests/bookmarks_test.cpp"
+      ],
+      "owner": "06-manual-item-order",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 12,
+      "patch": "invalidate-default-sort.patch",
+      "sha256": "3b590f0fab087475f8ec9015f31ccd210f9d00530bf50090eb1c26325fb271f4",
+      "files": [
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm"
+      ],
+      "owner": "06-manual-item-order",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 13,
+      "patch": "hosted-bookmarks-ui-smoke.patch",
+      "sha256": "459e4ca29f1bcc4b0bfee9c04334bd98cdad5ee985487bc6672176239b864749",
+      "files": [
+        "iphone/Maps/Maps.xcodeproj/project.pbxproj",
+        "iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift"
+      ],
+      "owner": "05-manual-folder-order",
+      "related": [
+        "04-saved-items-search"
+      ],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 14,
+      "patch": "deletion-autosave-safety.patch",
+      "sha256": "8dc53c85f7e8c7ad30fa4e028468c28b80f648fd431374666c609e1071c6aa80",
+      "files": [
+        "android/app/src/main/java/app/organicmaps/bookmarks/BookmarkCategoriesFragment.java",
+        "android/sdk/src/main/java/app/organicmaps/sdk/bookmarks/data/BookmarkManager.java",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift",
+        "iphone/Maps/Bookmarks/Categories/Category settings/CategorySettingsViewController.swift",
+        "iphone/Maps/Core/iCloud/SynchronizaionManager.swift",
+        "libs/map/bookmark.hpp",
+        "libs/map/bookmark_manager.cpp",
+        "libs/map/bookmark_manager.hpp",
+        "libs/map/map_tests/bookmarks_test.cpp"
+      ],
+      "owner": "03-save-delete-safety",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 15,
+      "patch": "shared-folder-order.patch",
+      "sha256": "6e4b5d50d66d18f9e69d9c18766ddc72f881ed5f26909838c6d99ac314c08f9c",
+      "files": [
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
+        "iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift",
+        "iphone/Maps/Core/iCloud/BookmarkFolderOrderSynchronization.swift",
+        "iphone/Maps/Core/iCloud/FolderOrderCoordinator.swift",
+        "iphone/Maps/Core/iCloud/SharedFolderOrder.swift",
+        "iphone/Maps/Core/iCloud/SynchronizaionManager.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift",
+        "libs/map/bookmark_manager.cpp",
+        "libs/map/bookmark_manager.hpp",
+        "libs/map/map_tests/bookmarks_test.cpp",
+        "iphone/Maps/Maps.xcodeproj/project.pbxproj"
+      ],
+      "owner": "07-folder-order-kvs",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 16,
+      "patch": "category-info-compile-fix.patch",
+      "sha256": "0ca078d596a5388bc6fb9845f726b694c89e5f557ee47e8d35da9dbf9c630804",
+      "files": [
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift"
+      ],
+      "owner": "02-category-reload",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold into category reload; not a separate user feature."
+    },
+    {
+      "position": 17,
+      "patch": "save-open-failure.patch",
+      "sha256": "e579c6d420d330ee737eff3908ee1134b229fa4137816d86b315d44aa5d64485",
+      "files": [
+        "libs/map/bookmark_helpers.cpp",
+        "libs/map/map_tests/bookmarks_test.cpp"
+      ],
+      "owner": "03-save-delete-safety",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 18,
+      "patch": "show-reorder-controls.patch",
+      "sha256": "066d10ee7a15f0dcf976557e8317c3f8f825b83e67b34072bedf47249910e271",
+      "files": [
+        "iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift",
+        "iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift"
+      ],
+      "owner": "05-manual-folder-order",
+      "related": [
+        "06-manual-item-order"
+      ],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 19,
+      "patch": "search-viewport-test-setup.patch",
+      "sha256": "4a8e1a157c7e231af1fb0645d97e2f64975ea954fa0720de573a892b0ed22b77",
+      "files": [
+        "iphone/Maps/Maps.xcodeproj/project.pbxproj",
+        "iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift",
+        "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h",
+        "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm",
+        "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift",
+        "iphone/Maps/Tests/Bridging-Header.h"
+      ],
+      "owner": "04-saved-items-search",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 20,
+      "patch": "folder-order-lifecycle.patch",
+      "sha256": "319fbe3638997c3132bda01446762418510b47cef6fafe9c595776d9ee5259d1",
+      "files": [
+        "iphone/Maps/Core/iCloud/FolderOrderCoordinator.swift",
+        "iphone/Maps/Core/iCloud/BookmarkFolderOrderSynchronization.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift",
+        "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift"
+      ],
+      "owner": "07-folder-order-kvs",
+      "related": [
+        "05-manual-folder-order"
+      ],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 21,
+      "patch": "stable-category-menu-target.patch",
+      "sha256": "139d68f02e5dc17522bc0c987aada3a0bf1e41a9a3d70eccbccabcdc0a7e8587",
+      "files": [
+        "iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift",
+        "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift"
+      ],
+      "owner": "05-manual-folder-order",
+      "related": [
+        "07-folder-order-kvs"
+      ],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 22,
+      "patch": "persist-deletion-fixture.patch",
+      "sha256": "50e124825693e3d503cb7a7bd785e3b2b6430c537d537f0df6f18abf24065ab8",
+      "files": [
+        "libs/map/map_tests/bookmarks_test.cpp"
+      ],
+      "owner": "03-save-delete-safety",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold into deletion regression setup; it persists the initial fixture so failures test a real existing file."
+    },
+    {
+      "position": 23,
+      "patch": "incoming-bookmark-ordered-commit.patch",
+      "sha256": "52fdaebe25eb1203069c0ee385eb0b5c3216d9acbdc242556a3967e6c6a330ec",
+      "files": [
+        "libs/map/bookmark.hpp",
+        "libs/map/bookmark_manager.cpp",
+        "libs/map/bookmark_manager.hpp",
+        "libs/map/map_tests/bookmarks_test.cpp"
+      ],
+      "owner": "08-icloud-reconciliation",
+      "related": [
+        "03-save-delete-safety"
+      ],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 24,
+      "patch": "incoming-category-staging.patch",
+      "sha256": "37e957e8aa8a58185dd2a3ecb5cf35f555295248a77d4f6ec8ef7b2299b7ff1c",
+      "files": [
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
+        "iphone/Maps/Core/iCloud/SynchronizaionManager.swift",
+        "iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift",
+        "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift"
+      ],
+      "owner": "08-icloud-reconciliation",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 25,
+      "patch": "cancellation-test-explicit-catch.patch",
+      "sha256": "b47320fe3bde4a762f88a07d2ed20a63bf711ea43a5cbb6bc960bb53c3095a79",
+      "files": [
+        "libs/search/search_tests/bookmarks_processor_tests.cpp"
+      ],
+      "owner": "04-saved-items-search",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 26,
+      "patch": "explicit-fixture-callbacks.patch",
+      "sha256": "13b351f3d3acf757e7d70f40eff25e170a7c058a20d0ad4673457087d62cd9ca",
+      "files": [
+        "libs/map/map_tests/bookmarks_test.cpp"
+      ],
+      "owner": "08-icloud-reconciliation",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold into incoming native test fixtures; explicit callbacks fix compilation only."
+    },
+    {
+      "position": 27,
+      "patch": "parser-rejected-invalid-snapshot-fixture.patch",
+      "sha256": "f4ae752454076d5c6e2532d59dfe178b101c3c6a1f28e8b6f674f252043525cb",
+      "files": [
+        "libs/map/map_tests/bookmarks_test.cpp"
+      ],
+      "owner": "08-icloud-reconciliation",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold into incoming regression; assert actual parser rejection before preservation checks."
+    },
+    {
+      "position": 28,
+      "patch": "bookmark-original-name-search-alias.patch",
+      "sha256": "872319ee04be424ec9b3ad3691b021b8ffc133f4d485ec856e7d2fc32bd9d8a8",
+      "files": [
+        "libs/search/bookmarks/data.hpp",
+        "libs/search/search_tests/bookmarks_processor_tests.cpp"
+      ],
+      "owner": "04-saved-items-search",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 29,
+      "patch": "declare-fill-empty-names.patch",
+      "sha256": "dd9413724c4688eecf99ceadec5db43f5a053f72afa19d8ad17c3b4afe1b5c88",
+      "files": [
+        "libs/map/bookmark_helpers.hpp"
+      ],
+      "owner": "08-icloud-reconciliation",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold into native incoming compile prerequisite; existing external function declaration, not new naming behavior."
+    },
+    {
+      "position": 30,
+      "patch": "icloud-content-reconciliation.patch",
+      "sha256": "6f868535e44b8e65fc43ffeb438dcf186bcc644eb9445481471133e35c519a4b",
+      "files": [
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
+        "iphone/Maps/Core/iCloud/CloudDirectoryMonitor.swift",
+        "iphone/Maps/Core/iCloud/LocalDirectoryMonitor.swift",
+        "iphone/Maps/Core/iCloud/MetadataItem.swift",
+        "iphone/Maps/Core/iCloud/SynchronizaionManager.swift",
+        "iphone/Maps/Core/iCloud/SynchronizationError.swift",
+        "iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift",
+        "iphone/Maps/Core/iCloud/SynchronizationFingerprint.swift",
+        "iphone/Maps/Core/iCloud/SynchronizationStateResolver.swift",
+        "iphone/Maps/Core/iCloud/SynchronizedStateStore.swift",
+        "iphone/Maps/Maps.xcodeproj/project.pbxproj",
+        "iphone/Maps/PrivacyInfo.xcprivacy",
+        "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/DefaultLocalDirectoryMonitorTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/LocalDirectoryMonitorDelegateMock.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/MetadataItemStubs.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SynchronizationIncomingFileWriterTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SynchronizationManagerTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SynchronizedStateStoreTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/iCloudDirectoryMonitorTests/FileManagerMock.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/iCloudDirectoryMonitorTests/UbiquitousDirectoryMonitorDelegateMock.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/iCloudDirectoryMonitorTests/iCloudDirectoryMonitorTests.swift",
+        "libs/map/bookmark.hpp",
+        "libs/map/bookmark_manager.cpp",
+        "libs/map/bookmark_manager.hpp",
+        "libs/map/map_tests/bookmarks_test.cpp",
+        "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift"
+      ],
+      "owner": "08-icloud-reconciliation",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 31,
+      "patch": "explicit-search-service-capture.patch",
+      "sha256": "42db39c552b39ef881464b459a868f73a9a0725489053485a0d7c34e61e67da9",
+      "files": [
+        "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSavedItemsSearchService.swift"
+      ],
+      "owner": "04-saved-items-search",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 32,
+      "patch": "fingerprint-tests-coordination-budget.patch",
+      "sha256": "c091322ec750ae1c5ae02f30f84aec2fff9bb3a54e4dba4f411936c6e3b37b0c",
+      "files": [
+        "iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift"
+      ],
+      "owner": "08-icloud-reconciliation",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Intermediate test fix; squash its final effective assertions/cleanup with later functional I/O deadline correction."
+    },
+    {
+      "position": 33,
+      "patch": "hosted-ui-window-lifecycle.patch",
+      "sha256": "a700a5df359bbbc03af8c4a76fc72057e15b432db57dd79d5d67984c06ce2439",
+      "files": [
+        "iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift"
+      ],
+      "owner": "05-manual-folder-order",
+      "related": [
+        "04-saved-items-search"
+      ],
+      "state": "historical-source-reference",
+      "note": "Fold final effective hunks and tests into the owning candidate; this is not an independent apply plan."
+    },
+    {
+      "position": 34,
+      "patch": "per-operation-coordinators.patch",
+      "sha256": "a598e8c12419c009828eed22cfb95d87104c2313dc0555dbe41f5ab94ec811ff",
+      "files": [
+        "iphone/Maps/Core/iCloud/SynchronizationFingerprint.swift",
+        "iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift"
+      ],
+      "owner": "08-icloud-reconciliation",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Retain final coordinator lifetime/thread ownership correction with the new writer/fingerprint engine; not proof of the precise historical CI timing cause."
+    },
+    {
+      "position": 35,
+      "patch": "writer-tests-file-worker-adapter.patch",
+      "sha256": "2447da4ba0cefd2a449af9bcdb1ed17acae9fd7068ed0866e0a089a31dfadcc1",
+      "files": [
+        "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+      ],
+      "owner": "08-icloud-reconciliation",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Keep final filesystem test adapter matching actual File-worker validation and its extra off-main spy regression."
+    },
+    {
+      "position": 36,
+      "patch": "fingerprint-tests-functional-io-deadline.patch",
+      "sha256": "8f09f59f81b97707c1ee3a27b1746de43c9f1288322219c0d034dea6c014476c",
+      "files": [
+        "iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift"
+      ],
+      "owner": "08-icloud-reconciliation",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Keep bounded 30s positive functional I/O waits; exact content and negative assertions unchanged, not a performance guarantee."
+    },
+    {
+      "position": 37,
+      "patch": "store-tests-functional-io-deadline.patch",
+      "sha256": "9878202e08a5a7667e05b29b05c7b288fb45b4b0c3457646f1f4d48de812b03a",
+      "files": [
+        "iphone/Maps/Tests/Core/iCloudTests/SynchronizedStateStoreTests.swift"
+      ],
+      "owner": "08-icloud-reconciliation",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Keep bounded 30s actual disk/notification waits and account/reopen/reset checks."
+    },
+    {
+      "position": 38,
+      "patch": "unified-saved-item-editing.patch",
+      "sha256": "fd8ac43112e836a18e1adf75b9495528f97a531d0f5a1411351744b59d1cb8b6",
+      "files": [
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift",
+        "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift"
+      ],
+      "owner": "06-manual-item-order",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Final Edit/Done entry, deletion lifecycle, swipe guards and three additional hosted UIKit regressions."
+    },
+    {
+      "position": 39,
+      "patch": "search-fixture-directory.patch",
+      "sha256": "adc1a36dbca39e6f3904599bca99a4c1753ab2fa03d5ebe8462fe951153b53e1",
+      "files": [
+        "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h",
+        "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm",
+        "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift"
+      ],
+      "owner": "04-saved-items-search",
+      "related": [],
+      "state": "historical-source-reference",
+      "note": "Test-only real KML/core unit-test fixtures. Search behavior remains under the actual core; no UI-import-pipeline coverage claim."
+    }
+  ]
+}

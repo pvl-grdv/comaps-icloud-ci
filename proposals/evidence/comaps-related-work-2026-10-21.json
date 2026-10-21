@@ -1,0 +1,37 @@
+{
+  "checked_at_utc": "2026-10-21T09:19:11.465532+00:00",
+  "scope": "Related public CoMaps work. Organic Maps references belong only in source provenance.",
+  "items": [
+    {
+      "url": "https://codeberg.org/comaps/comaps/issues/4403",
+      "state": "open",
+      "topic": "iOS search across all folders; reopened after Android merge",
+      "updated": "2026-07-08"
+    },
+    {
+      "url": "https://codeberg.org/comaps/comaps/pulls/4407",
+      "state": "merged",
+      "topic": "Android global bookmark search",
+      "merged": "2026-07-07"
+    },
+    {
+      "url": "https://codeberg.org/comaps/comaps/pulls/4377",
+      "state": "merged",
+      "topic": "Android folder/list sorting including manual ordering; not point/track ordering",
+      "merged": "2026-06-05"
+    },
+    {
+      "url": "https://codeberg.org/comaps/comaps/issues/4881",
+      "state": "open",
+      "topic": "Custom Order favorites",
+      "updated": "2026-09-20"
+    },
+    {
+      "url": "https://codeberg.org/comaps/comaps/issues/4232",
+      "state": "open",
+      "topic": "iCloud track name reverts",
+      "updated": "2026-08-08"
+    }
+  ],
+  "caveat": "Read-only snapshot; no maintainer contact/publication or acceptance of our design. A merge does not establish availability in a store release."
+}

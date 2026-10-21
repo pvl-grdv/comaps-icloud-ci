@@ -1,0 +1,3 @@
+# Historical references only; NOT an apply series.
+category-reload.patch
+category-info-compile-fix.patch

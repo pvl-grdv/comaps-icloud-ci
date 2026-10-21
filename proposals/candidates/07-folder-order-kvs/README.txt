@@ -1,0 +1,57 @@
+07-folder-order-kvs: Передача порядка папок через iCloud KVS
+
+AI-assisted техническая карточка для личного разбора CoMaps. Не готовый текст PR.
+
+Проблема и результат
+Одна системная KVS-запись передаёт режим и последовательность папок. Применение меняет bm.json
+без перезаписи KML. Места ещё не загруженных папок сохраняются; окончание редактирования
+учитывает фон и смену аккаунта.
+
+Границы
+Победителя целой записи выбирает системный KVS; параллельные перестановки не сливаются. Токены
+строятся из NFC-basename, стабильный UUID папки не введён. Тест трёх устройств использует fake
+stores. В Lab Local iCloud/KVS отключены.
+
+Готовность
+Изменение входит в общий Lab. Самостоятельный patch/CI этой темы ещё не выделен.
+Ни одна тема не опубликована в CoMaps.
+
+Зависимости
+05-manual-folder-order
+
+Регрессии общего набора
+Bookmarks_ApplySharedFolderOrderPreservesSavedManualOrderAndKML
+SharedFolderOrderCoordinatorTests.testDisabledDoesNotCreateCloudStoreOrApplyChanges
+SharedFolderOrderCoordinatorTests.testMissingAccountKeepsLocalOrderWithoutWritingCloud
+SharedFolderOrderCoordinatorTests.testInitialEmptyCloudDoesNotPublishExistingLocalOrder
+SharedFolderOrderCoordinatorTests.testRemoteOrderWaitsForBookmarkLoadAndDoesNotEcho
+SharedFolderOrderCoordinatorTests.testReorderingWaitsUntilDoneAndPublishesOneSnapshot
+SharedFolderOrderCoordinatorTests.testAutomaticModesKeepSavedManualSequence
+SharedFolderOrderCoordinatorTests.testRemoteAutomaticModeRestoresManualSequenceWithoutPublishing
+SharedFolderOrderCoordinatorTests.testMissingKMLAppearsInItsSavedPosition
+SharedFolderOrderCoordinatorTests.testPartialDeviceMoveRetainsMissingRemoteFolder
+SharedFolderOrderCoordinatorTests.testNewImportedFolderIsProjectedWithoutUpdatingCloud
+SharedFolderOrderCoordinatorTests.testSignedInEditUsesSystemCacheWithoutWaitingForDelivery
+SharedFolderOrderCoordinatorTests.testSystemSelectedConcurrentSnapshotConvergesOnThreeDevices
+SharedFolderOrderCoordinatorTests.testAccountChangeUsesReplacedStoreWithoutCopyingLocalOrder
+SharedFolderOrderCoordinatorTests.testAccountSwitchCancelsDragAndUsesIdentityEqualityForNextDrag
+SharedFolderOrderCoordinatorTests.testAccountDisappearanceCancelsBackgroundEditWithoutLaterUpload
+SharedFolderOrderCoordinatorTests.testQuotaNotificationPreservesLocalOrderWithoutRetryLoop
+SharedFolderOrderCoordinatorTests.testMalformedFutureDuplicateAndOversizedPayloadsAreIgnored
+SharedFolderOrderCoordinatorTests.testBackgroundAndDoneDoNotPublishDuplicateSnapshot
+SharedFolderOrderCoordinatorTests.testDisabledRemoteEventsWaitForExplicitReenable
+SharedFolderOrderCoordinatorTests.testBackgroundEndsEditBeforeLaterRemoteOrderWithoutRepublishing
+SharedFolderOrderCoordinatorTests.testAccountCancellationNotifiesPresentationBeforeAnotherEdit
+SharedFolderOrderCoordinatorTests.testOpaqueIdentityCanonicalizesUnicodeAndRejectsPaths
+Точные source paths, границы с соседними темами и список файлов: ../../plan.json.
+Полный текущий план166 XCTest и Local167 не означают, что каждый из8 срезов проверен самостоятельно.
+
+Происхождение кода/идей
+{
+  "kind": "CoMaps-specific AI-assisted implementation"
+}
+
+Исторические патчи (НЕ порядок применения)
+https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/shared-folder-order.patch
+https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/folder-order-lifecycle.patch
+https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/stable-category-menu-target.patch

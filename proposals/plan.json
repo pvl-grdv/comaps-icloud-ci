@@ -1,0 +1,1415 @@
+{
+  "schema_version": 1,
+  "status": "CoMaps contribution study material; current CI pending; no upstream submission",
+  "candidate": "427d129d9693d48bc86bab41e5e40f577c06708b",
+  "patch_catalog": "catalog.json",
+  "source_manifest": "patches/om13232-source-manifest.json",
+  "test_mapping": "patches/om13232-coverage-map.json",
+  "candidates": [
+    {
+      "id": "01-track-rename",
+      "title": "Сохранение имени трека",
+      "implemented_in_combined_candidate": true,
+      "extracted": false,
+      "independently_tested": false,
+      "submitted": false,
+      "behavior": "Переименование помечает трек изменённым, поэтому обычное автосохранение записывает имя. Это устраняет одну локальную причину отката имени.",
+      "limits": "Не исправляет все облачные откаты. Для самостоятельного теста явно создать bookmarks directory: совмещённый набор мог наследовать подготовку от предыдущего теста.",
+      "prerequisites": [],
+      "source_patches": [
+        "track-rename.patch"
+      ],
+      "source_links": [
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/track-rename.patch"
+      ],
+      "native_core_tests": [
+        "TrackRename_AutoSave"
+      ],
+      "native_search_tests": [],
+      "xctests": [],
+      "provenance": {
+        "source_commit": "65e7523dd64eecf3db1cc1ff1d7b7fae26498597",
+        "source_url": "https://github.com/organicmaps/organicmaps/commit/65e7523dd64eecf3db1cc1ff1d7b7fae26498597",
+        "adaptation": "One-line source change; new AI-assisted persistence regression."
+      },
+      "files": [
+        "libs/map/map_tests/bookmarks_test.cpp",
+        "libs/map/track.cpp"
+      ],
+      "related_CoMaps": [
+        "https://codeberg.org/comaps/comaps/issues/4232"
+      ]
+    },
+    {
+      "id": "02-category-reload",
+      "title": "Перезагрузка метаданных папки",
+      "implemented_in_combined_candidate": true,
+      "extracted": false,
+      "independently_tested": false,
+      "submitted": false,
+      "behavior": "Загрузка обновляет существующую папку с сохранением локального ID, заменяет метаданные и старые дочерние коллекции. Проверка уникальности имени исключает саму папку; экран информации обновляется.",
+      "limits": "Не объединяет уже существующие одинаковые файлы. Поздний compile-fix включить в итоговые hunks, не брать весь presenter с несвязанным поиском и сортировкой.",
+      "prerequisites": [],
+      "source_patches": [
+        "category-reload.patch",
+        "category-info-compile-fix.patch"
+      ],
+      "source_links": [
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/category-reload.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/category-info-compile-fix.patch"
+      ],
+      "native_core_tests": [
+        "Bookmarks_ReloadPreservesCategoryIdentityAndMetadata",
+        "Bookmarks_ReloadReplacesCompilations"
+      ],
+      "native_search_tests": [],
+      "xctests": [],
+      "provenance": {
+        "upstream_pr": "https://github.com/organicmaps/organicmaps/pull/13679",
+        "upstream_merge": "3916dc98db02a70ec9fb83931df5d007bd5746a7",
+        "upstream_commits": [
+          "a16f6fb50e03693b3aef29c695d1e044640ac0a2",
+          "b4226eb5aa9b603adac6b8a674c493922c8b7bd9",
+          "82b5b5c9c7939d236eb651c210bea643d0f625a0"
+        ]
+      },
+      "files": [
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInfoViewController.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift",
+        "libs/map/bookmark_manager.cpp",
+        "libs/map/bookmark_manager.hpp",
+        "libs/map/map_tests/bookmarks_test.cpp"
+      ],
+      "related_CoMaps": []
+    },
+    {
+      "id": "03-save-delete-safety",
+      "title": "Безопасное сохранение и удаление",
+      "implemented_in_combined_candidate": true,
+      "extracted": false,
+      "independently_tested": false,
+      "submitted": false,
+      "behavior": "При ошибке удаления или переноса папка остаётся в памяти. Перед переносом в корзину сохраняются последние правки; устаревшее отложенное сохранение не воскрешает удалённый файл. Ошибка открытия файла возвращается вызывающему коду.",
+      "limits": "Нет нового механизма повторных попыток сохранения. Синхронная запись большой папки перед корзиной может задержать UI. Есть изменения Android Java; отдельная Android-сборка пока не подтверждена.",
+      "prerequisites": [
+        "02-category-reload"
+      ],
+      "source_patches": [
+        "ios-folder-order.patch",
+        "deletion-autosave-safety.patch",
+        "save-open-failure.patch",
+        "persist-deletion-fixture.patch",
+        "incoming-bookmark-ordered-commit.patch"
+      ],
+      "source_links": [
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/ios-folder-order.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/deletion-autosave-safety.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/save-open-failure.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/persist-deletion-fixture.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/incoming-bookmark-ordered-commit.patch"
+      ],
+      "native_core_tests": [
+        "Bookmarks_DeletionFailurePreservesCategoryAndChildren",
+        "Bookmarks_TrashFailurePreservesCategory",
+        "Bookmarks_QueuedSaveDoesNotRecreateDeletedFile",
+        "Bookmarks_TrashPreservesQueuedEdits",
+        "Bookmarks_FailedDeletionKeepsQueuedSaveActive",
+        "Bookmarks_TrashPreservesUncommittedEditSession",
+        "Bookmarks_TrashPreservesMemoryAfterFailedAutosave"
+      ],
+      "native_search_tests": [],
+      "xctests": [],
+      "provenance": {
+        "source_commit": "01e8b634df68750ce15b86aec19ceed4362eb24e",
+        "source_url": "https://github.com/organicmaps/organicmaps/commit/01e8b634df68750ce15b86aec19ceed4362eb24e",
+        "adaptation": "Narrow adaptation preserving CoMaps Java void deleteCategory wrapper; tryDeleteCategory reports boolean. Native shared save state, failure-preserving UI/bridge handling and new regressions were adapted for this candidate."
+      },
+      "files": [
+        "android/app/src/main/java/app/organicmaps/bookmarks/BookmarkCategoriesFragment.java",
+        "android/sdk/src/main/java/app/organicmaps/sdk/bookmarks/data/BookmarkManager.java",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift",
+        "iphone/Maps/Bookmarks/Categories/Categories/BMCCategoryCell.swift",
+        "iphone/Maps/Bookmarks/Categories/Category settings/CategorySettingsViewController.swift",
+        "iphone/Maps/Core/iCloud/SynchronizaionManager.swift",
+        "iphone/Maps/Maps.xcodeproj/project.pbxproj",
+        "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift",
+        "libs/map/bookmark.hpp",
+        "libs/map/bookmark_helpers.cpp",
+        "libs/map/bookmark_manager.cpp",
+        "libs/map/bookmark_manager.hpp",
+        "libs/map/map_tests/bookmarks_test.cpp"
+      ],
+      "shared_regression": "Bookmarks_NewCategorySaveFailureRestoresUnsavedState is allocated once to 05 in this inventory. Move/split its fixture into 03 when extracting first-save rollback without folder ordering; the helper open-failure behavior also needs its focused regression in that slice.",
+      "related_CoMaps": []
+    },
+    {
+      "id": "04-saved-items-search",
+      "title": "Поиск точек и треков",
+      "implemented_in_combined_candidate": true,
+      "extracted": true,
+      "independently_tested": false,
+      "submitted": false,
+      "behavior": "Общий поиск и поиск внутри папки находят точки и треки. Типизированный ID различает точку и трек с одинаковым числовым ID. Устаревшие ответы, отмена и удалённые результаты обрабатываются явно.",
+      "limits": "Описания поддерживаются ядром только при включённом флаге; iOS его не включает. Названия папок не индексируются. Для точек есть оригинальные/пользовательские имена и типовые псевдонимы; у треков используется предпочтительное локализованное имя. На большой реальной библиотеке производительность не измерена.",
+      "prerequisites": [],
+      "source_patches": [
+        "global-bookmark-search.patch",
+        "typed-saved-items-search.patch",
+        "typed-saved-items-ios.patch",
+        "typed-search-cancellation.patch",
+        "hosted-bookmarks-ui-smoke.patch",
+        "search-viewport-test-setup.patch",
+        "cancellation-test-explicit-catch.patch",
+        "bookmark-original-name-search-alias.patch",
+        "explicit-search-service-capture.patch",
+        "hosted-ui-window-lifecycle.patch",
+        "search-fixture-directory.patch"
+      ],
+      "source_links": [
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/global-bookmark-search.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/typed-saved-items-search.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/typed-saved-items-ios.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/typed-search-cancellation.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/hosted-bookmarks-ui-smoke.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/search-viewport-test-setup.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/cancellation-test-explicit-catch.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/bookmark-original-name-search-alias.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/explicit-search-service-capture.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/hosted-ui-window-lifecycle.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/search-fixture-directory.patch"
+      ],
+      "native_core_tests": [],
+      "native_search_tests": [
+        "bookmarks_processor_tests.cpp::BookmarksProcessorTest_Smoke",
+        "bookmarks_processor_tests.cpp::BookmarksProcessorTest_SearchByType",
+        "bookmarks_processor_tests.cpp::BookmarksProcessorTest_IndexDescriptions",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_CollidingNumericIds",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_UnicodePrefixAndDescription",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_SnapshotRenameMoveDeleteReload",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_InvalidSnapshotRetainsPreviousIndex",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_CancelledSearch",
+        "bookmarks_processor_tests.cpp::SavedItemsProcessorTest_CancelledBeforeProcessingCompletesTypedCallback",
+        "bookmarks_processor_tests.cpp::SavedItemsProcessorTest_CancelledLegacyRequestStillCompletes",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_OriginalAndCustomNamesSurviveUpdates"
+      ],
+      "xctests": [
+        {
+          "className": "BMCSearchViewModelTests",
+          "name": "testRepeatedStartAndStopPrepareAndReleaseOnlyOnce",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift"
+        },
+        {
+          "className": "BMCSearchViewModelTests",
+          "name": "testResultsAreGroupedByCategoryIdentityInResultOrder",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift"
+        },
+        {
+          "className": "BMCSearchViewModelTests",
+          "name": "testEarlierQueryCannotReplaceCurrentResults",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift"
+        },
+        {
+          "className": "BMCSearchViewModelTests",
+          "name": "testDismissedSearchIgnoresPendingResults",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift"
+        },
+        {
+          "className": "BMCSearchViewModelTests",
+          "name": "testClearingQueryClearsResultsAndInvalidatesOldCompletion",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift"
+        },
+        {
+          "className": "BMCSearchViewModelTests",
+          "name": "testRefreshReindexesAndRepeatsCurrentQuery",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift"
+        },
+        {
+          "className": "BMCSearchViewModelTests",
+          "name": "testInactiveRefreshDoesNotAcquireIndex",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift"
+        },
+        {
+          "className": "BMCSearchViewModelTests",
+          "name": "testRestartDoesNotAcceptCompletionFromPreviousSession",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift"
+        },
+        {
+          "className": "BMCSearchViewModelTests",
+          "name": "testSelectingDeletedResultRefreshesInsteadOfReturningStaleIdentity",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift"
+        },
+        {
+          "className": "BMCSearchViewModelTests",
+          "name": "testBookmarkAndTrackWithSameNumericIdRemainDistinct",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift"
+        },
+        {
+          "className": "BMCSearchViewModelTests",
+          "name": "testSelectingMovedResultUsesItsCurrentCategory",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift"
+        },
+        {
+          "className": "SavedItemsSearchTests",
+          "name": "testTypedResultPreservesKindWithEqualNumericIds",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift"
+        },
+        {
+          "className": "SavedItemsSearchTests",
+          "name": "testCurrentFolderSearchReturnsBothKindsFromOnlyThatFolder",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift"
+        },
+        {
+          "className": "SavedItemsSearchTests",
+          "name": "testGlobalSearchIncludesBothFoldersAndBothKinds",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift"
+        },
+        {
+          "className": "SavedItemsSearchTests",
+          "name": "testChildCollectionSearchUsesMembershipInsteadOfPrimaryParent",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift"
+        },
+        {
+          "className": "SavedItemsSearchTests",
+          "name": "testRenamedTrackIsReplacedInTheNextSearchSnapshot",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift"
+        },
+        {
+          "className": "SavedItemsSearchTests",
+          "name": "testMovedTrackLeavesOldScopeAndAppearsInNewScope",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift"
+        },
+        {
+          "className": "SavedItemsSearchTests",
+          "name": "testDeletedTrackIsNotSearchableOrSelectable",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift"
+        },
+        {
+          "className": "SavedItemsSearchTests",
+          "name": "testLegacyBookmarkSearchStillReturnsOnlyBookmarks",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift"
+        }
+      ],
+      "provenance": {
+        "kind": "CoMaps-specific AI-assisted implementation"
+      },
+      "files": [
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCView/BMCSearchResultsViewController.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSavedItemsSearchService.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSearchViewModel.swift",
+        "iphone/Maps/Maps.xcodeproj/project.pbxproj",
+        "iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift",
+        "iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift",
+        "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h",
+        "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm",
+        "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift",
+        "iphone/Maps/Tests/Bridging-Header.h",
+        "libs/map/saved_items_search_params.hpp",
+        "libs/map/search_api.cpp",
+        "libs/map/search_api.hpp",
+        "libs/search/bookmarks/data.hpp",
+        "libs/search/bookmarks/saved_items.hpp",
+        "libs/search/bookmarks/saved_items_index.hpp",
+        "libs/search/processor.cpp",
+        "libs/search/processor.hpp",
+        "libs/search/search_params.hpp",
+        "libs/search/search_tests/bookmarks_processor_tests.cpp"
+      ],
+      "related_CoMaps": [
+        "https://codeberg.org/comaps/comaps/issues/4403",
+        "https://codeberg.org/comaps/comaps/pulls/4407"
+      ],
+      "standalone": {
+        "feature": "search",
+        "patch": "proposals/saved-items/search.patch",
+        "sha256": "3145ed99469a088305894e378c1132f9dc847c37ce9ab1a5db3ab9aa3267fb09",
+        "upstream_revision": "a64450d0c7cd7cdfc792c9fc6c2dd620156abecd",
+        "required_XCTest": 19,
+        "required_native_map": 1,
+        "required_native_search": 11,
+        "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39582197192",
+        "tested_repository_commit": "427d129d9693d48bc86bab41e5e40f577c06708b",
+        "status": "native passed; exact XCTest/Release terminal verification pending"
+      }
+    },
+    {
+      "id": "05-manual-folder-order",
+      "title": "Ручной порядок папок",
+      "implemented_in_combined_candidate": true,
+      "extracted": true,
+      "independently_tested": false,
+      "submitted": false,
+      "behavior": "iOS показывает существующие режимы ядра: дата, имя, ручной порядок. Ручная перестановка сохраняется в bm.json; новые пустые папки сначала получают сохранённый файл. Меню удерживает ID папки при перестановке списка.",
+      "limits": "Тесты переставляют datasource и осматривают UIKit; физический drag не проверен. Часть финального controller/model содержит облачные и incoming-bridge hunks: выделять по поведению.",
+      "prerequisites": [],
+      "source_patches": [
+        "ios-folder-order.patch",
+        "hosted-bookmarks-ui-smoke.patch",
+        "show-reorder-controls.patch",
+        "folder-order-lifecycle.patch",
+        "stable-category-menu-target.patch",
+        "hosted-ui-window-lifecycle.patch"
+      ],
+      "source_links": [
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/ios-folder-order.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/hosted-bookmarks-ui-smoke.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/show-reorder-controls.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/folder-order-lifecycle.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/stable-category-menu-target.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/hosted-ui-window-lifecycle.patch"
+      ],
+      "native_core_tests": [
+        "Bookmarks_ManualFolderOrderPersistsEmptyCategories",
+        "Bookmarks_NewCategorySaveFailureRestoresUnsavedState"
+      ],
+      "native_search_tests": [],
+      "xctests": [
+        {
+          "className": "BookmarkFolderOrderTests",
+          "name": "testManualOrderMovesNewEmptyCategories",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift"
+        },
+        {
+          "className": "BookmarkFolderOrderTests",
+          "name": "testAutomaticModeRejectsMoves",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift"
+        },
+        {
+          "className": "BookmarkFolderOrderTests",
+          "name": "testInvalidDestinationsLeaveOrderUntouched",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift"
+        },
+        {
+          "className": "BookmarkFolderOrderTests",
+          "name": "testUnknownCategoryLeavesOrderUntouched",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift"
+        },
+        {
+          "className": "BookmarkFolderOrderTests",
+          "name": "testNewFolderIsAppendedToExistingManualOrder",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift"
+        },
+        {
+          "className": "BookmarkFolderOrderTests",
+          "name": "testAutomaticSortRestoresCategoryNameOrder",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift"
+        },
+        {
+          "className": "BookmarkFolderOrderTests",
+          "name": "testSynchronizationEndedNotificationClosesFolderEditingUI",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift"
+        },
+        {
+          "className": "BookmarkFolderOrderTests",
+          "name": "testMenuTargetRemainsSameCategoryAfterRemoteOrderChanges",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift"
+        },
+        {
+          "className": "BookmarkFolderOrderTests",
+          "name": "testRemovedMenuTargetNoLongerResolvesToAnotherCategory",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift"
+        },
+        {
+          "className": "HostedBookmarksUISmokeTests",
+          "name": "testHostedLibraryOrderingAndSearchScreens",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift"
+        }
+      ],
+      "provenance": {
+        "kind": "existing CoMaps core exposed and extended on iOS"
+      },
+      "files": [
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift",
+        "iphone/Maps/Bookmarks/Categories/Categories/BMCCategoryCell.swift",
+        "iphone/Maps/Core/iCloud/BookmarkFolderOrderSynchronization.swift",
+        "iphone/Maps/Core/iCloud/FolderOrderCoordinator.swift",
+        "iphone/Maps/Maps.xcodeproj/project.pbxproj",
+        "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift",
+        "iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift",
+        "libs/map/bookmark_manager.cpp",
+        "libs/map/map_tests/bookmarks_test.cpp"
+      ],
+      "related_CoMaps": [
+        "https://codeberg.org/comaps/comaps/pulls/4377",
+        "https://codeberg.org/comaps/comaps/issues/4881"
+      ],
+      "standalone": {
+        "feature": "folder-order",
+        "patch": "proposals/saved-items/folder-order.patch",
+        "sha256": "6fd4191c2d0fe4a3b47be123c8ae081019ecf7314de4e7065deec428761e3727",
+        "upstream_revision": "a64450d0c7cd7cdfc792c9fc6c2dd620156abecd",
+        "required_XCTest": 9,
+        "required_native_map": 3,
+        "required_native_search": 0,
+        "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39580010991",
+        "tested_repository_commit": "7f09ff5c8977ff584d16d707979d1b386bf61e0b",
+        "status": "native passed; exact XCTest/Release terminal verification pending"
+      }
+    },
+    {
+      "id": "06-manual-item-order",
+      "title": "Ручной порядок точек и треков",
+      "implemented_in_combined_candidate": true,
+      "extracted": true,
+      "independently_tested": false,
+      "submitted": false,
+      "behavior": "Внутри папки точки и треки остаются в отдельных разделах. Полный корректный порядок сохраняется в KML через comaps:itemOrder и comaps:itemSorting; добавление, перенос, удаление и undo учитывают ранги. Верхняя Edit включает ручную перестановку, Done завершает её; прежний Sort → Edit убран. Кнопки удаления сохранены, сессия перестановки завершается до удаления.",
+      "limits": "Смешанный список точек и треков не реализован. Две конфликтующие KML-версии не сливаются по отдельным рангам. JNI fallback сохраняет совместимость, но Android UI ручного порядка не добавлен. Отдельной регрессии доставки уже поставленного в очередь autosort-callback после reset в плане нет. Снимки HostedBookmarksUISmokeTests не показывают экран/жест перестановки точек и треков; это остаётся ручной проверкой. Отдельная Android-сборка JNI-изменений не подтверждена.",
+      "prerequisites": [],
+      "source_patches": [
+        "manual-item-order.patch",
+        "ios-manual-item-order.patch",
+        "manual-bookmark-creation.patch",
+        "invalidate-default-sort.patch",
+        "show-reorder-controls.patch",
+        "unified-saved-item-editing.patch"
+      ],
+      "source_links": [
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/manual-item-order.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/ios-manual-item-order.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/manual-bookmark-creation.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/invalidate-default-sort.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/show-reorder-controls.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/unified-saved-item-editing.patch"
+      ],
+      "native_core_tests": [
+        "ManualItemOrder_PersistenceAfterReload",
+        "ManualItemOrder_RejectsStaleForeignAndDuplicateIds",
+        "ManualItemOrder_InvalidRanksAndNewItems",
+        "ManualItemOrder_SharedModeAndDefault",
+        "ManualItemOrder_AppendsNewMovedItemsAndHandlesDeletion",
+        "ManualItemOrder_AppendsNormallyCreatedBookmarks",
+        "ManualItemOrder_UndoKeepsOriginalBookmarkPosition"
+      ],
+      "native_search_tests": [],
+      "xctests": [
+        {
+          "className": "BookmarkItemOrderModelTests",
+          "name": "testMovingBookmarkLeavesTrackSequenceUnchanged",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift"
+        },
+        {
+          "className": "BookmarkItemOrderModelTests",
+          "name": "testMovingTrackLeavesBookmarkSequenceUnchanged",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift"
+        },
+        {
+          "className": "BookmarkItemOrderModelTests",
+          "name": "testEqualNumericIdsInDifferentSectionsRemainDistinct",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift"
+        },
+        {
+          "className": "BookmarkItemOrderModelTests",
+          "name": "testInvalidMoveDoesNotChangeEitherSequence",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift"
+        },
+        {
+          "className": "BookmarkItemOrderModelTests",
+          "name": "testDuplicateIdsWithinEitherSectionAreRejected",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift"
+        },
+        {
+          "className": "BookmarkItemOrderModelTests",
+          "name": "testMovingToSamePositionKeepsOrder",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift"
+        },
+        {
+          "className": "BookmarkItemOrderBridgeTests",
+          "name": "testBridgePersistsCompleteSeparatePermutationsAndManualMode",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift"
+        },
+        {
+          "className": "BookmarkItemOrderBridgeTests",
+          "name": "testIncompleteDuplicateAndForeignIdsAreRejectedWithoutMutation",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift"
+        },
+        {
+          "className": "BookmarkItemOrderBridgeTests",
+          "name": "testChildCollectionCannotChangeParentItemRanks",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift"
+        },
+        {
+          "className": "BookmarkItemOrderBridgeTests",
+          "name": "testManualOrderAndModeSurviveKmlSaveAndReload",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift"
+        },
+        {
+          "className": "BookmarkItemOrderBridgeTests",
+          "name": "testTopEditStartsManualOrderWithDeleteAndReorderControls",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift"
+        },
+        {
+          "className": "BookmarkItemOrderBridgeTests",
+          "name": "testDoneEndsItemEditingAndSearchDisablesThenRestoresEdit",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift"
+        },
+        {
+          "className": "BookmarkItemOrderBridgeTests",
+          "name": "testDeleteInItemEditEndsStaleOrderAndPersistsRemainingItems",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift"
+        }
+      ],
+      "provenance": {
+        "kind": "CoMaps-specific AI-assisted implementation"
+      },
+      "files": [
+        "android/sdk/src/main/cpp/app/organicmaps/sdk/bookmarks/data/BookmarkManager.cpp",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarkItemOrder.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift",
+        "iphone/Maps/Maps.xcodeproj/project.pbxproj",
+        "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift",
+        "iphone/Maps/Tests/Bookmarks/Categories/HostedBookmarksUISmokeTests.swift",
+        "libs/map/bookmark_manager.cpp",
+        "libs/map/bookmark_manager.hpp",
+        "libs/map/map_tests/bookmarks_test.cpp",
+        "libs/map/track.cpp",
+        "libs/map/track.hpp"
+      ],
+      "related_CoMaps": [
+        "https://codeberg.org/comaps/comaps/issues/4881"
+      ],
+      "standalone": {
+        "feature": "item-order",
+        "patch": "proposals/saved-items/item-order.patch",
+        "sha256": "ab294976fc4d8a32f3cf318444c83d2bfbfeb617dead32abe17f2b693cf2482a",
+        "upstream_revision": "a64450d0c7cd7cdfc792c9fc6c2dd620156abecd",
+        "required_XCTest": 13,
+        "required_native_map": 8,
+        "required_native_search": 0,
+        "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39581652809",
+        "tested_repository_commit": "aefb76ef79235fce72a3b054b8467efd1a1bab3e",
+        "status": "native passed; exact XCTest/Release terminal verification pending"
+      }
+    },
+    {
+      "id": "07-folder-order-kvs",
+      "title": "Передача порядка папок через iCloud KVS",
+      "implemented_in_combined_candidate": true,
+      "extracted": false,
+      "independently_tested": false,
+      "submitted": false,
+      "behavior": "Одна системная KVS-запись передаёт режим и последовательность папок. Применение меняет bm.json без перезаписи KML. Места ещё не загруженных папок сохраняются; окончание редактирования учитывает фон и смену аккаунта.",
+      "limits": "Победителя целой записи выбирает системный KVS; параллельные перестановки не сливаются. Токены строятся из NFC-basename, стабильный UUID папки не введён. Тест трёх устройств использует fake stores. В Lab Local iCloud/KVS отключены.",
+      "prerequisites": [
+        "05-manual-folder-order"
+      ],
+      "source_patches": [
+        "shared-folder-order.patch",
+        "folder-order-lifecycle.patch",
+        "stable-category-menu-target.patch"
+      ],
+      "source_links": [
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/shared-folder-order.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/folder-order-lifecycle.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/stable-category-menu-target.patch"
+      ],
+      "native_core_tests": [
+        "Bookmarks_ApplySharedFolderOrderPreservesSavedManualOrderAndKML"
+      ],
+      "native_search_tests": [],
+      "xctests": [
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testDisabledDoesNotCreateCloudStoreOrApplyChanges",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testMissingAccountKeepsLocalOrderWithoutWritingCloud",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testInitialEmptyCloudDoesNotPublishExistingLocalOrder",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testRemoteOrderWaitsForBookmarkLoadAndDoesNotEcho",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testReorderingWaitsUntilDoneAndPublishesOneSnapshot",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testAutomaticModesKeepSavedManualSequence",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testRemoteAutomaticModeRestoresManualSequenceWithoutPublishing",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testMissingKMLAppearsInItsSavedPosition",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testPartialDeviceMoveRetainsMissingRemoteFolder",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testNewImportedFolderIsProjectedWithoutUpdatingCloud",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testSignedInEditUsesSystemCacheWithoutWaitingForDelivery",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testSystemSelectedConcurrentSnapshotConvergesOnThreeDevices",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testAccountChangeUsesReplacedStoreWithoutCopyingLocalOrder",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testAccountSwitchCancelsDragAndUsesIdentityEqualityForNextDrag",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testAccountDisappearanceCancelsBackgroundEditWithoutLaterUpload",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testQuotaNotificationPreservesLocalOrderWithoutRetryLoop",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testMalformedFutureDuplicateAndOversizedPayloadsAreIgnored",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testBackgroundAndDoneDoNotPublishDuplicateSnapshot",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testDisabledRemoteEventsWaitForExplicitReenable",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testBackgroundEndsEditBeforeLaterRemoteOrderWithoutRepublishing",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testAccountCancellationNotifiesPresentationBeforeAnotherEdit",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        },
+        {
+          "className": "SharedFolderOrderCoordinatorTests",
+          "name": "testOpaqueIdentityCanonicalizesUnicodeAndRejectsPaths",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift"
+        }
+      ],
+      "provenance": {
+        "kind": "CoMaps-specific AI-assisted implementation"
+      },
+      "files": [
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
+        "iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift",
+        "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift",
+        "iphone/Maps/Core/iCloud/BookmarkFolderOrderSynchronization.swift",
+        "iphone/Maps/Core/iCloud/FolderOrderCoordinator.swift",
+        "iphone/Maps/Core/iCloud/SharedFolderOrder.swift",
+        "iphone/Maps/Core/iCloud/SynchronizaionManager.swift",
+        "iphone/Maps/Maps.xcodeproj/project.pbxproj",
+        "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SharedFolderOrderCoordinatorTests.swift",
+        "libs/map/bookmark_manager.cpp",
+        "libs/map/bookmark_manager.hpp",
+        "libs/map/map_tests/bookmarks_test.cpp"
+      ],
+      "related_CoMaps": []
+    },
+    {
+      "id": "08-icloud-reconciliation",
+      "title": "Согласование содержимого iCloud",
+      "implemented_in_combined_candidate": true,
+      "extracted": false,
+      "independently_tested": false,
+      "submitted": false,
+      "behavior": "Целостные снимки папок, SHA-256 содержимого и последняя общая версия заменяют решения по одним датам. Односторонняя правка переносится без копии, разные правки сохраняются обе. Удаления подтверждаются повторным наблюдением и проверкой перед действием. Входящий снимок устанавливается после старых сохранений с защитой новых правок в памяти; общую версию подтверждает только реальная успешная запись.",
+      "limits": "Нет очистки старых дублей, семантического KML-dedup или стабильного UUID. Разные байты без общей базы могут сохраняться как конфликт. Уже принятая операция может завершиться после stop/account switch; устаревший результат не подтверждает новую базу. Правка после preflight может допустить старую принятую выгрузку, защищая более новую память. Настоящие 3 устройства и OS NSFileVersion-конфликт не проверены.",
+      "prerequisites": [
+        "02-category-reload",
+        "03-save-delete-safety"
+      ],
+      "source_patches": [
+        "initial-conflict.patch",
+        "incoming-bookmark-ordered-commit.patch",
+        "incoming-category-staging.patch",
+        "explicit-fixture-callbacks.patch",
+        "parser-rejected-invalid-snapshot-fixture.patch",
+        "declare-fill-empty-names.patch",
+        "icloud-content-reconciliation.patch",
+        "fingerprint-tests-coordination-budget.patch",
+        "per-operation-coordinators.patch",
+        "writer-tests-file-worker-adapter.patch",
+        "fingerprint-tests-functional-io-deadline.patch",
+        "store-tests-functional-io-deadline.patch"
+      ],
+      "source_links": [
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/initial-conflict.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/incoming-bookmark-ordered-commit.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/incoming-category-staging.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/explicit-fixture-callbacks.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/parser-rejected-invalid-snapshot-fixture.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/declare-fill-empty-names.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/icloud-content-reconciliation.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/fingerprint-tests-coordination-budget.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/per-operation-coordinators.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/writer-tests-file-worker-adapter.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/fingerprint-tests-functional-io-deadline.patch",
+        "https://github.com/pvl-grdv/comaps-icloud-ci/blob/427d129d9693d48bc86bab41e5e40f577c06708b/patches/store-tests-functional-io-deadline.patch"
+      ],
+      "native_core_tests": [
+        "Bookmarks_IncomingQueuedSaveKeepsIncomingVersion",
+        "Bookmarks_IncomingUnnamedCategoryUsesDestinationName",
+        "Bookmarks_IncomingLaterLocalEditBeforeCommitWins",
+        "Bookmarks_IncomingLaterLocalEditAfterCommitWins",
+        "Bookmarks_IncomingOpenEditSessionKeepsLocalChange",
+        "Bookmarks_IncomingOtherCategoryEditDoesNotCancel",
+        "Bookmarks_IncomingDeletedCategoryIsNotResurrected",
+        "Bookmarks_IncomingRecreatedPathIsNotReplaced",
+        "Bookmarks_IncomingInvalidSnapshotPreservesCurrentVersion",
+        "Bookmarks_IncomingInstallFailurePreservesCurrentVersion",
+        "Bookmarks_IncomingBeforeInitialLoadApplies",
+        "Bookmarks_IncomingTeardownAcknowledgesActiveAndQueued",
+        "Bookmarks_IncomingTeardownAcknowledgesDeferredCommitOnce",
+        "Bookmarks_IncomingExpectedAbsentDestinationCanBeCreated",
+        "Bookmarks_IncomingExpectedContentIsValidatedOnFileWorker",
+        "Bookmarks_IncomingQueuedSaveInvalidatesExpectedContent",
+        "Bookmarks_IncomingValidatedSnapshotCannotRevertLaterLocalEdit",
+        "Bookmarks_IncomingValidationFailurePreservesCurrentVersion",
+        "Bookmarks_SynchronizedDeletionDefersBeforeInitialLoadAndTrashesUnparsedFile",
+        "Bookmarks_SynchronizedDeletionDefersOpenEditSessionAndTeardown",
+        "Bookmarks_SynchronizedDeletionDefersQueuedSaveAndPreservesLatestTrash",
+        "Bookmarks_SynchronizedDeletionDefersWhileIncomingLoadIsActive",
+        "Bookmarks_SynchronizedDeletionMoveFailurePreservesUnparsedFile",
+        "Bookmarks_IncomingCanApplyAfterFailedAutosaveIsSaved",
+        "Bookmarks_IncomingCannotReplaceMemoryAfterFailedAutosave",
+        "Bookmarks_OlderSuccessfulSaveCannotMarkNewerEditPersisted",
+        "Bookmarks_QueuedOlderSaveCannotOverwriteNewerSynchronousSave",
+        "Bookmarks_SynchronizedDeletionDefersAfterFailedAutosaveUntilSaved"
+      ],
+      "native_search_tests": [],
+      "xctests": [
+        {
+          "className": "BookmarkFolderOrderTests",
+          "name": "testIncomingSnapshotBridgeCommitsBeforeCallingCompletion",
+          "source": "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift"
+        },
+        {
+          "className": "DefaultLocalDirectoryMonitorTests",
+          "name": "testInitialization",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/DefaultLocalDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "DefaultLocalDirectoryMonitorTests",
+          "name": "testStartMonitoring",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/DefaultLocalDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "DefaultLocalDirectoryMonitorTests",
+          "name": "testStopMonitoring",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/DefaultLocalDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "DefaultLocalDirectoryMonitorTests",
+          "name": "testMonitorCanBeReleasedAfterLifecycleTransitions",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/DefaultLocalDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "DefaultLocalDirectoryMonitorTests",
+          "name": "testStoppedMonitorIsNotStartedByResume",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/DefaultLocalDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "DefaultLocalDirectoryMonitorTests",
+          "name": "testPausedMonitorCanBeStoppedAndStartedAgain",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/DefaultLocalDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "DefaultLocalDirectoryMonitorTests",
+          "name": "testPauseAndResumeMonitoring",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/DefaultLocalDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "DefaultLocalDirectoryMonitorTests",
+          "name": "testPausingDuringDebounceDoesNotSuppressLaterChanges",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/DefaultLocalDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "DefaultLocalDirectoryMonitorTests",
+          "name": "testDelegateDidReceiveSnapshot",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/DefaultLocalDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "DefaultLocalDirectoryMonitorTests",
+          "name": "testDelegateDidReceiveError",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/DefaultLocalDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "DefaultLocalDirectoryMonitorTests",
+          "name": "testContentUpdateDetection",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/DefaultLocalDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "DefaultLocalDirectoryMonitorTests",
+          "name": "testFileWithIncorrectExtension",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/DefaultLocalDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "FileContentFingerprintProviderTests",
+          "name": "testContentIsHashedInTheBackground",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift"
+        },
+        {
+          "className": "FileContentFingerprintProviderTests",
+          "name": "testResetDropsCachedContentEvenWhenTheNewAccountReusesTheIdentity",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift"
+        },
+        {
+          "className": "FileContentFingerprintProviderTests",
+          "name": "testResetCancelsReportsFromAnEarlierReadSession",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift"
+        },
+        {
+          "className": "FileContentFingerprintProviderTests",
+          "name": "testFileThatCannotBeReadIsTriedAgain",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testLocalFileHoldingTheDecidedContentIsReplaced",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testMetadataURLSelectsTheFileThatWillActuallyBeTransferred",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testLocalFileChangedSinceTheDecisionIsNotReplaced",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testReplacedLocalVersionIsKeptUnderANewName",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testPreservedCopyThatIsThereAlreadyIsNotWrittenAgain",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testEditedConflictCopyDoesNotPreventPreservingTheOriginalContent",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testFailedReplaceRemovesOnlyTheCopyItWrote",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testCloudFileHoldingTheDecidedContentIsReplaced",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testUploadReportsTheContentOfTheStagedCopy",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testConflictPreservationReusesAMatchingNumberedCopy",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testConflictPreservationKeepsEveryOccupiedCopy",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testCloudFileChangedSinceTheDecisionIsNotReplaced",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testFileThatIsBackIsNotCreatedOverAgain",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testUnreadableFileIsNotCreatedOverAgain",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testUploadOfAFileThatIsGoneIsSkipped",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testLocalFileHoldingTheSynchronizedContentIsReportedForDeletion",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testLocalFileChangedSinceTheDeletionIsNotDeleted",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testLocalDeletionIsSkippedWhenTheCloudFileIsBackOnDisk",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testCloudDeletionIsSkippedWhenTheLocalFileIsBackOnDisk",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testCloudDeletionStillRemovesTheFileWhenLocalAbsenceIsCurrent",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testCloudFileChangedSinceTheDeletionIsNotTrashed",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testDownloadThatCannotStartIsSkipped",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testConflictCopyIsNamedAfterTheContentItHolds",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationFileWriterTests",
+          "name": "testIncomingValidationUsesTheFileWorkerBoundary",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationIncomingFileWriterTests",
+          "name": "testIncomingWriterStagesImmutableBytesBeforeTouchingLiveFile",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationIncomingFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationIncomingFileWriterTests",
+          "name": "testIncomingWriterHoldsNextUploadUntilCoreAcknowledges",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationIncomingFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationIncomingFileWriterTests",
+          "name": "testUnavailableIncomingFileDoesNotBlockNextWriterEvent",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationIncomingFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationIncomingFileWriterTests",
+          "name": "testIncomingSnapshotReleaseRemovesStagingDirectoryOnly",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationIncomingFileWriterTests.swift"
+        },
+        {
+          "className": "SynchronizationManagerTests",
+          "name": "testStartCompletedInBackgroundResumesItsClockOnForeground",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationManagerTests.swift"
+        },
+        {
+          "className": "SynchronizationManagerTests",
+          "name": "testForegroundWhileStartingDoesNotStartTheLocalMonitorEarly",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationManagerTests.swift"
+        },
+        {
+          "className": "SynchronizationManagerTests",
+          "name": "testFingerprintCallbackDoesNotReconcilePausedSnapshots",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationManagerTests.swift"
+        },
+        {
+          "className": "SynchronizationManagerTests",
+          "name": "testAccountChangeResetsTheFingerprintProvider",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationManagerTests.swift"
+        },
+        {
+          "className": "SynchronizationManagerTests",
+          "name": "testUnavailableAccountIdentityDoesNotDiscardCommonBase",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationManagerTests.swift"
+        },
+        {
+          "className": "SynchronizationManagerTests",
+          "name": "testCleanSnapshotClearsAnUnmappedSystemError",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationManagerTests.swift"
+        },
+        {
+          "className": "SynchronizationManagerTests",
+          "name": "testConfirmedDeletionTrashesAFileThatHasNoLoadedCategory",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationManagerTests.swift"
+        },
+        {
+          "className": "SynchronizationManagerTests",
+          "name": "testIncomingCommonBaseChangesOnlyAfterTheWrittenTerminalResult",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationManagerTests.swift"
+        },
+        {
+          "className": "SynchronizationManagerTests",
+          "name": "testSkippedAndFailedIncomingWritesDoNotEstablishACommonBase",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationManagerTests.swift"
+        },
+        {
+          "className": "SynchronizationManagerTests",
+          "name": "testEndedSessionRejectsIncomingSnapshotAndUnblocksTheWriter",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationManagerTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testNoEventsUntilBothDirectoriesAreObserved",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testEmptyDirectoriesProduceNoEvents",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testFilesAreReconciledIndependently",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testEqualContentWithDifferentDatesIsSynchronizedWithoutConflict",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testChangedLocalFileIsUploaded",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testChangedCloudFileIsDownloaded",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testCompletingAnUploadDoesNotRecordANewerLocalEdit",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testFileIsReconciledWhenItsContentBecomesKnown",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testInFlightUploadDoesNotExpireOrSettleBeforeItsCompletion",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testCompletedTransferRecordsItsActualContent",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testFileChangedOnBothSidesKeepsBothVersions",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testDownloadIsRequestedAgainWhenICloudDoesNotAct",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testRemoteDeletionRequiresTwoStableObservations",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testDeletionNeedsASecondLookAtTheMissingSide",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testConfirmedDeletionIsRequestedOnce",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testRemovedFileThatReappearsIsNotDeleted",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testRemovalDuringOwnUploadIsIgnored",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testLocalChangeDuringOwnUploadIsUploadedOnce",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testIncompleteSnapshotCancelsPendingDeletion",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testUnavailableCloudItemCancelsPendingDeletion",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testDeletionIsNotAuthorizedAfterTheFileIsObservedAgain",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testDeletionIsNotAuthorizedByAnAbsenceThatWasNeverConfirmed",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testDeletionIsNotAuthorizedWhenTheSynchronizedContentChanged",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testCloudDeletionIsAuthorizedByTheSameRule",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testCommonBaseIsKeptUntilBothSidesReportTheFileGone",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testRemoteDeletionOfALocallyChangedFilePreservesIt",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testLocalDeletionRemovesTheCloudFileAfterConfirmation",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testFileWrittenLocallyIsNotUploadedBack",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testFailedWriteIsRetried",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testFileRemovedOnBothSidesIsForgotten",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testItemWithoutUrlIsPresentButNotActionable",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testItemWithoutNameIsIdentifiedByUrl",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testUnusableItemOutsideOfTheDirectoryDoesNotStandForTheFileInIt",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testUnusableItemInTheDirectoryProvesThatTheFileIsThere",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testItemWithoutNameAndUrlIsUnidentifiable",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testTheMostRecentFileWinsWhenTheSameNameIsObservedTwice",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testCompleteItemIsActionable",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testItemWithoutSizeIsPresentButNotActionable",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizationStateResolverTests",
+          "name": "testGatheringQueryCannotConfirmAbsence",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift"
+        },
+        {
+          "className": "SynchronizedStateStoreTests",
+          "name": "testWrittenCommonBaseIsRestoredAfterReopening",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizedStateStoreTests.swift"
+        },
+        {
+          "className": "SynchronizedStateStoreTests",
+          "name": "testChangedAccountPersistsOnlyItsOwnCommonBase",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/SynchronizedStateStoreTests.swift"
+        },
+        {
+          "className": "iCloudDirectoryMonitorTests",
+          "name": "testInitialization",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/iCloudDirectoryMonitorTests/iCloudDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "iCloudDirectoryMonitorTests",
+          "name": "testCloudAvailability",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/iCloudDirectoryMonitorTests/iCloudDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "iCloudDirectoryMonitorTests",
+          "name": "testOpaqueAccountTokenWithoutSecureCodingCanBeArchived",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/iCloudDirectoryMonitorTests/iCloudDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "iCloudDirectoryMonitorTests",
+          "name": "testStartThatIsNotStoppedMeanwhileCompletes",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/iCloudDirectoryMonitorTests/iCloudDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "iCloudDirectoryMonitorTests",
+          "name": "testStartThatIsStoppedMeanwhileStartsNothing",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/iCloudDirectoryMonitorTests/iCloudDirectoryMonitorTests.swift"
+        },
+        {
+          "className": "iCloudDirectoryMonitorTests",
+          "name": "testCancelledLookupCannotCacheThePreviousAccountsDirectory",
+          "source": "iphone/Maps/Tests/Core/iCloudTests/iCloudDirectoryMonitorTests/iCloudDirectoryMonitorTests.swift"
+        }
+      ],
+      "provenance": {
+        "upstream_pr": "https://github.com/organicmaps/organicmaps/pull/13232",
+        "upstream_head": "5f24813d6fd93f26cb216d823ab4d5996d49d192",
+        "main_commit": "2b6740f79b07ad7fba24e5c99c81420d69369f64",
+        "deletion_prerequisite": "01e8b634df68750ce15b86aec19ceed4362eb24e",
+        "source_manifest": "patches/om13232-source-manifest.json",
+        "test_mapping": "patches/om13232-coverage-map.json",
+        "adaptation": "Main reconciliation and prerequisites, not unrelated CarPlay/Android UI/OM project replacement. Final CoMaps native boundary, saved-revision guards, opaque account equality, monitor lifecycle correction and per-operation coordinator ownership include candidate-specific AI-assisted adaptations."
+      },
+      "files": [
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
+        "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
+        "iphone/Maps/Core/iCloud/CloudDirectoryMonitor.swift",
+        "iphone/Maps/Core/iCloud/LocalDirectoryMonitor.swift",
+        "iphone/Maps/Core/iCloud/MetadataItem.swift",
+        "iphone/Maps/Core/iCloud/SynchronizaionManager.swift",
+        "iphone/Maps/Core/iCloud/SynchronizationError.swift",
+        "iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift",
+        "iphone/Maps/Core/iCloud/SynchronizationFingerprint.swift",
+        "iphone/Maps/Core/iCloud/SynchronizationStateResolver.swift",
+        "iphone/Maps/Core/iCloud/SynchronizedStateStore.swift",
+        "iphone/Maps/Maps.xcodeproj/project.pbxproj",
+        "iphone/Maps/PrivacyInfo.xcprivacy",
+        "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/DefaultLocalDirectoryMonitorTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/DefaultLocalDirectoryMonitorTests/LocalDirectoryMonitorDelegateMock.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/FileContentFingerprintProviderTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/MetadataItemStubs.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SynchronizationFileWriterTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SynchronizationIncomingFileWriterTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SynchronizationManagerTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateManagerTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SynchronizationStateResolverTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/SynchronizedStateStoreTests.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/iCloudDirectoryMonitorTests/FileManagerMock.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/iCloudDirectoryMonitorTests/UbiquitousDirectoryMonitorDelegateMock.swift",
+        "iphone/Maps/Tests/Core/iCloudTests/iCloudDirectoryMonitorTests/iCloudDirectoryMonitorTests.swift",
+        "libs/map/bookmark.hpp",
+        "libs/map/bookmark_helpers.hpp",
+        "libs/map/bookmark_manager.cpp",
+        "libs/map/bookmark_manager.hpp",
+        "libs/map/map_tests/bookmarks_test.cpp"
+      ],
+      "integration_dependency": "The final SynchronizaionManager directly calls BookmarkFolderOrderSynchronization.shared.start() and uses its lifecycle wiring. Extraction without 07 must remove/adapt that hook, related fields and mock wiring; copying the final manager requires 07 even though the file reconciliation algorithm is conceptually independent.",
+      "historical_note": "initial-conflict.patch is superseded by the final fingerprint/common-base resolver; it is not a separate ninth proposal.",
+      "related_CoMaps": [
+        "https://codeberg.org/comaps/comaps/issues/4232"
+      ]
+    }
+  ],
+  "shared_checks": [
+    "bookmarks_test.cpp::Bookmarks_Sorting",
+    "HostedBookmarksUISmokeTests.testHostedLibraryOrderingAndSearchScreens (search and folder order only; no item-order screen/gesture)"
+  ],
+  "integration_notes": [
+    "Prerequisites express behavior, not historical patch order. Shared manager, presenter, controller and project hunks require extraction.",
+    "05 and 06 may be combined into one local-order proposal if maintainers prefer; 07 integrates the chosen synchronization manager.",
+    "The incoming bridge XCTest is currently in BookmarkFolderOrderTests but belongs to 08. Separate its fixture during extraction.",
+    "Source patches are immutable historical inputs; fold compile/fixture fixes into logical contributions.",
+    "The final SynchronizaionManager directly calls BookmarkFolderOrderSynchronization.shared.start() and uses its lifecycle wiring. Extraction without 07 must remove/adapt that hook, related fields and mock wiring; copying the final manager requires 07 even though the file reconciliation algorithm is conceptually independent.",
+    "Patches38/39 only unify item Edit/Done behavior and deterministic search test setup. All37 earlier inputs retained byte-for-byte. Mac Catalyst/Local identity overlays are excluded from proposals."
+  ],
+  "historical_verified_candidate": "0237ee3737e6b2deeb80fbe03b6c72d82aee43d8",
+  "updated_at_utc": "2026-10-21T10:58:30.560887+00:00",
+  "standalone_manifest": "saved-items/manifest.json",
+  "verification": "evidence/status.json",
+  "current_full_test_plan": "ci/ios-tests.json"
+}

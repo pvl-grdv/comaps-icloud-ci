@@ -1,0 +1,12 @@
+# Historical references only; NOT an apply series.
+global-bookmark-search.patch
+typed-saved-items-search.patch
+typed-saved-items-ios.patch
+typed-search-cancellation.patch
+hosted-bookmarks-ui-smoke.patch
+search-viewport-test-setup.patch
+cancellation-test-explicit-catch.patch
+bookmark-original-name-search-alias.patch
+explicit-search-service-capture.patch
+hosted-ui-window-lifecycle.patch
+search-fixture-directory.patch
