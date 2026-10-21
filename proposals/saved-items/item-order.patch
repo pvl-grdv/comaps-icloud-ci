@@ -9,7 +9,7 @@ diff --git a/android/sdk/src/main/cpp/app/organicmaps/sdk/bookmarks/data/Bookmar
 +  return static_cast<jboolean>(bm.GetLastSortingType(static_cast<kml::MarkGroupId>(catId), type) &&
 +                               type != BookmarkManager::SortingType::Manual);
  }
- 
+
  JNIEXPORT jint JNICALL Java_app_organicmaps_sdk_bookmarks_data_BookmarkManager_nativeGetLastSortingType(JNIEnv *,
 @@ -661,6 +662,8 @@
    auto const hasType = bm.GetLastSortingType(static_cast<kml::MarkGroupId>(catId), type);
@@ -19,7 +19,7 @@ diff --git a/android/sdk/src/main/cpp/app/organicmaps/sdk/bookmarks/data/Bookmar
 +    type = BookmarkManager::SortingType::ByType;
    return static_cast<jint>(type);
  }
- 
+
 diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
 --- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
 +++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h
@@ -31,7 +31,7 @@ diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h b/iphone/Cor
 +  MWMBookmarksSortingTypeByName,
 +  MWMBookmarksSortingTypeManual
  } NS_SWIFT_NAME(BookmarksSortingType);
- 
+
  typedef void (^PingCompletionBlock)(BOOL success);
 @@ -81,6 +82,10 @@
  - (BOOL)hasLastSortingType:(MWMMarkGroupID)groupId;
@@ -41,7 +41,7 @@ diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h b/iphone/Cor
 +- (BOOL)setManualItemOrder:(MWMMarkGroupID)groupId
 +              bookmarkIds:(NSArray<NSNumber *> *)bookmarkIds
 +                 trackIds:(NSArray<NSNumber *> *)trackIds NS_SWIFT_NAME(setManualItemOrder(_:bookmarkIds:trackIds:));
- 
+
  - (NSArray<MWMCarPlayBookmarkObject *> *)bookmarksForCategory:(MWMMarkGroupID)categoryId;
  - (MWMMarkIDCollection)bookmarkIdsForCategory:(MWMMarkGroupID)categoryId;
 diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
@@ -55,7 +55,7 @@ diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm b/iphone/Co
 +      return MWMBookmarksSortingTypeManual;
    }
  }
- 
+
 @@ -82,6 +84,8 @@
        return BookmarkManager::SortingType::ByTime;
      case MWMBookmarksSortingTypeByName:
@@ -64,10 +64,10 @@ diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm b/iphone/Co
 +      return BookmarkManager::SortingType::Manual;
    }
  }
- 
+
 @@ -473,7 +477,27 @@
  }
- 
+
  - (void)resetLastSortingType:(MWMMarkGroupID)groupId {
 +  ++self.lastSortId;
    self.bm.ResetLastSortingType(groupId);
@@ -91,7 +91,7 @@ diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm b/iphone/Co
 +    tracks.push_back(itemId.unsignedLongLongValue);
 +  return self.bm.SetManualItemOrder(groupId, bookmarks, tracks);
  }
- 
+
  #pragma mark - Bookmarks
 diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarkItemOrder.swift b/iphone/Maps/Bookmarks/BookmarksList/BookmarkItemOrder.swift
 new file mode 100644
@@ -156,12 +156,12 @@ diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift b
 +    case .manual:
 +      coreSortingType = .manual
      }
- 
+
      bookmarksManager.sortBookmarks(markGroupId,
 @@ -114,6 +120,16 @@
      bookmarksManager.resetLastSortingType(markGroupId)
    }
- 
+
 +  func canManuallyOrderItems() -> Bool {
 +    bookmarksManager.canManuallyOrderItems(markGroupId)
 +  }
@@ -196,14 +196,14 @@ diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift b
 +  func reorderItem(in section: IBookmarksListSectionViewModel, from source: Int, to target: Int)
    func showDescription()
  }
- 
+
 @@ -91,6 +96,7 @@
    case date
    case type
    case name
 +  case manual
  }
- 
+
  protocol IBookmarksListInteractor {
 @@ -110,6 +116,8 @@
              completion: @escaping ([BookmarksSection]) -> Void)
@@ -224,7 +224,7 @@ diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift b/
 +  private var isSearching = false
 +  private var displayedSections: [IBookmarksListSectionViewModel] = []
 +  private var itemOrder: BookmarkItemOrder?
- 
+
    private enum EditableItem {
      case bookmark(MWMMarkID)
 @@ -26,6 +29,7 @@
@@ -256,12 +256,12 @@ diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift b/
 -    view.setSections(sections)
 +    setSections(sections)
    }
- 
+
    private func mapBookmarks(_ bookmarks: [Bookmark]) -> [BookmarkViewModel] {
 @@ -101,9 +105,38 @@
      DistanceFormatter.distanceString(fromMeters: distance)
    }
- 
+
 +  private func setSections(_ sections: [IBookmarksListSectionViewModel], reloadTable: Bool = true) {
 +    displayedSections = sections
 +    if reloadTable {
@@ -310,7 +310,7 @@ diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift b/
 @@ -183,25 +218,40 @@
      router.viewOnMap(bookmarkGroup)
    }
- 
+
 -  private func sort(_ sortingType: BookmarksListSortingType) {
 +  private func sort(_ sortingType: BookmarksListSortingType, reloadTable: Bool = true, completion: (() -> Void)? = nil) {
      interactor.sort(sortingType, location: LocationManager.lastLocation()) { [weak self] sortedSections in
@@ -358,23 +358,23 @@ diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift b/
  }
 @@ -227,24 +277,57 @@
    }
- 
+
    func activateSearch() {
 +    finishItemReordering()
 +    isSearching = true
      interactor.prepareForSearch()
    }
- 
+
    func deactivateSearch() {
 -
 +    isSearching = false
    }
- 
+
    func cancelSearch() {
 +    isSearching = false
      reload()
    }
- 
+
    func search(_ text: String) {
 +    isSearching = true
      interactor.search(text) { [weak self] in
@@ -415,11 +415,11 @@ diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift b/
 +    itemOrder = order
 +    sort(.manual, reloadTable: false)
    }
- 
+
    func more() {
 @@ -256,6 +339,7 @@
    }
- 
+
    func deleteItem(in section: IBookmarksListSectionViewModel, at index: Int) {
 +    finishItemReordering()
      switch section {
@@ -430,13 +430,13 @@ diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swi
 +++ b/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift
 @@ -5,6 +5,7 @@
    private let cellStrategy = BookmarksListCellStrategy()
- 
+
    private var canEdit = false
 +  private var isReorderingItems = false
- 
+
    @IBOutlet private var tableView: UITableView!
    @IBOutlet private var toolBar: UIToolbar!
-@@ -39,15 +40,18 @@
+@@ -39,6 +40,7 @@
      searchController.obscuresBackgroundDuringPresentation = false
      searchController.hidesNavigationBarDuringPresentation = alternativeSizeClass(iPhone: true, iPad: false)
      searchController.searchBar.delegate = self
@@ -444,7 +444,7 @@ diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swi
      searchController.searchBar.applyTheme()
      navigationItem.searchController = searchController
      navigationItem.hidesSearchBarWhenScrolling = false
-     
+@@ -46,8 +48,10 @@
      cellStrategy.registerCells(tableView)
      cellStrategy.cellCheckHandler = { [weak self] (viewModel, index, checked) in
 +      guard self?.isReorderingItems == false else { return }
@@ -457,7 +457,7 @@ diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swi
      presenter.viewDidLoad()
 @@ -87,6 +91,12 @@
    }
- 
+
    override func setEditing(_ editing: Bool, animated: Bool) {
 +    guard !editing || (canEdit && !searchController.isActive) else { return }
 +    if isReorderingItems {
@@ -470,7 +470,7 @@ diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swi
    }
 @@ -100,6 +110,25 @@
  }
- 
+
  extension BookmarksListViewController: UITableViewDataSource {
 +  func tableView(_ tableView: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
 +    guard isReorderingItems, !searchController.isActive,
@@ -495,7 +495,7 @@ diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swi
      sections?.count ?? 0
    }
 @@ -111,11 +140,27 @@
- 
+
    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
      guard let section = sections?[indexPath.section] else { fatalError() }
 -    return cellStrategy.tableCell(tableView, for: section, at: indexPath)
@@ -504,7 +504,7 @@ diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swi
 +    return cell
    }
  }
- 
+
  extension BookmarksListViewController: UITableViewDelegate {
 +  func tableView(_ tableView: UITableView, targetIndexPathForMoveFromRowAt source: IndexPath,
 +                 toProposedIndexPath proposed: IndexPath) -> IndexPath {
@@ -525,48 +525,58 @@ diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swi
    }
 @@ -130,6 +175,7 @@
    }
- 
+
    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
 +    guard !isReorderingItems else { return }
      tableView.deselectRow(at: indexPath, animated: true)
      guard let section = sections?[indexPath.section] else { fatalError() }
      presenter.selectItem(in: section, at: indexPath.row)
-@@ -137,6 +183,7 @@
- 
+@@ -137,13 +183,16 @@
+
    func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
      guard let section = sections?[indexPath.section] else { fatalError() }
 +    if isReorderingItems { return self.tableView(tableView, canMoveRowAt: indexPath) }
      return canEdit && section.canEdit
    }
- 
-@@ -150,6 +197,7 @@
-   
+
+   func tableView(_ tableView: UITableView, willBeginEditingRowAt indexPath: IndexPath) {
+-    isEditing = true
++    guard !isReorderingItems else { return }
++    super.setEditing(true, animated: false)
+   }
+
+   func tableView(_ tableView: UITableView, didEndEditingRowAt indexPath: IndexPath?) {
+-    isEditing = false
++    guard !isReorderingItems else { return }
++    super.setEditing(false, animated: false)
+   }
+@@ -151,5 +200,6 @@
    func tableView(_ tableView: UITableView,
                   leadingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
 +    guard !isReorderingItems else { return nil }
      let moveAction = UIContextualAction(style: .normal, title: L("move")) { [weak self] (_, _, completion) in
        guard let section = self?.sections?[indexPath.section] else { fatalError() }
        self?.presenter.moveItem(in: section, at: indexPath.row)
-@@ -160,6 +208,7 @@
- 
+@@ -160,6 +210,7 @@
+
    func tableView(_ tableView: UITableView,
                   trailingSwipeActionsConfigurationForRowAt indexPath: IndexPath) -> UISwipeActionsConfiguration? {
 +    guard !isReorderingItems else { return nil }
      let deleteAction = UIContextualAction(style: .destructive, title: L("delete")) { [weak self] (_, _, completion) in
        guard let section = self?.sections?[indexPath.section] else { fatalError() }
        self?.presenter.deleteItem(in: section, at: indexPath.row)
-@@ -174,6 +223,7 @@
+@@ -174,6 +225,7 @@
    }
- 
+
    func tableView(_ tableView: UITableView, accessoryButtonTappedForRowWith indexPath: IndexPath) {
 +    guard !isReorderingItems else { return }
      guard let section = sections?[indexPath.section] else { fatalError() }
      presenter.editItem(in: section, at: indexPath.row)
    }
-@@ -206,7 +256,39 @@
+@@ -206,7 +258,39 @@
    }
  }
- 
+
 +extension BookmarksListViewController: UISearchControllerDelegate {
 +  func willPresentSearchController(_ searchController: UISearchController) {
 +    presenter.finishItemReordering()
@@ -603,20 +613,20 @@ diff --git a/iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swi
    func setTitle(_ title: String) {
      self.title = title
    }
-@@ -244,11 +326,13 @@
+@@ -244,11 +328,13 @@
    }
- 
+
    func showColorPicker(with pickerType: ColorPickerType, _ completionHandler: ((UIColor) -> Void)?) {
 +    guard !isReorderingItems else { return }
      ColorPicker.shared.present(from: self, pickerType: pickerType, completionHandler: completionHandler)
    }
- 
+
    func enableEditing(_ enable: Bool) {
      canEdit = enable
 +    editButtonItem.isEnabled = enable && !searchController.isActive
      navigationItem.rightBarButtonItem = enable ? editButtonItem : nil
    }
- 
+
 diff --git a/iphone/Maps/Maps.xcodeproj/project.pbxproj b/iphone/Maps/Maps.xcodeproj/project.pbxproj
 --- a/iphone/Maps/Maps.xcodeproj/project.pbxproj
 +++ b/iphone/Maps/Maps.xcodeproj/project.pbxproj
@@ -627,7 +637,7 @@ diff --git a/iphone/Maps/Maps.xcodeproj/project.pbxproj b/iphone/Maps/Maps.xcode
 +		A421ABC00000000000000106 /* BookmarkItemOrder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000206 /* BookmarkItemOrder.swift */; };
 +		A421ABC00000000000000107 /* BookmarkItemOrderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A421ABC00000000000000207 /* BookmarkItemOrderTests.swift */; };
  /* End PBXBuildFile section */
- 
+
  /* Begin PBXContainerItemProxy section */
 @@ -1830,6 +1832,8 @@
  		FAF9A8A82CE0CEC000F6604D /* lv */ = {isa = PBXFileReference; lastKnownFileType = text.plist.stringsdict; name = lv; path = lv.lproj/Localizable.stringsdict; sourceTree = "<group>"; };
@@ -636,7 +646,7 @@ diff --git a/iphone/Maps/Maps.xcodeproj/project.pbxproj b/iphone/Maps/Maps.xcode
 +		A421ABC00000000000000206 /* BookmarkItemOrder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkItemOrder.swift; sourceTree = "<group>"; };
 +		A421ABC00000000000000207 /* BookmarkItemOrderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookmarkItemOrderTests.swift; sourceTree = "<group>"; };
  /* End PBXFileReference section */
- 
+
  /* Begin PBXFrameworksBuildPhase section */
 @@ -2836,6 +2840,7 @@
  				47CA68CF2500435D00671019 /* BookmarksListViewController.swift */,
@@ -674,7 +684,7 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
 new file mode 100644
 --- /dev/null
 +++ b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
-@@ -0,0 +1,338 @@
+@@ -0,0 +1,372 @@
 +import UIKit
 +import XCTest
 +@testable import CoMaps__Debug_
@@ -860,9 +870,26 @@ new file mode 100644
 +    let category = try XCTUnwrap(category)
 +    try await withHostedItemList { controller, table in
 +      XCTAssertFalse(controller.isEditing)
++      try assertItemEditButton(controller, editing: false)
++      let initialSortingType = manager.lastSortingType(category.categoryId)
++      let firstRow = IndexPath(row: 0, section: 0)
++      // Ordinary swipe editing must not enter manual ordering through the Edit override.
++      controller.tableView(table, willBeginEditingRowAt: firstRow)
++      XCTAssertEqual(manager.lastSortingType(category.categoryId), initialSortingType)
++      XCTAssertFalse(controller.tableView(table, canMoveRowAt: firstRow))
++      XCTAssertFalse(table.isEditing)
++      controller.tableView(table, didEndEditingRowAt: firstRow)
++      try assertItemEditButton(controller, editing: false)
 +      try tapItemEditButton(controller)
 +      XCTAssertTrue(controller.isEditing)
 +      XCTAssertTrue(table.isEditing)
++      try assertItemEditButton(controller, editing: true)
++      // A delayed swipe lifecycle callback must not reset the explicit Edit session.
++      controller.tableView(table, willBeginEditingRowAt: IndexPath(row: 0, section: 0))
++      controller.tableView(table, didEndEditingRowAt: nil)
++      XCTAssertTrue(controller.isEditing)
++      XCTAssertTrue(table.isEditing)
++      try assertItemEditButton(controller, editing: true)
 +      XCTAssertEqual(manager.lastSortingType(category.categoryId), .manual)
 +      XCTAssertTrue(table.visibleCells.contains { $0.showsReorderControl })
 +      let section = try XCTUnwrap((0..<table.numberOfSections).first { section in
@@ -879,10 +906,14 @@ new file mode 100644
 +    try await withHostedItemList { controller, table in
 +      try tapItemEditButton(controller)
 +      XCTAssertTrue(controller.isEditing)
++      try assertItemEditButton(controller, editing: true)
++      controller.tableView(table, didEndEditingRowAt: nil)
 +      try tapItemEditButton(controller)
 +      XCTAssertFalse(controller.isEditing)
 +      XCTAssertFalse(table.isEditing)
++      try assertItemEditButton(controller, editing: false)
 +      let search = try XCTUnwrap(controller.navigationItem.searchController)
++      XCTAssertTrue(search.searchBar.isUserInteractionEnabled)
 +      search.isActive = true
 +      for _ in 0..<30 {
 +        if !controller.editButtonItem.isEnabled { break }
@@ -941,6 +972,19 @@ new file mode 100644
 +    XCTAssertFalse(kml.contains(removedName))
 +    XCTAssertTrue(kml.contains("comaps:itemOrder"))
 +    XCTAssertTrue(kml.contains("comaps:itemSorting"))
++  }
++
++  @MainActor
++  private func assertItemEditButton(_ controller: BookmarksListViewController, editing: Bool) throws {
++    let button = try XCTUnwrap(controller.navigationItem.rightBarButtonItem)
++    XCTAssertTrue(button === controller.editButtonItem)
++    // Compare the visible title with UIKit's localized Edit/Done button, in the same locale.
++    let reference = UIViewController()
++    reference.setEditing(editing, animated: false)
++    let expectedTitle = try XCTUnwrap(reference.editButtonItem.title)
++    XCTAssertFalse(expectedTitle.isEmpty)
++    XCTAssertEqual(button.title, expectedTitle)
++    XCTAssertEqual(controller.isEditing, editing)
 +  }
 +
 +  @MainActor
@@ -1017,13 +1061,13 @@ diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
 --- a/libs/map/bookmark_manager.cpp
 +++ b/libs/map/bookmark_manager.cpp
 @@ -35,6 +35,7 @@
- 
+
  #include <algorithm>
  #include <chrono>
 +#include <charconv>
  #include <limits>
  #include <sstream>
- 
+
 @@ -46,6 +47,8 @@
  std::string const kLastEditedBookmarkColor = "LastBookmarkColor";
  std::string const kMetadataFileName = "bm.json";
@@ -1052,11 +1096,11 @@ diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
    return true;
 @@ -320,6 +326,8 @@
    CHECK_THREAD_CHECKER(m_threadChecker, ());
- 
+
    Bookmark * bookmark;
 +  auto const previousGroupId = m_recentlyDeletedBookmark ? m_recentlyDeletedBookmark->GetGroupId()
 +                                                         : kml::kInvalidMarkGroupId;
- 
+
    // Recover the bookmark from the recently deleted.
    // The recently deleted bookmark exists only when it was deleted from the Place Page screen.
 @@ -348,6 +356,8 @@
@@ -1066,7 +1110,7 @@ diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
 +  if (previousGroupId != groupId)
 +    AppendToManualItemOrder(groupId, bookmark->GetId(), std::nullopt);
    group->SetIsVisible(true);
- 
+
    SetLastEditedBmCategory(groupId);
 @@ -383,6 +393,7 @@
    GetBookmarkForEdit(bmId)->Attach(catId);
@@ -1074,7 +1118,7 @@ diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
    m_changesTracker.OnAttachBookmark(bmId, catId);
 +  AppendToManualItemOrder(catId, bmId, std::nullopt);
  }
- 
+
  void BookmarkManager::DetachBookmark(kml::MarkId bmId, kml::MarkGroupId catId)
 @@ -505,6 +516,9 @@
  void BookmarkManager::MoveTrack(kml::TrackId trackID, kml::MarkGroupId curGroupID, kml::MarkGroupId newGroupID)
@@ -1092,7 +1136,7 @@ diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
    GetBmCategory(groupId)->AttachTrack(trackId);
 +  AppendToManualItemOrder(groupId, std::nullopt, trackId);
  }
- 
+
  void BookmarkManager::DetachTrack(kml::TrackId trackId, kml::MarkGroupId groupId)
 @@ -653,6 +668,17 @@
  bool BookmarkManager::GetLastSortingType(kml::MarkGroupId groupId, SortingType & sortingType) const
@@ -1115,7 +1159,7 @@ diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
 @@ -670,6 +696,9 @@
    if (entryName.empty())
      return;
- 
+
 +  auto editSession = GetEditSession();
 +  if (CanSetManualItemOrder(groupId))
 +    editSession.SetCategoryCustomProperty(groupId, kItemSortingProperty, ToString(sortingType));
@@ -1125,7 +1169,7 @@ diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
 @@ -681,8 +710,56 @@
    if (entryName.empty())
      return;
- 
+
 +  auto editSession = GetEditSession();
 +  if (CanSetManualItemOrder(groupId))
 +    editSession.SetCategoryCustomProperty(groupId, kItemSortingProperty, "Default");
@@ -1177,12 +1221,12 @@ diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
 +  editSession.SetCategoryCustomProperty(groupId, kItemSortingProperty, ToString(SortingType::Manual));
 +  return true;
  }
- 
+
  std::vector<BookmarkManager::SortingType> BookmarkManager::GetAvailableSortingTypes(kml::MarkGroupId groupId,
 @@ -1497,6 +1574,125 @@
    sortedBlocks.push_back(bookmarkBlock);
  }
- 
+
 +void BookmarkManager::AppendToManualItemOrder(kml::MarkGroupId groupId,
 +                                                 std::optional<kml::MarkId> bookmarkId,
 +                                                 std::optional<kml::TrackId> trackId)
@@ -1326,7 +1370,7 @@ diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
 +    params.m_onResults(std::move(sortedBlocks), SortParams::Status::Completed);
 +    return;
    }
- 
+
    if (m_testModeEnabled)
 @@ -2297,6 +2502,13 @@
  void BookmarkManager::MoveBookmark(kml::MarkId bmID, kml::MarkGroupId curGroupID, kml::MarkGroupId newGroupID)
@@ -1341,7 +1385,7 @@ diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
 +  }
    DetachBookmark(bmID, curGroupID);
    AttachBookmark(bmID, newGroupID);
- 
+
 diff --git a/libs/map/bookmark_manager.hpp b/libs/map/bookmark_manager.hpp
 --- a/libs/map/bookmark_manager.hpp
 +++ b/libs/map/bookmark_manager.hpp
@@ -1353,7 +1397,7 @@ diff --git a/libs/map/bookmark_manager.hpp b/libs/map/bookmark_manager.hpp
 +    ByName,
 +    Manual
    };
- 
+
    enum class CategorySortType
 @@ -294,6 +295,9 @@
    bool GetLastSortingType(kml::MarkGroupId groupId, SortingType & sortingType) const;
@@ -1362,7 +1406,7 @@ diff --git a/libs/map/bookmark_manager.hpp b/libs/map/bookmark_manager.hpp
 +  bool CanSetManualItemOrder(kml::MarkGroupId groupId) const;
 +  bool SetManualItemOrder(kml::MarkGroupId groupId, std::vector<kml::MarkId> const & bookmarkIds,
 +                          std::vector<kml::TrackId> const & trackIds);
- 
+
    void PrepareForSearch(std::optional<kml::MarkGroupId> groupId = std::nullopt);
    void ReleaseSearch();
 @@ -704,6 +708,7 @@
@@ -1371,7 +1415,7 @@ diff --git a/libs/map/bookmark_manager.hpp b/libs/map/bookmark_manager.hpp
        , m_address(address)
 +      , m_manualOrder(ParseManualItemOrder(bmData.m_properties))
      {}
- 
+
      kml::MarkId m_id;
 @@ -712,6 +717,7 @@
      BookmarkBaseType m_type;
@@ -1379,7 +1423,7 @@ diff --git a/libs/map/bookmark_manager.hpp b/libs/map/bookmark_manager.hpp
      search::ReverseGeocoder::RegionAddress m_address;
 +    std::optional<uint64_t> m_manualOrder;
    };
- 
+
    struct SortTrackData
 @@ -720,12 +726,20 @@
        : m_id(trackData.m_id)
@@ -1387,7 +1431,7 @@ diff --git a/libs/map/bookmark_manager.hpp b/libs/map/bookmark_manager.hpp
        , m_timestamp(trackData.m_timestamp)
 +      , m_manualOrder(ParseManualItemOrder(trackData.m_properties))
      {}
- 
+
      kml::TrackId m_id;
      std::string m_name;
      kml::Timestamp m_timestamp;
@@ -1400,7 +1444,7 @@ diff --git a/libs/map/bookmark_manager.hpp b/libs/map/bookmark_manager.hpp
 +  static std::optional<uint64_t> ParseManualItemOrder(kml::Properties const & properties);
 +  static void SortByManual(std::vector<SortBookmarkData> const & bookmarksForSort,
 +                           std::vector<SortTrackData> const & tracksForSort, SortedBlocksCollection & sortedBlocks);
- 
+
    void GetSortedCategoryImpl(SortParams const & params, std::vector<SortBookmarkData> const & bookmarksForSort,
                               std::vector<SortTrackData> const & tracksForSort, SortedBlocksCollection & sortedBlocks);
 diff --git a/libs/map/map_tests/bookmarks_test.cpp b/libs/map/map_tests/bookmarks_test.cpp
@@ -1409,7 +1453,7 @@ diff --git a/libs/map/map_tests/bookmarks_test.cpp b/libs/map/map_tests/bookmark
 @@ -21,7 +21,10 @@
  #include "base/file_name_utils.hpp"
  #include "base/scope_guard.hpp"
- 
+
 +#include <algorithm>
  #include <array>
 +#include <chrono>
@@ -1420,7 +1464,7 @@ diff --git a/libs/map/map_tests/bookmarks_test.cpp b/libs/map/map_tests/bookmark
 @@ -1329,6 +1332,318 @@
    checkBookmarksChanges(false);
  }
- 
+
 +namespace
 +{
 +struct ManualItemsCategory
@@ -1742,7 +1786,7 @@ diff --git a/libs/map/track.cpp b/libs/map/track.cpp
 @@ -88,6 +88,21 @@
    kml::SetDefaultStr(m_data.m_name, name);
  }
- 
+
 +void Track::SetCustomProperty(std::string const & key, std::string const & value)
 +{
 +  auto const it = m_data.m_properties.find(key);
@@ -1765,11 +1809,11 @@ diff --git a/libs/map/track.hpp b/libs/map/track.hpp
 --- a/libs/map/track.hpp
 +++ b/libs/map/track.hpp
 @@ -31,6 +31,8 @@
- 
+
    std::string GetName() const;
    void SetName(std::string const & name);
 +  void SetCustomProperty(std::string const & key, std::string const & value);
 +  void RemoveCustomProperty(std::string const & key);
    std::string GetDescription() const;
- 
+
    m2::RectD GetLimitRect() const;

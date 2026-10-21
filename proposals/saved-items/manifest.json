@@ -193,7 +193,7 @@
     },
     "item-order": {
       "patch": "proposals/saved-items/item-order.patch",
-      "sha256": "9138066f21173bb99ebe02fffc86645628eb5419488523dfeeb2fbf24b6751da",
+      "sha256": "467a6e8d03b6a03cafa2149485a3d60c27cee85d93b02c35fa518bc20def8a27",
       "files": [
         "android/sdk/src/main/cpp/app/organicmaps/sdk/bookmarks/data/BookmarkManager.cpp",
         "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
@@ -219,9 +219,9 @@
         "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift": "bb045885f37f8cefb61e003525db6338d53d95a98156a52bc5ab0bf4f92e905c",
         "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift": "03b104e382dbf7658c6a7ba2b1c9737b9cf11ba10e59f5f051db76c1f0fb8641",
         "iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift": "e47e91250a559faa0fd6bcf853d9e0b719fd843094a179836b207669b425416f",
-        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift": "6db125fc719a9202068079615fc42cdd4443c518ea9096ead54bb9e227eff9ca",
+        "iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift": "005cc105c4f1ec8a5071157724926b850e0edf74456080addc8008d9a2a1bce1",
         "iphone/Maps/Maps.xcodeproj/project.pbxproj": "755a5dc4a046d8a32bab6ed275e7a61d3e7f78cbd901ac2b1e8d2a8373f55034",
-        "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift": "f81f47d22ad33da5818065655fb84de40192ffe847e61aae62202745a4b81578",
+        "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift": "b2b1c1ca8c2d1dd1dcb862714c68ff1d4327fbd675101eb994d115758597ba8a",
         "libs/map/bookmark_manager.cpp": "bc55c5aa9cdf7a1aff5ad1050890f7a4218f058bb65bb3689f94d91c7eb1906e",
         "libs/map/bookmark_manager.hpp": "48e45d819a6639b1fbd2796f727a415de027827237a30acdf97caa6feedf739b",
         "libs/map/map_tests/bookmarks_test.cpp": "054c7857d4de27dd4efd7dd9bf2cd114d4fa4f3355ab433d3664b32639313adf",
