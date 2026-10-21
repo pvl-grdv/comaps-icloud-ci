@@ -1135,27 +1135,31 @@ index 0000000000000000000000000000000000000000..cef5157089251efe861ce36e8a236bdb
 +}
 diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h
 new file mode 100644
-index 0000000000000000000000000000000000000000..5e9be1daad66a17fe096e6795bb0039e677d8f56
+index 0000000000000000000000000000000000000000..20ff474cd45274e44e6933a848c5829c868ed23f
 --- /dev/null
 +++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h
-@@ -0,0 +1,6 @@
+@@ -0,0 +1,7 @@
 +#import <Foundation/Foundation.h>
 +
 +@interface SavedItemsSearchTestSupport : NSObject
 ++ (void)prepareSearchViewport;
 ++ (NSURL * _Nonnull)bookmarksDirectoryURL NS_SWIFT_NAME(bookmarksDirectoryURL());
+++ (BOOL)installSearchFixtureAtURL:(NSURL * _Nonnull)url NS_SWIFT_NAME(installSearchFixture(at:));
 +@end
 diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm
 new file mode 100644
-index 0000000000000000000000000000000000000000..57f26a9d4cbf55bf0c800dd343fe44ef72a91ebb
+index 0000000000000000000000000000000000000000..781dbb9e5c423ad21aad983e4a9720eec7aaca00
 --- /dev/null
 +++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm
-@@ -0,0 +1,19 @@
+@@ -0,0 +1,33 @@
 +#import "SavedItemsSearchTestSupport.h"
 +
 +#include "iphone/CoreApi/CoreApi/Framework/Framework.h"
 +#include "map/bookmark_helpers.hpp"
++#include "map/bookmark_manager.hpp"
 +#include "map/search_api.hpp"
++
++#include <utility>
 +
 +@implementation SavedItemsSearchTestSupport
 +
@@ -1169,20 +1173,30 @@ index 0000000000000000000000000000000000000000..57f26a9d4cbf55bf0c800dd343fe44ef
 +  return [NSURL fileURLWithPath:@(GetBookmarksDirectory().c_str()) isDirectory:YES];
 +}
 +
+++ (BOOL)installSearchFixtureAtURL:(NSURL *)url
++{
++  auto data = LoadKmlFile(url.path.UTF8String, KmlFileType::Text);
++  if (!data)
++    return NO;
++  BookmarkManager::KMLDataCollection collection;
++  collection.emplace_back(url.path.UTF8String, std::move(data));
++  GetFramework().GetBookmarkManager().CreateCategories(std::move(collection), true /* autoSave */);
++  return YES;
++}
++
 +@end
 diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift
 new file mode 100644
-index 0000000000000000000000000000000000000000..c59dac4d7fa93e1fd618717931dfbb46afdd3adc
+index 0000000000000000000000000000000000000000..77e3a42f712b59ef57ad77e5cde370bf9e622684
 --- /dev/null
 +++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift
-@@ -0,0 +1,199 @@
+@@ -0,0 +1,189 @@
 +import XCTest
 +@testable import CoMaps__Debug_
 +
 +final class SavedItemsSearchTests: XCTestCase, BookmarksObserver {
 +  private var manager: BookmarksManager { BookmarksManager.shared() }
 +  private var loading: XCTestExpectation?
-+  private var importing: XCTestExpectation?
 +  private var categories: [BookmarkGroup] = []
 +  private var files: [URL] = []
 +
@@ -1204,8 +1218,8 @@ index 0000000000000000000000000000000000000000..c59dac4d7fa93e1fd618717931dfbb46
 +      await fulfillment(of: [finished], timeout: 30)
 +      loading = nil
 +    }
-+    try await importCategory()
-+    try await importCategory()
++    try importCategory()
++    try importCategory()
 +  }
 +
 +  override func tearDown() async throws {
@@ -1338,9 +1352,9 @@ index 0000000000000000000000000000000000000000..c59dac4d7fa93e1fd618717931dfbb46
 +  }
 +
 +  @MainActor
-+  private func importCategory() async throws {
++  private func importCategory() throws {
 +    let title = "Search fixture \(UUID().uuidString)"
-+    let file = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).kml")
++    let file = SavedItemsSearchTestSupport.bookmarksDirectoryURL().appendingPathComponent("\(UUID().uuidString).kml")
 +    let data = """
 +    <?xml version="1.0" encoding="UTF-8"?>
 +    <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:mwm="https://comaps.app"><Document><name>\(title)</name>
@@ -1354,25 +1368,16 @@ index 0000000000000000000000000000000000000000..c59dac4d7fa93e1fd618717931dfbb46
 +    """
 +    try Data(data.utf8).write(to: file)
 +    files.append(file)
-+    let finished = expectation(description: "Import search fixture")
-+    importing = finished
-+    manager.loadBookmarkFile(file)
-+    await fulfillment(of: [finished], timeout: 30)
-+    importing = nil
++    // Use the normal parser and core category installation; UI import alerts
++    // are outside these search regressions.
++    XCTAssertTrue(SavedItemsSearchTestSupport.installSearchFixture(at: file))
 +    categories.append(try XCTUnwrap(manager.sortedUserCategories().first { $0.title == title }))
 +  }
 +
 +  func onBookmarksLoadFinished() {
-+    let initialLoad = loading
-+    let importedFile = importing
++    let finished = loading
 +    loading = nil
-+    importing = nil
-+    initialLoad?.fulfill()
-+    importedFile?.fulfill()
-+  }
-+
-+  func onBookmarksFileLoadError() {
-+    XCTFail("Failed to import synthetic search fixture")
++    finished?.fulfill()
 +  }
 +}
 diff --git a/iphone/Maps/Tests/Bridging-Header.h b/iphone/Maps/Tests/Bridging-Header.h

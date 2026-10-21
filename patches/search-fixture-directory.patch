@@ -1,24 +1,29 @@
 diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h
 --- a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h
 +++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h
-@@ -2,4 +2,5 @@
+@@ -2,4 +2,6 @@
 
  @interface SavedItemsSearchTestSupport : NSObject
  + (void)prepareSearchViewport;
 ++ (NSURL * _Nonnull)bookmarksDirectoryURL NS_SWIFT_NAME(bookmarksDirectoryURL());
+++ (BOOL)installSearchFixtureAtURL:(NSURL * _Nonnull)url NS_SWIFT_NAME(installSearchFixture(at:));
  @end
 diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm
 --- a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm
 +++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm
-@@ -1,6 +1,7 @@
+@@ -1,7 +1,11 @@
  #import "SavedItemsSearchTestSupport.h"
 
  #include "iphone/CoreApi/CoreApi/Framework/Framework.h"
 +#include "map/bookmark_helpers.hpp"
++#include "map/bookmark_manager.hpp"
  #include "map/search_api.hpp"
++
++#include <utility>
 
  @implementation SavedItemsSearchTestSupport
-@@ -10,4 +11,9 @@
+
+@@ -10,4 +14,20 @@
    GetFramework().GetSearchAPI().OnViewportChanged(m2::RectD(-1.0, -1.0, 1.0, 1.0));
  }
 
@@ -27,11 +32,30 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.
 +  return [NSURL fileURLWithPath:@(GetBookmarksDirectory().c_str()) isDirectory:YES];
 +}
 +
+++ (BOOL)installSearchFixtureAtURL:(NSURL *)url
++{
++  auto data = LoadKmlFile(url.path.UTF8String, KmlFileType::Text);
++  if (!data)
++    return NO;
++  BookmarkManager::KMLDataCollection collection;
++  collection.emplace_back(url.path.UTF8String, std::move(data));
++  GetFramework().GetBookmarkManager().CreateCategories(std::move(collection), true /* autoSave */);
++  return YES;
++}
++
  @end
 diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift
 --- a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift
 +++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift
-@@ -16,11 +16,14 @@
+@@ -4,7 +4,6 @@
+ final class SavedItemsSearchTests: XCTestCase, BookmarksObserver {
+   private var manager: BookmarksManager { BookmarksManager.shared() }
+   private var loading: XCTestExpectation?
+-  private var importing: XCTestExpectation?
+   private var categories: [BookmarkGroup] = []
+   private var files: [URL] = []
+
+@@ -16,15 +15,18 @@
    @MainActor
    private func prepareFixtures() async throws {
      SavedItemsSearchTestSupport.prepareSearchViewport()
@@ -47,34 +71,49 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift 
 +      await fulfillment(of: [finished], timeout: 30)
        loading = nil
      }
-     try await importCategory()
-@@ -173,20 +176,24 @@
+-    try await importCategory()
+-    try await importCategory()
++    try importCategory()
++    try importCategory()
+   }
+
+   override func tearDown() async throws {
+@@ -157,9 +159,9 @@
+   }
+
+   @MainActor
+-  private func importCategory() async throws {
++  private func importCategory() throws {
+     let title = "Search fixture \(UUID().uuidString)"
+-    let file = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).kml")
++    let file = SavedItemsSearchTestSupport.bookmarksDirectoryURL().appendingPathComponent("\(UUID().uuidString).kml")
+     let data = """
+     <?xml version="1.0" encoding="UTF-8"?>
+     <kml xmlns="http://www.opengis.net/kml/2.2" xmlns:mwm="https://comaps.app"><Document><name>\(title)</name>
+@@ -173,20 +175,15 @@
      """
      try Data(data.utf8).write(to: file)
      files.append(file)
 -    importing = expectation(description: "Import search fixture")
-+    let finished = expectation(description: "Import search fixture")
-+    importing = finished
-     manager.loadBookmarkFile(file)
+-    manager.loadBookmarkFile(file)
 -    await fulfillment(of: [importing!], timeout: 30)
-+    await fulfillment(of: [finished], timeout: 30)
-     importing = nil
+-    importing = nil
++    // Use the normal parser and core category installation; UI import alerts
++    // are outside these search regressions.
++    XCTAssertTrue(SavedItemsSearchTestSupport.installSearchFixture(at: file))
      categories.append(try XCTUnwrap(manager.sortedUserCategories().first { $0.title == title }))
    }
 
    func onBookmarksLoadFinished() {
 -    loading?.fulfill()
 -    importing?.fulfill()
-+    let initialLoad = loading
-+    let importedFile = importing
-+    loading = nil
-+    importing = nil
-+    initialLoad?.fulfill()
-+    importedFile?.fulfill()
-   }
-
-   func onBookmarksFileLoadError() {
-     XCTFail("Failed to import synthetic search fixture")
+-  }
+-
+-  func onBookmarksFileLoadError() {
+-    XCTFail("Failed to import synthetic search fixture")
 -    importing?.fulfill()
++    let finished = loading
++    loading = nil
++    finished?.fulfill()
    }
  }
