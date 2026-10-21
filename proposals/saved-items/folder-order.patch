@@ -396,10 +396,10 @@ index ebd7efed4ae7b0ac8380c11265c11d8f671a9035..816a27aeac8214826b8f1205d2220314
  				EDF838C42C00B9D6007E4E67 /* FileManagerMock.swift in Sources */,
 diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift
 new file mode 100644
-index 0000000000000000000000000000000000000000..748db6094bd0d04ee8d86d95361bd901bd25536e
+index 0000000000000000000000000000000000000000..0f6f612226fcf9ac1345dafefdde54ce5bbcc849
 --- /dev/null
 +++ b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift
-@@ -0,0 +1,174 @@
+@@ -0,0 +1,175 @@
 +import UIKit
 +import XCTest
 +@testable import CoMaps__Debug_
@@ -519,7 +519,8 @@ index 0000000000000000000000000000000000000000..748db6094bd0d04ee8d86d95361bd901
 +    let model = BMCDefaultViewModel()
 +    let targetId = categoryIds[1]
 +    XCTAssertNotNil(model.categoryIndex(forId: targetId))
-+    XCTAssertTrue(manager.deleteCategory(targetId))
++    manager.deleteCategory(targetId)
++    XCTAssertFalse(manager.hasCategory(targetId))
 +    model.reloadData()
 +    XCTAssertNil(model.categoryIndex(forId: targetId))
 +    XCTAssertTrue(manager.hasCategory(categoryIds[0]))

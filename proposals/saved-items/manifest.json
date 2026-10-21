@@ -127,7 +127,7 @@
     },
     "folder-order": {
       "patch": "proposals/saved-items/folder-order.patch",
-      "sha256": "5a71a4bf43b0188e093f775d0dab735cfc0d16828df04cfef87e7a99cf7caae9",
+      "sha256": "8c9f83b3c86cddc491ec21e71b3ae0875a7907dcb002856a3f78a6c39fcbab7c",
       "files": [
         "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
         "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
@@ -147,7 +147,7 @@
         "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift": "c2896341135d8927261f100c9b83480e59c48726c567aae685c549deaf80ec2c",
         "iphone/Maps/Bookmarks/Categories/Categories/BMCCategoryCell.swift": "7c28629467b63db335b6a707a21d46e938c7f4e9aeea35ddaf53ee39ecb4a978",
         "iphone/Maps/Maps.xcodeproj/project.pbxproj": "7d1b3b9f6c9ec0129d16b3236a87b927c4245ad206e1768c3017f366be9ea5dc",
-        "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift": "370e36e236f6c012fe8de08c2617c44bc07c3d45c7d10ce4fd8072b46dd02f59",
+        "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift": "92f59118b64217ea5fab25106684a6798986898f56e73c89328dfe5cf700930f",
         "libs/map/bookmark_helpers.cpp": "e39435e9d3aeb5c8359912defee8f1e4804e71c86bce20e68c5b2f47868dd81c",
         "libs/map/bookmark_manager.cpp": "d5c1436a80ac7dd39fa514d240b92e0931b710a037d9aba38683d9a43d913199",
         "libs/map/map_tests/bookmarks_test.cpp": "8fe5762832213b19aa3a6d80c9a2fd08fb5d7e99a46881dc8edf94bc2ffe57d2"
