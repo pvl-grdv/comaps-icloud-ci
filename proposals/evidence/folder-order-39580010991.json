@@ -1,0 +1,60 @@
+{
+  "feature": "folder-order",
+  "run_id": 39580010991,
+  "job_id": 119155018171,
+  "run_url": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39580010991",
+  "commit": "7f09ff5c8977ff584d16d707979d1b386bf61e0b",
+  "patch_sha256": "6fd4191c2d0fe4a3b47be123c8ae081019ecf7314de4e7065deec428761e3727",
+  "matches_current_feature_manifest_and_patch": true,
+  "native": {
+    "map": {
+      "count": 3,
+      "executed": [
+        "bookmarks_test.cpp::Bookmarks_Sorting",
+        "bookmarks_test.cpp::Runner_Bookmarks_ManualFolderOrderPersistsEmptyCategories",
+        "bookmarks_test.cpp::Runner_Bookmarks_NewCategorySaveFailureRestoresUnsavedState"
+      ],
+      "exitCode": 0
+    }
+  },
+  "XCTest": {
+    "expected": 9,
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0,
+    "classes": {
+      "BookmarkFolderOrderTests": {
+        "count": 9,
+        "passed_methods": [
+          "testAutomaticModeRejectsMoves",
+          "testAutomaticSortRestoresCategoryNameOrder",
+          "testHostedFolderReorderingUpdatesDisplayedAndStoredOrder",
+          "testInvalidDestinationsLeaveOrderUntouched",
+          "testManualOrderMovesNewEmptyCategories",
+          "testMenuTargetRemainsSameCategoryAfterOrderChanges",
+          "testNewFolderIsAppendedToExistingManualOrder",
+          "testRemovedMenuTargetNoLongerResolvesToAnotherCategory",
+          "testUnknownCategoryLeavesOrderUntouched"
+        ]
+      }
+    },
+    "simulator": "iPhone 18 Pro Max / iOS27.0 / arm64"
+  },
+  "unsigned_release_archive": {
+    "job_step": "success",
+    "log_marker": "ARCHIVE SUCCEEDED"
+  },
+  "artifact_file_sha256": {
+    "proposals/saved-items/folder-order.patch": "6fd4191c2d0fe4a3b47be123c8ae081019ecf7314de4e7065deec428761e3727",
+    "results/ios-summary.json": "934e885dc4cdd814411fc75842db72a2105a2cf2b8622b61e2ae06c07223922d",
+    "results/feature-map-tests.log": "6fbc1c3c53f9ae7b7ed75748c11d27755731750a7f5e80b331dcb960b1e2dbdf",
+    "results/xcodebuild-tests.log": "8861b255c3461d4db38bc7ed7ef90105889e4889e77c1352d20d423baad06ad9",
+    "results/feature-release-archive.log": "79badc88c6a6fa3b765626ef8781332bd6edfc5ee574432a99a476a4225b532b"
+  },
+  "verification_passed": true,
+  "limitations": [
+    "Synthetic isolated feature checks; no live iCloud or physical-device synchronization tested.",
+    "Unsigned Release build success; no device installation or signing verified in this independent job."
+  ],
+  "artifact_name": "saved-items-folder-order"
+}

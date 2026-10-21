@@ -59,3 +59,8 @@ https://github.com/pvl-grdv/comaps-icloud-ci/blob/2d3c2da80f1e4c3a850d8820c68311
 
 У общего набора10 XCTest этого класса; один входящий/cloud тест принадлежит теме08. В
 самостоятельном folder-order остаётся9. KVS не входит в этот patch.
+
+Проверено по скачанным артефактам CI39580010991: native3/3, XCTest9/9,
+0ошибок,0пропусков; TEST SUCCEEDED и ARCHIVE SUCCEEDED. SHAпатча и
+исходников соответствует текущему manifest. Доказательство:
+../../evidence/folder-order-39580010991.json

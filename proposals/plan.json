@@ -347,7 +347,7 @@
       "title": "Ручной порядок папок",
       "implemented_in_combined_candidate": true,
       "extracted": true,
-      "independently_tested": false,
+      "independently_tested": true,
       "submitted": false,
       "behavior": "iOS показывает существующие режимы ядра: дата, имя, ручной порядок. Ручная перестановка сохраняется в bm.json; новые пустые папки сначала получают сохранённый файл. Меню удерживает ID папки при перестановке списка.",
       "limits": "Тесты переставляют datasource и осматривают UIKit; физический drag не проверен. Часть финального controller/model содержит облачные и incoming-bridge hunks: выделять по поведению.",
@@ -458,7 +458,9 @@
         "required_native_search": 0,
         "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39580010991",
         "tested_repository_commit": "7f09ff5c8977ff584d16d707979d1b386bf61e0b",
-        "status": "native passed; exact XCTest/Release terminal verification pending"
+        "status": "PASS: exact3 native,9 XCTest/0failed/0skip, unsigned Release archive and downloaded artifact hashes",
+        "verified": true,
+        "verification": "folder-order-39580010991.json"
       }
     },
     {

@@ -1,8 +1,8 @@
 {
-  "updated_at_utc": "2026-10-21T11:20:17.491581+00:00",
+  "updated_at_utc": "2026-10-21T11:30:01.052918+00:00",
   "full_candidate_commit": "2d3c2da80f1e4c3a850d8820c68311952744bbe4",
   "standalone_upstream_revision": "a64450d0c7cd7cdfc792c9fc6c2dd620156abecd",
-  "status": "CURRENT_FULL_AND_ITEM_CI_RUNNING_SEARCH_AND_FOLDER_RELEASE_PENDING",
+  "status": "FOLDER_INDEPENDENT_PASS_SEARCH_RELEASE_PENDING_CORRECTED_FULL_AND_ITEM_RUNNING",
   "historical_full_verification": "combined-0237.json",
   "required_full": {
     "base_XCTest": 166,
@@ -38,7 +38,9 @@
       "required_native_search": 0,
       "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39580010991",
       "tested_repository_commit": "7f09ff5c8977ff584d16d707979d1b386bf61e0b",
-      "status": "native passed; exact XCTest/Release terminal verification pending"
+      "status": "PASS: exact3 native,9 XCTest/0failed/0skip, unsigned Release archive and downloaded artifact hashes",
+      "verified": true,
+      "verification": "folder-order-39580010991.json"
     },
     "item-order": {
       "feature": "item-order",
