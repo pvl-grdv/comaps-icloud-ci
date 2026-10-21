@@ -1,0 +1,80 @@
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h
+--- a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h
++++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h
+@@ -2,4 +2,5 @@
+ 
+ @interface SavedItemsSearchTestSupport : NSObject
+ + (void)prepareSearchViewport;
+++ (NSURL * _Nonnull)bookmarksDirectoryURL NS_SWIFT_NAME(bookmarksDirectoryURL());
+ @end
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm
+--- a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm
++++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm
+@@ -1,6 +1,7 @@
+ #import "SavedItemsSearchTestSupport.h"
+ 
+ #include "iphone/CoreApi/CoreApi/Framework/Framework.h"
++#include "map/bookmark_helpers.hpp"
+ #include "map/search_api.hpp"
+ 
+ @implementation SavedItemsSearchTestSupport
+@@ -10,4 +11,9 @@
+   GetFramework().GetSearchAPI().OnViewportChanged(m2::RectD(-1.0, -1.0, 1.0, 1.0));
+ }
+ 
+++ (NSURL *)bookmarksDirectoryURL
++{
++  return [NSURL fileURLWithPath:@(GetBookmarksDirectory().c_str()) isDirectory:YES];
++}
++
+ @end
+diff --git a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift
+--- a/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift
++++ b/iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift
+@@ -16,11 +16,14 @@
+   @MainActor
+   private func prepareFixtures() async throws {
+     SavedItemsSearchTestSupport.prepareSearchViewport()
++    try FileManager.default.createDirectory(at: SavedItemsSearchTestSupport.bookmarksDirectoryURL(),
++                                            withIntermediateDirectories: true)
+     manager.add(self)
+     if !manager.areBookmarksLoaded() {
+-      loading = expectation(description: "Bookmark loading")
++      let finished = expectation(description: "Bookmark loading")
++      loading = finished
+       manager.loadBookmarks()
+-      await fulfillment(of: [loading!], timeout: 30)
++      await fulfillment(of: [finished], timeout: 30)
+       loading = nil
+     }
+     try await importCategory()
+@@ -173,20 +176,24 @@
+     """
+     try Data(data.utf8).write(to: file)
+     files.append(file)
+-    importing = expectation(description: "Import search fixture")
++    let finished = expectation(description: "Import search fixture")
++    importing = finished
+     manager.loadBookmarkFile(file)
+-    await fulfillment(of: [importing!], timeout: 30)
++    await fulfillment(of: [finished], timeout: 30)
+     importing = nil
+     categories.append(try XCTUnwrap(manager.sortedUserCategories().first { $0.title == title }))
+   }
+ 
+   func onBookmarksLoadFinished() {
+-    loading?.fulfill()
+-    importing?.fulfill()
++    let initialLoad = loading
++    let importedFile = importing
++    loading = nil
++    importing = nil
++    initialLoad?.fulfill()
++    importedFile?.fulfill()
+   }
+ 
+   func onBookmarksFileLoadError() {
+     XCTFail("Failed to import synthetic search fixture")
+-    importing?.fulfill()
+   }
+ }

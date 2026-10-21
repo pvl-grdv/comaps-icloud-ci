@@ -36,3 +36,4 @@ writer-tests-file-worker-adapter.patch
 fingerprint-tests-functional-io-deadline.patch
 store-tests-functional-io-deadline.patch
 unified-saved-item-editing.patch
+search-fixture-directory.patch

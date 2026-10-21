@@ -5,7 +5,7 @@
   "features": {
     "search": {
       "patch": "proposals/saved-items/search.patch",
-      "sha256": "cbe3ad45077fb5a541650d9e5ddf781db7386a94cf8a0783fb0b83660837e2ca",
+      "sha256": "252e57b93e5e442932df0a117827fb968b49b461f63c919fe2282516d893d99d",
       "files": [
         "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h",
         "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm",
@@ -47,9 +47,9 @@
         "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSearchViewModel.swift": "1d9ccbdd2de5408075879746d618e3ac69f282fe2ffdcec76989c76207f90481",
         "iphone/Maps/Maps.xcodeproj/project.pbxproj": "49791c4c267357c6968e61667682322e6ab038f15e3d1e0bbb9155c3951f90a3",
         "iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift": "a9a4bc3a94f4fab693b5765ffc9ada9c2e89348c77e6f9c7c5c38324f7cdcd59",
-        "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h": "3ea700491b24cb27361fe1f80ef102768fb0d5758117cbd130f1cf9481b5b4d7",
-        "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm": "7b665254a6614b146c683382882f6ad012120e9ecb62329c77023a16cb6c4550",
-        "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift": "e6aa33cda37b134c05647bb088e293444dd43645314df1ec55e936165f629775",
+        "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h": "78dd23fd382ba8be494f4a884a0ce58739b2b96d482ece1125dff969918cfea7",
+        "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm": "8aa4089d6c17816fe5aa0aa96810a4132b8ded7bb5f7c2a2bfba99654ccfb509",
+        "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift": "9c8ec13d23ea4ae8d426432baa11ac21f9acca80185152c0c9c8b3eff53a41d8",
         "iphone/Maps/Tests/Bridging-Header.h": "6a9fadf48eda807076a887378a428cd3359bc77c28b0eb466f2477fd720140bc",
         "libs/map/saved_items_search_params.hpp": "a2e03d5248bc1ec0db4a46082212069e8e1aa9a60718a32f38146bbc4beb6ea4",
         "libs/map/search_api.cpp": "81a05ca823a45626ecae6aa9d5a03e2c6dc9a032ed3803c3f8a70b08ac397936",
