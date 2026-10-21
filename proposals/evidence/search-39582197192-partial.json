@@ -1,0 +1,98 @@
+{
+  "feature": "search",
+  "run_id": 39582197192,
+  "job_id": 119162244006,
+  "run_url": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39582197192",
+  "commit": "427d129d9693d48bc86bab41e5e40f577c06708b",
+  "job_conclusion": "cancelled",
+  "patch_sha256": "3145ed99469a088305894e378c1132f9dc847c37ce9ab1a5db3ab9aa3267fb09",
+  "matches_current_feature_manifest_and_patch": true,
+  "native": {
+    "map": {
+      "count": 1,
+      "executed": [
+        "bookmarks_test.cpp::Bookmarks_Sorting"
+      ],
+      "exitCode": 0
+    },
+    "search": {
+      "count": 11,
+      "executed": [
+        "bookmarks_processor_tests.cpp::BookmarksProcessorTest_Smoke",
+        "bookmarks_processor_tests.cpp::BookmarksProcessorTest_SearchByType",
+        "bookmarks_processor_tests.cpp::BookmarksProcessorTest_IndexDescriptions",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_CollidingNumericIds",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_UnicodePrefixAndDescription",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_OriginalAndCustomNamesSurviveUpdates",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_SnapshotRenameMoveDeleteReload",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_InvalidSnapshotRetainsPreviousIndex",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_CancelledSearch",
+        "bookmarks_processor_tests.cpp::SavedItemsProcessorTest_CancelledBeforeProcessingCompletesTypedCallback",
+        "bookmarks_processor_tests.cpp::SavedItemsProcessorTest_CancelledLegacyRequestStillCompletes"
+      ],
+      "exitCode": 0
+    }
+  },
+  "XCTest": {
+    "expected": 19,
+    "passed": 19,
+    "failed": 0,
+    "skipped": 0,
+    "classes": {
+      "BMCSearchViewModelTests": {
+        "count": 11,
+        "passed_methods": [
+          "testBookmarkAndTrackWithSameNumericIdRemainDistinct",
+          "testClearingQueryClearsResultsAndInvalidatesOldCompletion",
+          "testDismissedSearchIgnoresPendingResults",
+          "testEarlierQueryCannotReplaceCurrentResults",
+          "testInactiveRefreshDoesNotAcquireIndex",
+          "testRefreshReindexesAndRepeatsCurrentQuery",
+          "testRepeatedStartAndStopPrepareAndReleaseOnlyOnce",
+          "testRestartDoesNotAcceptCompletionFromPreviousSession",
+          "testResultsAreGroupedByCategoryIdentityInResultOrder",
+          "testSelectingDeletedResultRefreshesInsteadOfReturningStaleIdentity",
+          "testSelectingMovedResultUsesItsCurrentCategory"
+        ]
+      },
+      "SavedItemsSearchTests": {
+        "count": 8,
+        "passed_methods": [
+          "testChildCollectionSearchUsesMembershipInsteadOfPrimaryParent",
+          "testCurrentFolderSearchReturnsBothKindsFromOnlyThatFolder",
+          "testDeletedTrackIsNotSearchableOrSelectable",
+          "testGlobalSearchIncludesBothFoldersAndBothKinds",
+          "testLegacyBookmarkSearchStillReturnsOnlyBookmarks",
+          "testMovedTrackLeavesOldScopeAndAppearsInNewScope",
+          "testRenamedTrackIsReplacedInTheNextSearchSnapshot",
+          "testTypedResultPreservesKindWithEqualNumericIds"
+        ]
+      }
+    },
+    "simulator": "iPhone 18 Pro Max / iOS27.0 / arm64"
+  },
+  "unsigned_release_archive": {
+    "job_step": "cancelled",
+    "log_marker": null,
+    "started_at": "2026-10-21T11:10:05Z",
+    "completed_at": "2026-10-21T12:07:52Z",
+    "last_stage": "Ld CoMaps.app/CoMaps arm64 iphoneos with LTO",
+    "compiler_errors_found": 0,
+    "reason": "Job reached configured 120-minute overall budget; archive cancelled before success marker."
+  },
+  "artifact_file_sha256": {
+    "proposals/saved-items/search.patch": "3145ed99469a088305894e378c1132f9dc847c37ce9ab1a5db3ab9aa3267fb09",
+    "results/ios-summary.json": "216bcbb98a0c863a1cf83c9b5b0055af153fa88fa0a9b5e36c8b777fe19337d6",
+    "results/feature-map-tests.log": "a3139c94d617900d35386cf1cf00eb1e502b3652955eb28bf63521b7f160a619",
+    "results/feature-search-tests.log": "f08f50ae649c09c713a355fd11fb0891ecc92ada907faebf19aae7717c081358",
+    "results/xcodebuild-tests.log": "2707323b17b3896a02839514c9fe9d185125f05cf35a4216c9185dabb856d977",
+    "results/feature-release-archive.log": "4f39a72a6269094103f945509c1c35ada84ce6e547305ed0de20aca03f5a1c6d"
+  },
+  "verification_passed": false,
+  "test_verification_passed": true,
+  "limitations": [
+    "Synthetic isolated feature checks; no live iCloud or physical-device synchronization tested.",
+    "Unsigned Release success is required independently of test success."
+  ],
+  "artifact_name": "saved-items-search"
+}

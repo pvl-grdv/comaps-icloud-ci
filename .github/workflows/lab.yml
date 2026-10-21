@@ -25,7 +25,9 @@ env:
 jobs:
   verify:
     runs-on: xcode-27
-    timeout-minutes: 120
+    # Debug tests plus unsigned Release/LTO exceeded 120 min on the public runner.
+    # This job budget does not change any individual test deadline or skip check.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v6
       - name: Reject incompatible distribution modes

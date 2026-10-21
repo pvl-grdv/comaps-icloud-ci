@@ -337,9 +337,12 @@
         "required_XCTest": 19,
         "required_native_map": 1,
         "required_native_search": 11,
-        "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39582197192",
+        "run": null,
         "tested_repository_commit": "427d129d9693d48bc86bab41e5e40f577c06708b",
-        "status": "native passed; exact XCTest/Release terminal verification pending"
+        "status": "Tests1+11native and19XCTest passed; Release cancelled at120-minute overall job budget during final LTO linking. New complete run required.",
+        "verified": false,
+        "previous_cancelled_run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39582197192",
+        "verification": "search-39582197192-partial.json"
       }
     },
     {

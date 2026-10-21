@@ -26,7 +26,9 @@ jobs:
       matrix:
         feature: ${{ fromJSON(inputs.feature == 'all' && '["search","folder-order","item-order"]' || format('["{0}"]', inputs.feature)) }}
     runs-on: xcode-27
-    timeout-minutes: 120
+    # Debug tests plus unsigned Release/LTO exceeded 120 min on the public runner.
+    # This job budget does not change any individual test deadline or skip check.
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@v6
       - name: Validate patch and test manifests
