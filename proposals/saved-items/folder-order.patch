@@ -396,10 +396,10 @@ index ebd7efed4ae7b0ac8380c11265c11d8f671a9035..816a27aeac8214826b8f1205d2220314
  				EDF838C42C00B9D6007E4E67 /* FileManagerMock.swift in Sources */,
 diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift
 new file mode 100644
-index 0000000000000000000000000000000000000000..0f6f612226fcf9ac1345dafefdde54ce5bbcc849
+index 0000000000000000000000000000000000000000..9f31ce8e6344edc4a3c767d329d3d07cb6801f4e
 --- /dev/null
 +++ b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift
-@@ -0,0 +1,175 @@
+@@ -0,0 +1,187 @@
 +import UIKit
 +import XCTest
 +@testable import CoMaps__Debug_
@@ -429,7 +429,8 @@ index 0000000000000000000000000000000000000000..0f6f612226fcf9ac1345dafefdde54ce
 +  }
 +
 +  override func tearDown() {
-+    categoryIds.forEach { manager.deleteCategory($0) }
++    saveFixturesBeforeDeletion()
++    categoryIds.filter { manager.hasCategory($0) }.forEach { manager.deleteCategory($0) }
 +    if let originalSortingType {
 +      _ = manager.setCategorySortingType(originalSortingType)
 +    }
@@ -437,6 +438,15 @@ index 0000000000000000000000000000000000000000..0f6f612226fcf9ac1345dafefdde54ce
 +    originalSortingType = nil
 +    categoryIds = []
 +    super.tearDown()
++  }
++
++  private func saveFixturesBeforeDeletion() {
++    guard categoryIds.contains(where: { manager.hasCategory($0) }) else { return }
++    // Baseline deletion needs a saved filename. Keep setup unsaved so the
++    // manual-order test still exercises the first-save path itself.
++    let sortingType = manager.categorySortingType()
++    XCTAssertTrue(manager.setCategorySortingType(.manual))
++    XCTAssertTrue(manager.setCategorySortingType(sortingType))
 +  }
 +
 +  private var sortedIds: [MWMMarkGroupID] {
@@ -509,6 +519,7 @@ index 0000000000000000000000000000000000000000..0f6f612226fcf9ac1345dafefdde54ce
 +    model.reloadData()
 +    let currentIndex = try XCTUnwrap(model.categoryIndex(forId: targetId))
 +    XCTAssertNotEqual(currentIndex, oldIndex)
++    saveFixturesBeforeDeletion()
 +    model.deleteCategory(at: currentIndex)
 +    XCTAssertFalse(manager.hasCategory(targetId))
 +    XCTAssertTrue(manager.hasCategory(categoryIds[0]))
@@ -519,6 +530,7 @@ index 0000000000000000000000000000000000000000..0f6f612226fcf9ac1345dafefdde54ce
 +    let model = BMCDefaultViewModel()
 +    let targetId = categoryIds[1]
 +    XCTAssertNotNil(model.categoryIndex(forId: targetId))
++    saveFixturesBeforeDeletion()
 +    manager.deleteCategory(targetId)
 +    XCTAssertFalse(manager.hasCategory(targetId))
 +    model.reloadData()
