@@ -684,7 +684,7 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
 new file mode 100644
 --- /dev/null
 +++ b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
-@@ -0,0 +1,397 @@
+@@ -0,0 +1,433 @@
 +import UIKit
 +import XCTest
 +@testable import CoMaps__Debug_
@@ -853,6 +853,9 @@ new file mode 100644
 +    XCTAssertTrue(kml.contains("comaps:itemSorting"))
 +    // Re-import the saved bytes as a new group: replacing an existing loaded
 +    // category has a separate baseline bug and is outside manual item ordering.
++    let savedTitle = category.title
++    let expectedBookmarkNames = bookmarks.map(\.bookmarkName)
++    let expectedTrackNames = tracks.map(\.trackName)
 +    manager.deleteCategory(category.categoryId)
 +    self.category = nil
 +    let importFile = try XCTUnwrap(fixtureFile)
@@ -862,13 +865,13 @@ new file mode 100644
 +    manager.loadBookmarkFile(importFile)
 +    await fulfillment(of: [reloadFinished], timeout: 30)
 +    pending = nil
-+    let reloaded = try XCTUnwrap(manager.sortedUserCategories().first { $0.title == category.title })
++    let reloaded = try XCTUnwrap(manager.sortedUserCategories().first { $0.title == savedTitle })
 +    self.category = reloaded
 +    XCTAssertEqual(manager.lastSortingType(reloaded.categoryId), .manual)
 +    XCTAssertEqual(reloaded.collections.count, 1)
 +    let sections = await sortedSections(reloaded.categoryId)
-+    XCTAssertEqual(sections.flatMap { $0.bookmarks ?? [] }.map(\.bookmarkName), bookmarks.map(\.bookmarkName))
-+    XCTAssertEqual(sections.flatMap { $0.tracks ?? [] }.map(\.trackName), tracks.map(\.trackName))
++    XCTAssertEqual(sections.flatMap { $0.bookmarks ?? [] }.map(\.bookmarkName), expectedBookmarkNames)
++    XCTAssertEqual(sections.flatMap { $0.tracks ?? [] }.map(\.trackName), expectedTrackNames)
 +  }
 +
 +  @MainActor
@@ -877,11 +880,15 @@ new file mode 100644
 +    try await withHostedItemList { controller, table in
 +      XCTAssertFalse(controller.isEditing)
 +      try assertItemEditButton(controller, editing: false)
-+      let initialSortingType = manager.lastSortingType(category.categoryId)
++      let hadSortingType = manager.hasLastSortingType(category.categoryId)
++      let initialSortingType = hadSortingType ? manager.lastSortingType(category.categoryId) : nil
 +      let firstRow = IndexPath(row: 0, section: 0)
 +      // Ordinary swipe editing must not enter manual ordering through the Edit override.
 +      controller.tableView(table, willBeginEditingRowAt: firstRow)
-+      XCTAssertEqual(manager.lastSortingType(category.categoryId), initialSortingType)
++      XCTAssertEqual(manager.hasLastSortingType(category.categoryId), hadSortingType)
++      if let initialSortingType {
++        XCTAssertEqual(manager.lastSortingType(category.categoryId), initialSortingType)
++      }
 +      XCTAssertFalse(controller.tableView(table, canMoveRowAt: firstRow))
 +      XCTAssertFalse(table.isEditing)
 +      controller.tableView(table, didEndEditingRowAt: firstRow)
@@ -989,12 +996,25 @@ new file mode 100644
 +    window.layoutIfNeeded()
 +    bar.layoutIfNeeded()
 +    XCTAssertTrue(bar.window === window)
-+    // System bar button items may have a nil title; inspect their rendered public UILabels.
++    // UIKit may render the system Done item as a glyph instead of a text label.
++    // Inspect the actual visible control's public title/configuration/accessibility semantics.
++    var controls: [String] = []
 +    func visibleTexts(in view: UIView) -> Set<String> {
-+      guard !view.isHidden, view.alpha > 0 else { return [] }
++      guard !view.isHidden, view.alpha > 0, view.window === window, !view.bounds.isEmpty,
++            view.convert(view.bounds, to: window).intersects(window.bounds) else { return [] }
 +      var texts = Set<String>()
 +      if let label = view as? UILabel, let text = label.text, !text.isEmpty {
 +        texts.insert(text)
++      }
++      if let control = view as? UIButton {
++        for text in [control.currentTitle, control.configuration?.title] {
++          if let text, !text.isEmpty { texts.insert(text) }
++        }
++        controls.append("UIButton frame=\(control.frame) title=\(control.currentTitle ?? "nil") configuration=\(control.configuration?.title ?? "nil") AX=\(control.accessibilityLabel ?? "nil")")
++      }
++      if view is UIButton || view.accessibilityTraits.contains(.button),
++         let label = view.accessibilityLabel, !label.isEmpty {
++        texts.insert(label)
 +      }
 +      for child in view.subviews { texts.formUnion(visibleTexts(in: child)) }
 +      return texts
@@ -1003,8 +1023,8 @@ new file mode 100644
 +    let expectedTitle = L(editing ? "done" : "edit")
 +    let previousTitle = L(editing ? "edit" : "done")
 +    XCTAssertFalse(expectedTitle.isEmpty)
-+    XCTAssertTrue(texts.contains(expectedTitle), "Visible navigation titles: \(texts)")
-+    XCTAssertFalse(texts.contains(previousTitle), "Visible navigation titles: \(texts)")
++    XCTAssertTrue(texts.contains(expectedTitle), "Visible navigation controls: \(texts); \(controls)")
++    XCTAssertFalse(texts.contains(previousTitle), "Visible navigation controls: \(texts); \(controls)")
 +    XCTAssertEqual(controller.isEditing, editing)
 +  }
 +
@@ -1030,7 +1050,10 @@ new file mode 100644
 +    let animationsWereEnabled = UIView.areAnimationsEnabled
 +    UIView.setAnimationsEnabled(false)
 +    let controller = BookmarksListBuilder.build(markGroupId: category.categoryId, bookmarksCoordinator: nil)
-+    window.rootViewController = UINavigationController(rootViewController: controller)
++    let appeared = expectation(description: "Hosted item list appeared")
++    let navigation = BookmarkItemOrderHostedNavigationController(rootViewController: controller)
++    navigation.onFirstAppearance = { appeared.fulfill() }
++    window.rootViewController = navigation
 +    window.makeKeyAndVisible()
 +    defer {
 +      controller.setEditing(false, animated: false)
@@ -1041,6 +1064,7 @@ new file mode 100644
 +      UIView.setAnimationsEnabled(animationsWereEnabled)
 +    }
 +    controller.loadViewIfNeeded()
++    await fulfillment(of: [appeared], timeout: 30)
 +    window.layoutIfNeeded()
 +    func descendants(_ view: UIView) -> [UIView] {
 +      view.subviews + view.subviews.flatMap { descendants($0) }
@@ -1080,6 +1104,18 @@ new file mode 100644
 +    let finished = pending
 +    pending = nil
 +    finished?.fulfill()
++  }
++}
++
++@MainActor
++private final class BookmarkItemOrderHostedNavigationController: UINavigationController {
++  var onFirstAppearance: (() -> Void)?
++
++  override func viewDidAppear(_ animated: Bool) {
++    super.viewDidAppear(animated)
++    let completion = onFirstAppearance
++    onFirstAppearance = nil
++    completion?()
 +  }
 +}
 diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
