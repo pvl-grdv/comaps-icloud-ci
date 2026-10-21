@@ -684,7 +684,7 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
 new file mode 100644
 --- /dev/null
 +++ b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
-@@ -0,0 +1,433 @@
+@@ -0,0 +1,495 @@
 +import UIKit
 +import XCTest
 +@testable import CoMaps__Debug_
@@ -991,40 +991,102 @@ new file mode 100644
 +  private func assertItemEditButton(_ controller: BookmarksListViewController, editing: Bool) throws {
 +    let button = try XCTUnwrap(controller.navigationItem.rightBarButtonItem)
 +    XCTAssertTrue(button === controller.editButtonItem)
++    XCTAssertTrue(button.isEnabled)
 +    let bar = try XCTUnwrap(controller.navigationController?.navigationBar)
 +    let window = try XCTUnwrap(controller.view.window)
 +    window.layoutIfNeeded()
 +    bar.layoutIfNeeded()
 +    XCTAssertTrue(bar.window === window)
-+    // UIKit may render the system Done item as a glyph instead of a text label.
-+    // Inspect the actual visible control's public title/configuration/accessibility semantics.
-+    var controls: [String] = []
-+    func visibleTexts(in view: UIView) -> Set<String> {
-+      guard !view.isHidden, view.alpha > 0, view.window === window, !view.bounds.isEmpty,
-+            view.convert(view.bounds, to: window).intersects(window.bounds) else { return [] }
-+      var texts = Set<String>()
-+      if let label = view as? UILabel, let text = label.text, !text.isEmpty {
-+        texts.insert(text)
-+      }
-+      if let control = view as? UIButton {
-+        for text in [control.currentTitle, control.configuration?.title] {
-+          if let text, !text.isEmpty { texts.insert(text) }
++    var texts = Set<String>()
++    var tree: [String] = []
++    var visited = Set<ObjectIdentifier>()
++    let screenFrame = window.convert(window.bounds, to: window.screen.coordinateSpace)
++
++    func isVisible(_ view: UIView) -> Bool {
++      guard view.window === window else { return false }
++      var frame = view.convert(view.bounds, to: window).intersection(window.bounds)
++      guard !frame.isEmpty else { return false }
++      var ancestor: UIView? = view
++      while let current = ancestor {
++        if current.isHidden || current.alpha <= 0 { return false }
++        if current.clipsToBounds {
++          frame = frame.intersection(current.convert(current.bounds, to: window))
++          if frame.isEmpty { return false }
 +        }
-+        controls.append("UIButton frame=\(control.frame) title=\(control.currentTitle ?? "nil") configuration=\(control.configuration?.title ?? "nil") AX=\(control.accessibilityLabel ?? "nil")")
++        ancestor = current.superview
 +      }
-+      if view is UIButton || view.accessibilityTraits.contains(.button),
-+         let label = view.accessibilityLabel, !label.isEmpty {
-+        texts.insert(label)
-+      }
-+      for child in view.subviews { texts.formUnion(visibleTexts(in: child)) }
-+      return texts
++      return true
 +    }
-+    let texts = visibleTexts(in: bar)
++
++    func visit(_ object: NSObject, depth: Int, ancestorHidden: Bool = false) {
++      guard visited.insert(ObjectIdentifier(object)).inserted else { return }
++      let prefix = String(repeating: " ", count: depth)
++      let label = object.accessibilityLabel
++      let traits = object.accessibilityTraits
++      let frame = object.accessibilityFrame
++      tree.append("\(prefix)\(type(of: object)) AXlabel=\(label ?? "nil") traits=\(traits.rawValue) AXframe=\(frame)")
++      let visible: Bool
++      var hidden = ancestorHidden
++      if let view = object as? UIView {
++        hidden = hidden || view.isHidden || view.alpha <= 0
++        visible = !hidden && isVisible(view)
++        tree.append("\(prefix)view frame=\(view.frame) bounds=\(view.bounds) hidden=\(view.isHidden) alpha=\(view.alpha) clips=\(view.clipsToBounds) visible=\(visible)")
++        if let textLabel = view as? UILabel {
++          tree.append("\(prefix)UILabel text=\(textLabel.text ?? "nil")")
++          if visible, let text = textLabel.text, !text.isEmpty { texts.insert(text) }
++        }
++        if let control = view as? UIButton {
++          tree.append("\(prefix)UIButton currentTitle=\(control.currentTitle ?? "nil") configuration=\(control.configuration?.title ?? "nil") enabled=\(control.isEnabled)")
++          if visible {
++            for text in [control.currentTitle, control.configuration?.title] {
++              if let text, !text.isEmpty { texts.insert(text) }
++            }
++          }
++        }
++        // Empty or out-of-bounds layout containers can still have visible, unclipped children.
++        for child in view.subviews { visit(child, depth: depth + 1, ancestorHidden: hidden) }
++      } else {
++        visible = !hidden && !frame.isEmpty && frame.intersects(screenFrame)
++      }
++      if visible, traits.contains(.button), let label, !label.isEmpty { texts.insert(label) }
++      if let elements = object.accessibilityElements {
++        for case let element as NSObject in elements { visit(element, depth: depth + 1, ancestorHidden: hidden) }
++      } else {
++        let count = object.accessibilityElementCount()
++        if count > 0 && count != NSNotFound {
++          for index in 0..<count {
++            if let element = object.accessibilityElement(at: index) as? NSObject {
++              visit(element, depth: depth + 1, ancestorHidden: hidden)
++            }
++          }
++        }
++      }
++    }
++    visit(bar, depth: 0)
 +    let expectedTitle = L(editing ? "done" : "edit")
 +    let previousTitle = L(editing ? "edit" : "done")
++    let context = "editing=\(editing) expected=\(expectedTitle) barFrame=\(bar.frame) windowFrame=\(window.frame)"
++    if !texts.contains(expectedTitle) || texts.contains(previousTitle) {
++      // Only synthetic fixture content is in this hosted test window.
++      let diagnostic = context + "\n" + tree.joined(separator: "\n")
++      print("Item navigation public view/AX probe:\n\(diagnostic)")
++      let fields = XCTAttachment(string: diagnostic)
++      fields.name = "item-navigation-public-fields"
++      fields.lifetime = .keepAlways
++      add(fields)
++      let format = UIGraphicsImageRendererFormat()
++      format.scale = 1
++      let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
++        window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
++      }
++      let screenshot = XCTAttachment(image: image)
++      screenshot.name = "item-navigation-synthetic-window"
++      screenshot.lifetime = .keepAlways
++      add(screenshot)
++    }
 +    XCTAssertFalse(expectedTitle.isEmpty)
-+    XCTAssertTrue(texts.contains(expectedTitle), "Visible navigation controls: \(texts); \(controls)")
-+    XCTAssertFalse(texts.contains(previousTitle), "Visible navigation controls: \(texts); \(controls)")
++    XCTAssertTrue(texts.contains(expectedTitle), "\(context) visible navigation semantics: \(texts)")
++    XCTAssertFalse(texts.contains(previousTitle), "\(context) visible navigation semantics: \(texts)")
 +    XCTAssertEqual(controller.isEditing, editing)
 +  }
 +

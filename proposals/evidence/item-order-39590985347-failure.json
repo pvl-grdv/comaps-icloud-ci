@@ -1,0 +1,110 @@
+{
+  "feature": "item-order",
+  "run_id": 39590985347,
+  "job_id": 119191582231,
+  "run_url": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39590985347",
+  "commit": "2d3c2da80f1e4c3a850d8820c68311952744bbe4",
+  "job_conclusion": "failure",
+  "patch_sha256": "b339dfa9daa34dca49724a4caf13ebd9d0508e311b9ff0f0a88f52a27496d9a5",
+  "matches_current_feature_manifest_and_patch": true,
+  "native": {
+    "map": {
+      "count": 8,
+      "executed": [
+        "bookmarks_test.cpp::Bookmarks_Sorting",
+        "bookmarks_test.cpp::Runner_ManualItemOrder_PersistenceAfterReload",
+        "bookmarks_test.cpp::Runner_ManualItemOrder_RejectsStaleForeignAndDuplicateIds",
+        "bookmarks_test.cpp::Runner_ManualItemOrder_InvalidRanksAndNewItems",
+        "bookmarks_test.cpp::Runner_ManualItemOrder_SharedModeAndDefault",
+        "bookmarks_test.cpp::Runner_ManualItemOrder_AppendsNewMovedItemsAndHandlesDeletion",
+        "bookmarks_test.cpp::Runner_ManualItemOrder_AppendsNormallyCreatedBookmarks",
+        "bookmarks_test.cpp::Runner_ManualItemOrder_UndoKeepsOriginalBookmarkPosition"
+      ],
+      "exitCode": 0
+    }
+  },
+  "XCTest": {
+    "expected": 13,
+    "observed_methods": 13,
+    "passed": 11,
+    "failed": 2,
+    "methods": [
+      {
+        "class": "BookmarkItemOrderBridgeTests",
+        "method": "testBridgePersistsCompleteSeparatePermutationsAndManualMode",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderBridgeTests",
+        "method": "testChildCollectionCannotChangeParentItemRanks",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderBridgeTests",
+        "method": "testDeleteInItemEditEndsStaleOrderAndPersistsRemainingItems",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderBridgeTests",
+        "method": "testDoneEndsItemEditingAndSearchDisablesThenRestoresEdit",
+        "result": "failed"
+      },
+      {
+        "class": "BookmarkItemOrderBridgeTests",
+        "method": "testIncompleteDuplicateAndForeignIdsAreRejectedWithoutMutation",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderBridgeTests",
+        "method": "testManualOrderAndModeSurviveKmlSaveAndReload",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderBridgeTests",
+        "method": "testTopEditStartsManualOrderWithDeleteAndReorderControls",
+        "result": "failed"
+      },
+      {
+        "class": "BookmarkItemOrderModelTests",
+        "method": "testDuplicateIdsWithinEitherSectionAreRejected",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderModelTests",
+        "method": "testEqualNumericIdsInDifferentSectionsRemainDistinct",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderModelTests",
+        "method": "testInvalidMoveDoesNotChangeEitherSequence",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderModelTests",
+        "method": "testMovingBookmarkLeavesTrackSequenceUnchanged",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderModelTests",
+        "method": "testMovingToSamePositionKeepsOrder",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderModelTests",
+        "method": "testMovingTrackLeavesBookmarkSequenceUnchanged",
+        "result": "passed"
+      }
+    ],
+    "failure": "Visible navigation controls assertion at BookmarkItemOrderTests.swift:339; labels contain folder title only, buttons empty on iOS 27."
+  },
+  "unsigned_release_archive": {
+    "job_step": "skipped"
+  },
+  "artifact_file_sha256": {
+    "proposals/saved-items/item-order.patch": "b339dfa9daa34dca49724a4caf13ebd9d0508e311b9ff0f0a88f52a27496d9a5",
+    "results/feature-map-tests.log": "043073064981aa49101ea8b2681c2ee72d4062d53d68109d9166109aab683229",
+    "results/xcodebuild-tests.log": "cdf03fbf0c5c84774fd2817dd685ef7cc70411c86a5d2251882326d4af6f1ae4"
+  },
+  "verification_passed": false,
+  "artifact_name": "saved-items-item-order"
+}

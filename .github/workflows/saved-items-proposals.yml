@@ -56,6 +56,14 @@ jobs:
         env:
           IOS_TEST_PLAN: ${{ github.workspace }}/proposals/saved-items/${{ matrix.feature }}-ios-tests.json
         run: bash ci/test-ios.sh
+      - name: Export synthetic item-control diagnostics
+        if: always() && matrix.feature == 'item-order'
+        run: |
+          if [ -d results/CoMaps-Debug-Tests.xcresult ]; then
+            xcrun xcresulttool export attachments \
+              --path results/CoMaps-Debug-Tests.xcresult \
+              --output-path results/feature-ui-diagnostics
+          fi
       - name: Build an unsigned Release archive
         working-directory: comaps
         run: |
@@ -78,6 +86,9 @@ jobs:
             results/feature-*.txt
             results/ios-summary.json
             results/xcodebuild-tests.log
+            results/feature-ui-diagnostics/**/*.png
+            results/feature-ui-diagnostics/**/*.txt
+            results/feature-ui-diagnostics/**/*.json
             proposals/saved-items/
           if-no-files-found: error
           retention-days: 7

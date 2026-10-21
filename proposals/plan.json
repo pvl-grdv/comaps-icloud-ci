@@ -599,17 +599,19 @@
       "standalone": {
         "feature": "item-order",
         "patch": "proposals/saved-items/item-order.patch",
-        "sha256": "b339dfa9daa34dca49724a4caf13ebd9d0508e311b9ff0f0a88f52a27496d9a5",
+        "sha256": "a0464a4f896877bd07e343e32c74a01e7905351d09cbfaddaa77601aef03fbc4",
         "upstream_revision": "a64450d0c7cd7cdfc792c9fc6c2dd620156abecd",
         "required_XCTest": 13,
         "required_native_map": 8,
         "required_native_search": 0,
-        "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39590985347",
-        "tested_repository_commit": "2d3c2da80f1e4c3a850d8820c68311952744bbe4",
-        "status": "in progress; required8native/13XCTest/Release not yet verified",
-        "previous_failed_run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39581652809",
+        "run": null,
+        "tested_repository_commit": null,
+        "status": "Test-only public AX/UIView diagnostic probe prepared; required13 XCTest and Release not yet passed",
+        "previous_failed_run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39590985347",
         "candidate_code_commit": "5f66a6ca934f1675f3fc2db6af77b1e36eb69499",
-        "run_head_sha": "2d3c2da80f1e4c3a850d8820c68311952744bbe4"
+        "run_head_sha": null,
+        "job_budget_minutes": 180,
+        "failure_verification": "item-order-39590985347-failure.json"
       }
     },
     {

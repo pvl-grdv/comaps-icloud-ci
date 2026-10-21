@@ -17,7 +17,7 @@ Edit убран. Кнопки удаления сохранены, сессия 
 
 Готовность
 Независимый срез выделен: proposals/saved-items/item-order.patch
-SHA-256: b339dfa9daa34dca49724a4caf13ebd9d0508e311b9ff0f0a88f52a27496d9a5
+SHA-256: a0464a4f896877bd07e343e32c74a01e7905351d09cbfaddaa77601aef03fbc4
 База: a64450d0c7cd7cdfc792c9fc6c2dd620156abecd
 Предыдущий CI: https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39581652809 (ошибка; не успешная проверка).
 Новый CI: https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39590985347
@@ -80,3 +80,12 @@ UILabel и семантику accessibility системной кнопки (Don
 undefined enum не читается. После Edit ручной режим остаётся обязательным.
 Перед удалением фикстуры сохраняются строки/ожидаемые имена, а не читается
 удалённый native-backed wrapper. Число13 и проверки поведения не уменьшены.
+
+Следующая граница диагностики
+CI39590985347 выполнил13 методов:11pass,2fail (6assertions наблюдения системной
+кнопки). Сохранение/повторная загрузка теперь прошли, crash устранён. Следующая
+test-only версия обходит public UIView/AX containers, не отбрасывает видимых
+детей из-за пустых bounds неклипующего родителя; при сбое выдаёт PNG/tree.
+Собственные проверки action/state/manualmode/удаления/поиска не удалены.
+Это геометрическая/семантическая проверка English CI, не универсальный аудит
+локализации, VoiceOver, occlusion или реального физического жеста.
