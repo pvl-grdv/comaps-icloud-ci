@@ -684,7 +684,7 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
 new file mode 100644
 --- /dev/null
 +++ b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
-@@ -0,0 +1,382 @@
+@@ -0,0 +1,397 @@
 +import UIKit
 +import XCTest
 +@testable import CoMaps__Debug_
@@ -984,12 +984,27 @@ new file mode 100644
 +  private func assertItemEditButton(_ controller: BookmarksListViewController, editing: Bool) throws {
 +    let button = try XCTUnwrap(controller.navigationItem.rightBarButtonItem)
 +    XCTAssertTrue(button === controller.editButtonItem)
-+    // Compare the visible title with UIKit's localized Edit/Done button, in the same locale.
-+    let reference = UIViewController()
-+    reference.setEditing(editing, animated: false)
-+    let expectedTitle = try XCTUnwrap(reference.editButtonItem.title)
++    let bar = try XCTUnwrap(controller.navigationController?.navigationBar)
++    let window = try XCTUnwrap(controller.view.window)
++    window.layoutIfNeeded()
++    bar.layoutIfNeeded()
++    XCTAssertTrue(bar.window === window)
++    // System bar button items may have a nil title; inspect their rendered public UILabels.
++    func visibleTexts(in view: UIView) -> Set<String> {
++      guard !view.isHidden, view.alpha > 0 else { return [] }
++      var texts = Set<String>()
++      if let label = view as? UILabel, let text = label.text, !text.isEmpty {
++        texts.insert(text)
++      }
++      for child in view.subviews { texts.formUnion(visibleTexts(in: child)) }
++      return texts
++    }
++    let texts = visibleTexts(in: bar)
++    let expectedTitle = L(editing ? "done" : "edit")
++    let previousTitle = L(editing ? "edit" : "done")
 +    XCTAssertFalse(expectedTitle.isEmpty)
-+    XCTAssertEqual(button.title, expectedTitle)
++    XCTAssertTrue(texts.contains(expectedTitle), "Visible navigation titles: \(texts)")
++    XCTAssertFalse(texts.contains(previousTitle), "Visible navigation titles: \(texts)")
 +    XCTAssertEqual(controller.isEditing, editing)
 +  }
 +

@@ -223,7 +223,7 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
      if let category, manager.hasCategory(category.categoryId) { manager.deleteCategory(category.categoryId) }
      if let fixtureFile { try? FileManager.default.removeItem(at: fixtureFile) }
      category = nil
-@@ -158,15 +164,181 @@
+@@ -158,15 +164,196 @@
      let kml = try String(contentsOf: file, encoding: .utf8)
      XCTAssertTrue(kml.contains("comaps:itemOrder"))
      XCTAssertTrue(kml.contains("comaps:itemSorting"))
@@ -354,12 +354,27 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
 +  private func assertItemEditButton(_ controller: BookmarksListViewController, editing: Bool) throws {
 +    let button = try XCTUnwrap(controller.navigationItem.rightBarButtonItem)
 +    XCTAssertTrue(button === controller.editButtonItem)
-+    // Compare the visible title with UIKit's localized Edit/Done button, in the same locale.
-+    let reference = UIViewController()
-+    reference.setEditing(editing, animated: false)
-+    let expectedTitle = try XCTUnwrap(reference.editButtonItem.title)
++    let bar = try XCTUnwrap(controller.navigationController?.navigationBar)
++    let window = try XCTUnwrap(controller.view.window)
++    window.layoutIfNeeded()
++    bar.layoutIfNeeded()
++    XCTAssertTrue(bar.window === window)
++    // System bar button items may have a nil title; inspect their rendered public UILabels.
++    func visibleTexts(in view: UIView) -> Set<String> {
++      guard !view.isHidden, view.alpha > 0 else { return [] }
++      var texts = Set<String>()
++      if let label = view as? UILabel, let text = label.text, !text.isEmpty {
++        texts.insert(text)
++      }
++      for child in view.subviews { texts.formUnion(visibleTexts(in: child)) }
++      return texts
++    }
++    let texts = visibleTexts(in: bar)
++    let expectedTitle = L(editing ? "done" : "edit")
++    let previousTitle = L(editing ? "edit" : "done")
 +    XCTAssertFalse(expectedTitle.isEmpty)
-+    XCTAssertEqual(button.title, expectedTitle)
++    XCTAssertTrue(texts.contains(expectedTitle), "Visible navigation titles: \(texts)")
++    XCTAssertFalse(texts.contains(previousTitle), "Visible navigation titles: \(texts)")
 +    XCTAssertEqual(controller.isEditing, editing)
 +  }
 +
@@ -407,7 +422,7 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
    }
 
    @MainActor
-@@ -188,11 +360,15 @@
+@@ -188,11 +375,15 @@
    }
 
    func onBookmarksLoadFinished() {
