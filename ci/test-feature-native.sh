@@ -7,6 +7,8 @@ build_dir="${RUNNER_TEMP:?}/comaps-feature-core"
 jobs=${CORE_BUILD_JOBS:-3}
 qt_prefix=$(brew --prefix qt)
 mkdir -p results
+# The native runner also uses user_resource_path as its SettingsDir.
+touch "$upstream_dir/data/settings.ini"
 cmake -S "$upstream_dir" -B "$build_dir" -G Ninja \
   -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_FLAGS=-g1 -DCMAKE_CXX_FLAGS=-g1 \
   -DCMAKE_PREFIX_PATH="$qt_prefix" -DSKIP_QT_GUI=ON -DSKIP_TESTS=OFF \
