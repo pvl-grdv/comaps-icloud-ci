@@ -185,10 +185,63 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
  import XCTest
  @testable import CoMaps__Debug_
 
-@@ -170,6 +171,171 @@
-   }
+@@ -62,11 +63,14 @@
 
    @MainActor
+   private func prepareFixture() async throws {
++    try FileManager.default.createDirectory(at: FileManager.default.bookmarksDirectoryUrl,
++                                            withIntermediateDirectories: true)
+     manager.add(self)
+     if !manager.areBookmarksLoaded() {
+-      pending = expectation(description: "Load bookmarks")
++      let loaded = expectation(description: "Load bookmarks")
++      pending = loaded
+       manager.loadBookmarks()
+-      await fulfillment(of: [pending!], timeout: 30)
++      await fulfillment(of: [loaded], timeout: 30)
+       pending = nil
+     }
+     let title = "Manual fixture \(UUID().uuidString)"
+@@ -84,9 +88,10 @@
+     </Document></kml>
+     """
+     try Data(kml.utf8).write(to: file)
+-    pending = expectation(description: "Import manual fixture")
++    let imported = expectation(description: "Import manual fixture")
++    pending = imported
+     manager.loadBookmarkFile(file)
+-    await fulfillment(of: [pending!], timeout: 30)
++    await fulfillment(of: [imported], timeout: 30)
+     pending = nil
+     category = try XCTUnwrap(manager.sortedUserCategories().first { $0.title == title })
+   }
+@@ -94,6 +99,7 @@
+   @MainActor
+   private func cleanupFixture() {
+     manager.remove(self)
++    pending = nil
+     if let category, manager.hasCategory(category.categoryId) { manager.deleteCategory(category.categoryId) }
+     if let fixtureFile { try? FileManager.default.removeItem(at: fixtureFile) }
+     category = nil
+@@ -158,15 +164,181 @@
+     let kml = try String(contentsOf: file, encoding: .utf8)
+     XCTAssertTrue(kml.contains("comaps:itemOrder"))
+     XCTAssertTrue(kml.contains("comaps:itemSorting"))
+-    pending = expectation(description: "Reload saved KML")
++    let reloadFinished = expectation(description: "Reload saved KML")
++    pending = reloadFinished
+     manager.reloadCategory(atFilePath: file.path)
+-    await fulfillment(of: [pending!], timeout: 30)
++    await fulfillment(of: [reloadFinished], timeout: 30)
+     pending = nil
+     XCTAssertEqual(manager.lastSortingType(category.categoryId), .manual)
+     XCTAssertEqual(manager.category(withId: category.categoryId).collections.count, 1)
+     let sections = await sortedSections(category.categoryId)
+     XCTAssertEqual(sections.flatMap { $0.bookmarks ?? [] }.map(\.bookmarkName), bookmarks.map(\.bookmarkName))
+     XCTAssertEqual(sections.flatMap { $0.tracks ?? [] }.map(\.trackName), tracks.map(\.trackName))
++  }
++
++  @MainActor
 +  func testTopEditStartsManualOrderWithDeleteAndReorderControls() async throws {
 +    let category = try XCTUnwrap(category)
 +    try await withHostedItemList { controller, table in
@@ -351,9 +404,24 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
 +    XCTAssertTrue(controller.view.window === window)
 +    XCTAssertFalse(table.visibleCells.isEmpty)
 +    try await body(controller, table)
-+  }
-+
-+  @MainActor
-   private func save(bookmarks: [MWMMarkID], tracks: [MWMTrackID], in group: MWMMarkGroupID) -> Bool {
-     manager.setManualItemOrder(group, bookmarkIds: bookmarks.map { NSNumber(value: $0) },
-                                trackIds: tracks.map { NSNumber(value: $0) })
+   }
+
+   @MainActor
+@@ -188,11 +360,15 @@
+   }
+
+   func onBookmarksLoadFinished() {
+-    pending?.fulfill()
++    let finished = pending
++    pending = nil
++    finished?.fulfill()
+   }
+
+   func onBookmarksFileLoadError() {
+     XCTFail("Synthetic manual-order fixture could not be imported")
+-    pending?.fulfill()
++    let finished = pending
++    pending = nil
++    finished?.fulfill()
+   }
+ }

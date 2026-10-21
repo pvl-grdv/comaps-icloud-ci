@@ -684,7 +684,7 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
 new file mode 100644
 --- /dev/null
 +++ b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
-@@ -0,0 +1,372 @@
+@@ -0,0 +1,382 @@
 +import UIKit
 +import XCTest
 +@testable import CoMaps__Debug_
@@ -750,11 +750,14 @@ new file mode 100644
 +
 +  @MainActor
 +  private func prepareFixture() async throws {
++    try FileManager.default.createDirectory(at: FileManager.default.bookmarksDirectoryUrl,
++                                            withIntermediateDirectories: true)
 +    manager.add(self)
 +    if !manager.areBookmarksLoaded() {
-+      pending = expectation(description: "Load bookmarks")
++      let loaded = expectation(description: "Load bookmarks")
++      pending = loaded
 +      manager.loadBookmarks()
-+      await fulfillment(of: [pending!], timeout: 30)
++      await fulfillment(of: [loaded], timeout: 30)
 +      pending = nil
 +    }
 +    let title = "Manual fixture \(UUID().uuidString)"
@@ -772,9 +775,10 @@ new file mode 100644
 +    </Document></kml>
 +    """
 +    try Data(kml.utf8).write(to: file)
-+    pending = expectation(description: "Import manual fixture")
++    let imported = expectation(description: "Import manual fixture")
++    pending = imported
 +    manager.loadBookmarkFile(file)
-+    await fulfillment(of: [pending!], timeout: 30)
++    await fulfillment(of: [imported], timeout: 30)
 +    pending = nil
 +    category = try XCTUnwrap(manager.sortedUserCategories().first { $0.title == title })
 +  }
@@ -782,6 +786,7 @@ new file mode 100644
 +  @MainActor
 +  private func cleanupFixture() {
 +    manager.remove(self)
++    pending = nil
 +    if let category, manager.hasCategory(category.categoryId) { manager.deleteCategory(category.categoryId) }
 +    if let fixtureFile { try? FileManager.default.removeItem(at: fixtureFile) }
 +    category = nil
@@ -852,9 +857,10 @@ new file mode 100644
 +    self.category = nil
 +    let importFile = try XCTUnwrap(fixtureFile)
 +    try Data(kml.utf8).write(to: importFile)
-+    pending = expectation(description: "Re-import saved KML")
++    let reloadFinished = expectation(description: "Re-import saved KML")
++    pending = reloadFinished
 +    manager.loadBookmarkFile(importFile)
-+    await fulfillment(of: [pending!], timeout: 30)
++    await fulfillment(of: [reloadFinished], timeout: 30)
 +    pending = nil
 +    let reloaded = try XCTUnwrap(manager.sortedUserCategories().first { $0.title == category.title })
 +    self.category = reloaded
@@ -1049,12 +1055,16 @@ new file mode 100644
 +  }
 +
 +  func onBookmarksLoadFinished() {
-+    pending?.fulfill()
++    let finished = pending
++    pending = nil
++    finished?.fulfill()
 +  }
 +
 +  func onBookmarksFileLoadError() {
 +    XCTFail("Synthetic manual-order fixture could not be imported")
-+    pending?.fulfill()
++    let finished = pending
++    pending = nil
++    finished?.fulfill()
 +  }
 +}
 diff --git a/libs/map/bookmark_manager.cpp b/libs/map/bookmark_manager.cpp
