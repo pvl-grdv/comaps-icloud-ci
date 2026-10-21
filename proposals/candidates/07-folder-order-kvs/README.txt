@@ -52,6 +52,6 @@ SharedFolderOrderCoordinatorTests.testOpaqueIdentityCanonicalizesUnicodeAndRejec
 }
 
 Исторические патчи (НЕ порядок применения)
-https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/shared-folder-order.patch
-https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/folder-order-lifecycle.patch
-https://github.com/pvl-grdv/comaps-icloud-ci/blob/5f66a6ca934f1675f3fc2db6af77b1e36eb69499/patches/stable-category-menu-target.patch
+https://github.com/pvl-grdv/comaps-icloud-ci/blob/2d3c2da80f1e4c3a850d8820c68311952744bbe4/patches/shared-folder-order.patch
+https://github.com/pvl-grdv/comaps-icloud-ci/blob/2d3c2da80f1e4c3a850d8820c68311952744bbe4/patches/folder-order-lifecycle.patch
+https://github.com/pvl-grdv/comaps-icloud-ci/blob/2d3c2da80f1e4c3a850d8820c68311952744bbe4/patches/stable-category-menu-target.patch
