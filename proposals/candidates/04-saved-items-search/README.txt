@@ -88,5 +88,7 @@ https://github.com/pvl-grdv/comaps-icloud-ci/blob/2d3c2da80f1e4c3a850d8820c68311
 тестов не менялись. Предыдущий прогон прошёл native map1/search11 и19 XCTest,
 но Release остановился на Ld/LTO по общему120-минутному лимиту. Это частичный
 результат; подробности — ../../evidence/search-39582197192-partial.json.
-Текущий точный HEAD e5d73d2b3ec7f3a9f5561236e100c488a852ebaf, завершение
-ещё не подтверждено.
+Текущий точный HEAD e5d73d2b3ec7f3a9f5561236e100c488a852ebaf, запуск завершился ошибкой, см. ../../evidence/status.json.
+
+Сверка11ноября: patch применим к main df67cc0 без конфликтов. Это не новый CI.
+См. ../../UPSTREAM-2026-11-11.txt и ../../evidence/status.json.

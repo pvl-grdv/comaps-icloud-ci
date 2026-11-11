@@ -1,0 +1,59 @@
+{
+  "feature": "search",
+  "run_id": 39597911665,
+  "job_id": 119214744389,
+  "run_url": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39597911665",
+  "commit": "e5d73d2b3ec7f3a9f5561236e100c488a852ebaf",
+  "job_conclusion": "failure",
+  "patch_sha256": "3145ed99469a088305894e378c1132f9dc847c37ce9ab1a5db3ab9aa3267fb09",
+  "matches_current_feature_manifest_and_patch": true,
+  "native": {
+    "map": {
+      "count": 1,
+      "executed": [
+        "bookmarks_test.cpp::Bookmarks_Sorting"
+      ],
+      "exitCode": 0
+    },
+    "search": {
+      "count": 11,
+      "executed": [
+        "bookmarks_processor_tests.cpp::BookmarksProcessorTest_Smoke",
+        "bookmarks_processor_tests.cpp::BookmarksProcessorTest_SearchByType",
+        "bookmarks_processor_tests.cpp::BookmarksProcessorTest_IndexDescriptions",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_CollidingNumericIds",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_UnicodePrefixAndDescription",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_OriginalAndCustomNamesSurviveUpdates",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_SnapshotRenameMoveDeleteReload",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_InvalidSnapshotRetainsPreviousIndex",
+        "bookmarks_processor_tests.cpp::SavedItemsIndexTest_CancelledSearch",
+        "bookmarks_processor_tests.cpp::SavedItemsProcessorTest_CancelledBeforeProcessingCompletesTypedCallback",
+        "bookmarks_processor_tests.cpp::SavedItemsProcessorTest_CancelledLegacyRequestStillCompletes"
+      ],
+      "exitCode": 0
+    }
+  },
+  "XCTest": {
+    "expected": 19,
+    "observed_started_methods": 0,
+    "passed": 0,
+    "status": "test_host_startup_failed",
+    "exact_error": "CoMaps (Debug) (66798) encountered an error (The test runner hung before establishing connection.)",
+    "secondary_error": "Failure collecting diagnostics from simulator: Timed out after 600.0 seconds while waiting for a response from the invoked process",
+    "root_cause": "Unknown from retained text logs; no xcresult/system diagnostic bundle retained."
+  },
+  "unsigned_release_archive": {
+    "job_step": "skipped"
+  },
+  "artifact_file_sha256": {
+    "proposals/saved-items/search.patch": "3145ed99469a088305894e378c1132f9dc847c37ce9ab1a5db3ab9aa3267fb09",
+    "results/xcodebuild-tests.log": "bb9d16d4fcfe7b4ac6b9151fa36d92fbb7fc60b94dec67dd89b5c30701f1def6",
+    "results/feature-map-tests.log": "d7cd98fe199974f5df1ee8083f546e82d37f9f3bf0171eca140e9e3a97493512",
+    "results/feature-search-tests.log": "8dc5e665d2e6f0e929b41d96a07acee31f6cd7a681d6720635e5e1620a6b82c0"
+  },
+  "verification_passed": false,
+  "limitations": [
+    "Zero executed XCTest methods is not a pass.",
+    "Prior run39582197192 executed19/19 for identical patch but Release was cancelled at job budget."
+  ]
+}

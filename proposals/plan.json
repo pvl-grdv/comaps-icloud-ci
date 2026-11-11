@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "CURRENT_FULL_AND_ITEM_CI_RUNNING_SEARCH_AND_FOLDER_RELEASE_PENDING",
+  "status": "FOLDER_VERIFIED_OTHER_LATEST_RUNS_FAILED_UPSTREAM_SOURCE_AUDITED",
   "candidate": "2d3c2da80f1e4c3a850d8820c68311952744bbe4",
   "patch_catalog": "catalog.json",
   "source_manifest": "patches/om13232-source-manifest.json",
@@ -339,10 +339,10 @@
         "required_native_search": 11,
         "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39597911665",
         "tested_repository_commit": "e5d73d2b3ec7f3a9f5561236e100c488a852ebaf",
-        "status": "New complete run in progress; test/dependency/source plans unchanged, overall budget180min",
+        "status": "FAILED: test host startup hung, zero XCTest methods; Release skipped",
         "verified": false,
         "previous_cancelled_run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39582197192",
-        "verification": "search-39582197192-partial.json",
+        "verification": "search-39597911665-failure.json",
         "run_head_sha": "e5d73d2b3ec7f3a9f5561236e100c488a852ebaf",
         "job_budget_minutes": 180
       }
@@ -604,14 +604,15 @@
         "required_XCTest": 13,
         "required_native_map": 8,
         "required_native_search": 0,
-        "run": null,
-        "tested_repository_commit": null,
-        "status": "Test-only public AX/UIView diagnostic probe prepared; required13 XCTest and Release not yet passed",
+        "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39600576527",
+        "tested_repository_commit": "e3d2d0316e01e73a35905fe1a1f7a1cd9fd8e7a9",
+        "status": "FAILED: native8 passed; XCTest11/13 passed, two Edit/Done methods failed with three assertions; Release skipped",
         "previous_failed_run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39590985347",
-        "candidate_code_commit": "5f66a6ca934f1675f3fc2db6af77b1e36eb69499",
-        "run_head_sha": null,
+        "run_head_sha": "e3d2d0316e01e73a35905fe1a1f7a1cd9fd8e7a9",
         "job_budget_minutes": 180,
-        "failure_verification": "item-order-39590985347-failure.json"
+        "failure_verification": "item-order-39590985347-failure.json",
+        "verified": false,
+        "verification": "item-order-39600576527-failure.json"
       }
     },
     {
@@ -1420,8 +1421,9 @@
     "Patches38/39 only unify item Edit/Done behavior and deterministic search test setup. All37 earlier inputs retained byte-for-byte. Mac Catalyst/Local identity overlays are excluded from proposals."
   ],
   "historical_verified_candidate": "0237ee3737e6b2deeb80fbe03b6c72d82aee43d8",
-  "updated_at_utc": "2026-10-21T11:20:17.491581+00:00",
+  "updated_at_utc": "2026-11-11T19:26:05.726868+00:00",
   "standalone_manifest": "saved-items/manifest.json",
   "verification": "evidence/status.json",
-  "current_full_test_plan": "ci/ios-tests.json"
+  "current_full_test_plan": "ci/ios-tests.json",
+  "upstream_audit": "evidence/upstream-audit-2026-11-11.json"
 }

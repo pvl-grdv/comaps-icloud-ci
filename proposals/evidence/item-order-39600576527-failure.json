@@ -1,0 +1,121 @@
+{
+  "feature": "item-order",
+  "run_id": 39600576527,
+  "job_id": 119223745848,
+  "commit": "e3d2d0316e01e73a35905fe1a1f7a1cd9fd8e7a9",
+  "job_conclusion": "failure",
+  "patch_sha256": "a0464a4f896877bd07e343e32c74a01e7905351d09cbfaddaa77601aef03fbc4",
+  "matches_current_feature_manifest_and_patch": true,
+  "native": {
+    "map": {
+      "count": 8,
+      "executed": [
+        "bookmarks_test.cpp::Bookmarks_Sorting",
+        "bookmarks_test.cpp::Runner_ManualItemOrder_PersistenceAfterReload",
+        "bookmarks_test.cpp::Runner_ManualItemOrder_RejectsStaleForeignAndDuplicateIds",
+        "bookmarks_test.cpp::Runner_ManualItemOrder_InvalidRanksAndNewItems",
+        "bookmarks_test.cpp::Runner_ManualItemOrder_SharedModeAndDefault",
+        "bookmarks_test.cpp::Runner_ManualItemOrder_AppendsNewMovedItemsAndHandlesDeletion",
+        "bookmarks_test.cpp::Runner_ManualItemOrder_AppendsNormallyCreatedBookmarks",
+        "bookmarks_test.cpp::Runner_ManualItemOrder_UndoKeepsOriginalBookmarkPosition"
+      ],
+      "exitCode": 0
+    }
+  },
+  "XCTest": {
+    "expected": 13,
+    "observed_methods": 13,
+    "passed": 11,
+    "failed": 2,
+    "assertion_failures": 3,
+    "methods": [
+      {
+        "class": "BookmarkItemOrderBridgeTests",
+        "method": "testBridgePersistsCompleteSeparatePermutationsAndManualMode",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderBridgeTests",
+        "method": "testChildCollectionCannotChangeParentItemRanks",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderBridgeTests",
+        "method": "testDeleteInItemEditEndsStaleOrderAndPersistsRemainingItems",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderBridgeTests",
+        "method": "testDoneEndsItemEditingAndSearchDisablesThenRestoresEdit",
+        "result": "failed"
+      },
+      {
+        "class": "BookmarkItemOrderBridgeTests",
+        "method": "testIncompleteDuplicateAndForeignIdsAreRejectedWithoutMutation",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderBridgeTests",
+        "method": "testManualOrderAndModeSurviveKmlSaveAndReload",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderBridgeTests",
+        "method": "testTopEditStartsManualOrderWithDeleteAndReorderControls",
+        "result": "failed"
+      },
+      {
+        "class": "BookmarkItemOrderModelTests",
+        "method": "testDuplicateIdsWithinEitherSectionAreRejected",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderModelTests",
+        "method": "testEqualNumericIdsInDifferentSectionsRemainDistinct",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderModelTests",
+        "method": "testInvalidMoveDoesNotChangeEitherSequence",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderModelTests",
+        "method": "testMovingBookmarkLeavesTrackSequenceUnchanged",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderModelTests",
+        "method": "testMovingToSamePositionKeepsOrder",
+        "result": "passed"
+      },
+      {
+        "class": "BookmarkItemOrderModelTests",
+        "method": "testMovingTrackLeavesBookmarkSequenceUnchanged",
+        "result": "passed"
+      }
+    ],
+    "failure": "Literal Done-string assertion rejects iOS27 system Done checkmark glyph at BookmarkItemOrderTests.swift:401."
+  },
+  "visual_diagnostics": {
+    "png_count": 3,
+    "text_count": 3,
+    "observed": "Observed synthetic screenshots show visible Done checkmark circle at navigation right and visible delete/reorder controls for tracks/points. Public UIView fields expose UIButton image with nil title/configuration."
+  },
+  "unsigned_release_archive": {
+    "job_step": "skipped"
+  },
+  "artifact_file_sha256": {
+    "proposals/saved-items/item-order.patch": "a0464a4f896877bd07e343e32c74a01e7905351d09cbfaddaa77601aef03fbc4",
+    "results/feature-map-tests.log": "6d3f329bb263532a55869ae56488dea73d8888388f2ec7f91adadc5b8b4cc6a9",
+    "results/xcodebuild-tests.log": "3f7582db3060f4a761d55fbe559981716f54316eebeb8673e3d3f00df4e883ef",
+    "results/feature-ui-diagnostics/B1F30748-B3EF-4376-8F5A-E6CA89F5CA6C.png": "924b75cdf9464eed233093a938b26f853977d4285071759920797fbe7f75693a",
+    "results/feature-ui-diagnostics/5581788A-FCE9-4394-A304-642D72B25C63.png": "e4f475112da29d01ba72d4cf90bf1f6cd80c0200869b888f98ebd20b0d1eb5bd",
+    "results/feature-ui-diagnostics/3878849C-75DB-40B9-80DE-868D170C2EC8.png": "161ed807e558da23f5b6b80e88639fc3f1d0b1d1a8656edaa65da42f9d72fd46",
+    "results/feature-ui-diagnostics/9E5D1BE4-A0A8-4EDC-9407-A7FF824EDA54.txt": "b8344194a01ca0073706132f111860f05a11fff06f5a9e5394d90406d37bbf27",
+    "results/feature-ui-diagnostics/manifest.json": "b33ac5177d9839331b79287fc62ffadb950ec64b969749b97de32b1d0556848c",
+    "results/feature-ui-diagnostics/81D4E458-EAD3-4B1E-B7B0-85578723ACF8.txt": "9cd7fb116e4df10285b5a9bb4bf87851ccbae00e3412414e17a32bf11eaf3aa3",
+    "results/feature-ui-diagnostics/E77A0BC3-309A-45C4-8DBE-06E3E7DC2D2F.txt": "b8344194a01ca0073706132f111860f05a11fff06f5a9e5394d90406d37bbf27"
+  },
+  "verification_passed": false
+}

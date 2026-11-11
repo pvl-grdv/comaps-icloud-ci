@@ -3,6 +3,8 @@ CoMaps Lab: improvements for CoMaps
 Карта улучшений CoMaps на русском, все восемь тем, связанные запросы CoMaps,
 отдельные патчи, тесты и границы результата:
 https://github.com/pvl-grdv/comaps-icloud-ci/blob/comaps-lab/proposals/README.txt
+Сверка с upstream на 11 ноября 2026:
+https://github.com/pvl-grdv/comaps-icloud-ci/blob/comaps-lab/proposals/UPSTREAM-2026-11-11.txt
 Точные результаты по каждому SHA:
 https://github.com/pvl-grdv/comaps-icloud-ci/blob/comaps-lab/proposals/evidence/status.json
 Organic Maps is referenced for borrowed code/ideas only; CoMaps is the target.

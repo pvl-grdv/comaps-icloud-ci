@@ -20,7 +20,7 @@ Edit убран. Кнопки удаления сохранены, сессия 
 SHA-256: a0464a4f896877bd07e343e32c74a01e7905351d09cbfaddaa77601aef03fbc4
 База: a64450d0c7cd7cdfc792c9fc6c2dd620156abecd
 Текущий CI: https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39600576527
-Точный HEAD: e3d2d0316e01e73a35905fe1a1f7a1cd9fd8e7a9; завершение ещё не подтверждено.
+Точный HEAD: e3d2d0316e01e73a35905fe1a1f7a1cd9fd8e7a9; запуск завершился ошибкой, см. ../../evidence/status.json.
 Требуется: native map=8, search=0, XCTest=13 без пропусков, unsigned Release archive.
 Текущий статус и точный проверенный SHA: ../../evidence/status.json. Общий зелёный Lab CI не
 заменяет этот прогон.
@@ -79,3 +79,6 @@ Edit/Done у видимого системного control; при сбое со
 English CI, не универсальный аудит локализации, VoiceOver или физического жеста.
 История и точные причины предыдущих ошибок — ../../evidence/status.json и
 ../../evidence/item-order-39590985347-failure.json; они не являются PASS.
+
+Сверка11ноября: patch применим к main df67cc0 без конфликтов. Это не новый CI.
+См. ../../UPSTREAM-2026-11-11.txt и ../../evidence/status.json.

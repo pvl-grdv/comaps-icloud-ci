@@ -1,0 +1,625 @@
+{
+  "checked_on": "2026-11-11",
+  "scope": "Official CoMaps upstream source audit; read-only product comparison, no new build or CI",
+  "lab_repository_commit_before_audit": "d35391c",
+  "official_main": "df67cc017b1755b456180c3db258d519e1788bb7",
+  "official_main_url": "https://codeberg.org/comaps/comaps/commit/df67cc017b1755b456180c3db258d519e1788bb7",
+  "standalone_comparison_base": "a64450d0c7cd7cdfc792c9fc6c2dd620156abecd",
+  "full_comparison_base": "a70fce4243e5c7eb4fc3f92ea0750e2b93c8ffb8",
+  "commits_since_standalone_base": 124,
+  "latest_release": {
+    "tag_name": "v2026.11.07-16",
+    "published_at": "2026-11-07T23:36:05+01:00",
+    "html_url": "https://codeberg.org/comaps/comaps/releases/tag/v2026.11.07-16"
+  },
+  "topics": [
+    {
+      "id": "01-track-rename",
+      "verdict": "still_needed",
+      "source": "https://codeberg.org/comaps/comaps/src/commit/df67cc017b1755b456180c3db258d519e1788bb7/libs/map/track.cpp#L86",
+      "finding": "SetName changes text but does not mark track dirty."
+    },
+    {
+      "id": "02-category-reload",
+      "verdict": "still_needed",
+      "source": "https://codeberg.org/comaps/comaps/src/commit/df67cc017b1755b456180c3db258d519e1788bb7/libs/map/bookmark_manager.cpp#L2691",
+      "finding": "ClearGroup followed by emplace for an existing key; no full metadata/compilation replacement from Lab."
+    },
+    {
+      "id": "03-save-delete-safety",
+      "verdict": "still_needed",
+      "source": "https://codeberg.org/comaps/comaps/src/commit/df67cc017b1755b456180c3db258d519e1788bb7/libs/map/bookmark_manager.cpp#L2737",
+      "finding": "Clears live state before disk operations and ignores deletion result; queued saves remain outside Lab safeguards."
+    },
+    {
+      "id": "04-saved-items-search",
+      "verdict": "still_needed_on_ios",
+      "source": "https://codeberg.org/comaps/comaps/src/commit/df67cc017b1755b456180c3db258d519e1788bb7/iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift#L35",
+      "finding": "No global search UI on iOS; existing scoped search returns bookmarks, without Lab typed tracks."
+    },
+    {
+      "id": "05-manual-folder-order",
+      "verdict": "still_needed_on_ios",
+      "source": "https://codeberg.org/comaps/comaps/src/commit/df67cc017b1755b456180c3db258d519e1788bb7/iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift#L30",
+      "finding": "Core and Android have order modes; iOS does not expose folder reordering; Lab also handles empty-folder persistence."
+    },
+    {
+      "id": "06-manual-item-order",
+      "verdict": "still_needed",
+      "source": "https://codeberg.org/comaps/comaps/src/commit/df67cc017b1755b456180c3db258d519e1788bb7/iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift#L104",
+      "finding": "Automatic sorts and Edit exist, but no separate saved point/track manual ranks."
+    },
+    {
+      "id": "07-folder-order-kvs",
+      "verdict": "still_needed",
+      "source": "https://codeberg.org/comaps/comaps/src/commit/df67cc017b1755b456180c3db258d519e1788bb7/libs/map/bookmark_manager.cpp#L2560",
+      "finding": "Existing local bm.json order; no Lab single iCloud KVS order record."
+    },
+    {
+      "id": "08-icloud-reconciliation",
+      "verdict": "still_needed",
+      "source": "https://codeberg.org/comaps/comaps/src/commit/df67cc017b1755b456180c3db258d519e1788bb7/iphone/Maps/Core/iCloud/SynchronizationStateResolver.swift#L113",
+      "finding": "iCloud sources identical to full baseline; initial conflict uses modification dates, no content fingerprints or common base."
+    }
+  ],
+  "independent_patch_apply_checks": {
+    "search": {
+      "patch_sha256": "3145ed99469a088305894e378c1132f9dc847c37ce9ab1a5db3ab9aa3267fb09",
+      "git_apply_check_exit_code": 0,
+      "checked_existing_files": 15,
+      "new_files": 11,
+      "compile_and_tests_performed": false
+    },
+    "folder-order": {
+      "patch_sha256": "6fd4191c2d0fe4a3b47be123c8ae081019ecf7314de4e7065deec428761e3727",
+      "git_apply_check_exit_code": 0,
+      "checked_existing_files": 9,
+      "new_files": 1,
+      "compile_and_tests_performed": false
+    },
+    "item-order": {
+      "patch_sha256": "a0464a4f896877bd07e343e32c74a01e7905351d09cbfaddaa77601aef03fbc4",
+      "git_apply_check_exit_code": 0,
+      "checked_existing_files": 13,
+      "new_files": 2,
+      "compile_and_tests_performed": false
+    }
+  },
+  "source_comparison": {
+    "unique_paths": 38,
+    "existing": 24,
+    "new_lab_paths_absent_upstream": 14,
+    "changed_existing_paths": [
+      "iphone/Maps/Maps.xcodeproj/project.pbxproj",
+      "libs/search/processor.cpp",
+      "libs/map/bookmark_helpers.cpp",
+      "libs/map/map_tests/bookmarks_test.cpp"
+    ],
+    "sha256_by_path": {
+      "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h": {
+        "main": "5e2ac2932fbd33d6ddf3bb9e753aae2fe0a926bf0c9429f6466e0d56e3b1e9f2",
+        "standalone_base": "5e2ac2932fbd33d6ddf3bb9e753aae2fe0a926bf0c9429f6466e0d56e3b1e9f2",
+        "available_baseline": "5e2ac2932fbd33d6ddf3bb9e753aae2fe0a926bf0c9429f6466e0d56e3b1e9f2",
+        "manifest_lab": "87da1a5e2c00275d2d964d479f4ae33a9a219f5f2d65d34bc2be841b9982c523",
+        "available_lab": "87da1a5e2c00275d2d964d479f4ae33a9a219f5f2d65d34bc2be841b9982c523"
+      },
+      "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm": {
+        "main": "4ddbd698fdeefc2b15fce04dff5737f4c3c4b652fc8e1a7d3aa1bee7d09175c8",
+        "standalone_base": "4ddbd698fdeefc2b15fce04dff5737f4c3c4b652fc8e1a7d3aa1bee7d09175c8",
+        "available_baseline": "4ddbd698fdeefc2b15fce04dff5737f4c3c4b652fc8e1a7d3aa1bee7d09175c8",
+        "manifest_lab": "653b56fb84bb45a4bc64befc1b9f8ae5346c2951f66075f5ffea820f3a363c81",
+        "available_lab": "653b56fb84bb45a4bc64befc1b9f8ae5346c2951f66075f5ffea820f3a363c81"
+      },
+      "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift": {
+        "main": "daa3abe41f4920a1cc9e8bef4f90e90f32d3f11252bacb57e57c5ae6faec13ae",
+        "standalone_base": "daa3abe41f4920a1cc9e8bef4f90e90f32d3f11252bacb57e57c5ae6faec13ae",
+        "available_baseline": "daa3abe41f4920a1cc9e8bef4f90e90f32d3f11252bacb57e57c5ae6faec13ae",
+        "manifest_lab": "bb045885f37f8cefb61e003525db6338d53d95a98156a52bc5ab0bf4f92e905c",
+        "available_lab": "bb045885f37f8cefb61e003525db6338d53d95a98156a52bc5ab0bf4f92e905c"
+      },
+      "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInterfaces.swift": {
+        "main": "e2515571d7a3649ef1aab4691bef22682b5de017d65d770b032d60290e9dca47",
+        "standalone_base": "e2515571d7a3649ef1aab4691bef22682b5de017d65d770b032d60290e9dca47",
+        "available_baseline": "e2515571d7a3649ef1aab4691bef22682b5de017d65d770b032d60290e9dca47",
+        "manifest_lab": "03b104e382dbf7658c6a7ba2b1c9737b9cf11ba10e59f5f051db76c1f0fb8641",
+        "available_lab": "03b104e382dbf7658c6a7ba2b1c9737b9cf11ba10e59f5f051db76c1f0fb8641"
+      },
+      "iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift": {
+        "main": "b0f6a8513ef9ff722ca8d1186b80106c33787830ff4ac1b8965731bc4beb147c",
+        "standalone_base": "b0f6a8513ef9ff722ca8d1186b80106c33787830ff4ac1b8965731bc4beb147c",
+        "available_baseline": "b0f6a8513ef9ff722ca8d1186b80106c33787830ff4ac1b8965731bc4beb147c",
+        "manifest_lab": "e47e91250a559faa0fd6bcf853d9e0b719fd843094a179836b207669b425416f",
+        "available_lab": "e47e91250a559faa0fd6bcf853d9e0b719fd843094a179836b207669b425416f"
+      },
+      "iphone/Maps/Bookmarks/BookmarksList/BookmarksListViewController.swift": {
+        "main": "fa992b1a67607d20c122eb31b5aef3269113c239080e98e24a39b6daa1a7938e",
+        "standalone_base": "fa992b1a67607d20c122eb31b5aef3269113c239080e98e24a39b6daa1a7938e",
+        "available_baseline": "fa992b1a67607d20c122eb31b5aef3269113c239080e98e24a39b6daa1a7938e",
+        "manifest_lab": "005cc105c4f1ec8a5071157724926b850e0edf74456080addc8008d9a2a1bce1",
+        "available_lab": "005cc105c4f1ec8a5071157724926b850e0edf74456080addc8008d9a2a1bce1"
+      },
+      "iphone/Maps/Bookmarks/Categories/BMCView/BMCSearchResultsViewController.swift": {
+        "main": null,
+        "standalone_base": null,
+        "available_baseline": null,
+        "manifest_lab": "59e32ba57f702b0bc67fb84259f60def78342d0d26ccda0b17f4a28bb41b652b",
+        "available_lab": "59e32ba57f702b0bc67fb84259f60def78342d0d26ccda0b17f4a28bb41b652b"
+      },
+      "iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift": {
+        "main": "72f909c4d392282017a37f9c9266b02da192ff322b177357f7972685208a8f07",
+        "standalone_base": "72f909c4d392282017a37f9c9266b02da192ff322b177357f7972685208a8f07",
+        "available_baseline": "72f909c4d392282017a37f9c9266b02da192ff322b177357f7972685208a8f07",
+        "manifest_lab": "4969761d7b139d98c94abc3fe56e2dd38efa3343f7fe903d0824ea3e1fe51b1b",
+        "available_lab": "72f909c4d392282017a37f9c9266b02da192ff322b177357f7972685208a8f07"
+      },
+      "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSavedItemsSearchService.swift": {
+        "main": null,
+        "standalone_base": null,
+        "available_baseline": null,
+        "manifest_lab": "fceeb11886993899de4154c90bf988f6f6709c7fd874991dc39883a1bcc0453d",
+        "available_lab": "fceeb11886993899de4154c90bf988f6f6709c7fd874991dc39883a1bcc0453d"
+      },
+      "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCSearchViewModel.swift": {
+        "main": null,
+        "standalone_base": null,
+        "available_baseline": null,
+        "manifest_lab": "1d9ccbdd2de5408075879746d618e3ac69f282fe2ffdcec76989c76207f90481",
+        "available_lab": "1d9ccbdd2de5408075879746d618e3ac69f282fe2ffdcec76989c76207f90481"
+      },
+      "iphone/Maps/Maps.xcodeproj/project.pbxproj": {
+        "main": "cd598c6eba609405ea8218d66882f230845a2958b6aa0a158c1ffe59e3b7a6bb",
+        "standalone_base": "12a212c6b3d7a7b306b5b6457d5375808b1a5f61e153a17e8e4c2a4f2ec29f16",
+        "available_baseline": "12a212c6b3d7a7b306b5b6457d5375808b1a5f61e153a17e8e4c2a4f2ec29f16",
+        "manifest_lab": "755a5dc4a046d8a32bab6ed275e7a61d3e7f78cbd901ac2b1e8d2a8373f55034",
+        "available_lab": "755a5dc4a046d8a32bab6ed275e7a61d3e7f78cbd901ac2b1e8d2a8373f55034"
+      },
+      "iphone/Maps/Tests/Bookmarks/Categories/BMCSearchViewModelTests.swift": {
+        "main": null,
+        "standalone_base": null,
+        "available_baseline": null,
+        "manifest_lab": "a9a4bc3a94f4fab693b5765ffc9ada9c2e89348c77e6f9c7c5c38324f7cdcd59",
+        "available_lab": "a9a4bc3a94f4fab693b5765ffc9ada9c2e89348c77e6f9c7c5c38324f7cdcd59"
+      },
+      "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.h": {
+        "main": null,
+        "standalone_base": null,
+        "available_baseline": null,
+        "manifest_lab": "66f1c67733529c3cabf5f27d2cb3a65eba43db9d161ea0272b3fba9c44731ccc",
+        "available_lab": "66f1c67733529c3cabf5f27d2cb3a65eba43db9d161ea0272b3fba9c44731ccc"
+      },
+      "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTestSupport.mm": {
+        "main": null,
+        "standalone_base": null,
+        "available_baseline": null,
+        "manifest_lab": "1ba97fe8f4e3631964ce39ae975d3fac14914fc8aed3eff73b7bb1184dc2e6c4",
+        "available_lab": "1ba97fe8f4e3631964ce39ae975d3fac14914fc8aed3eff73b7bb1184dc2e6c4"
+      },
+      "iphone/Maps/Tests/Bookmarks/Categories/SavedItemsSearchTests.swift": {
+        "main": null,
+        "standalone_base": null,
+        "available_baseline": null,
+        "manifest_lab": "35d1c2620c8f398ea3a560e3462d512bd866c881252dba82c7801533ec37b23f",
+        "available_lab": "35d1c2620c8f398ea3a560e3462d512bd866c881252dba82c7801533ec37b23f"
+      },
+      "iphone/Maps/Tests/Bridging-Header.h": {
+        "main": null,
+        "standalone_base": null,
+        "available_baseline": null,
+        "manifest_lab": "6a9fadf48eda807076a887378a428cd3359bc77c28b0eb466f2477fd720140bc",
+        "available_lab": "6a9fadf48eda807076a887378a428cd3359bc77c28b0eb466f2477fd720140bc"
+      },
+      "libs/map/saved_items_search_params.hpp": {
+        "main": null,
+        "standalone_base": null,
+        "available_baseline": null,
+        "manifest_lab": "a2e03d5248bc1ec0db4a46082212069e8e1aa9a60718a32f38146bbc4beb6ea4",
+        "available_lab": "a2e03d5248bc1ec0db4a46082212069e8e1aa9a60718a32f38146bbc4beb6ea4"
+      },
+      "libs/map/search_api.cpp": {
+        "main": "764533d5a7102a4ed2fecf6399644950851d87dc17f4702f842c4422ab6b270c",
+        "standalone_base": "764533d5a7102a4ed2fecf6399644950851d87dc17f4702f842c4422ab6b270c",
+        "available_baseline": "764533d5a7102a4ed2fecf6399644950851d87dc17f4702f842c4422ab6b270c",
+        "manifest_lab": "81a05ca823a45626ecae6aa9d5a03e2c6dc9a032ed3803c3f8a70b08ac397936",
+        "available_lab": "81a05ca823a45626ecae6aa9d5a03e2c6dc9a032ed3803c3f8a70b08ac397936"
+      },
+      "libs/map/search_api.hpp": {
+        "main": "2e77bb2b65052f13743e7701f3a75d10cdbfd3b8891207945c6d21a6ae476403",
+        "standalone_base": "2e77bb2b65052f13743e7701f3a75d10cdbfd3b8891207945c6d21a6ae476403",
+        "available_baseline": "2e77bb2b65052f13743e7701f3a75d10cdbfd3b8891207945c6d21a6ae476403",
+        "manifest_lab": "bc71cd8c08546e2d8140df92903072ee1f1e9fe405c3de2a957e7a80d742d36b",
+        "available_lab": "bc71cd8c08546e2d8140df92903072ee1f1e9fe405c3de2a957e7a80d742d36b"
+      },
+      "libs/search/bookmarks/data.hpp": {
+        "main": "e11b824ac231f073df4ca34d7cc2def5a88b7607991b0f0e080ea2932a05ce51",
+        "standalone_base": "e11b824ac231f073df4ca34d7cc2def5a88b7607991b0f0e080ea2932a05ce51",
+        "available_baseline": "e11b824ac231f073df4ca34d7cc2def5a88b7607991b0f0e080ea2932a05ce51",
+        "manifest_lab": "1d1d8d8eb6da423563e14a88e390098ba2318d4f44b5bd2443f030987feefe4a",
+        "available_lab": "1d1d8d8eb6da423563e14a88e390098ba2318d4f44b5bd2443f030987feefe4a"
+      },
+      "libs/search/bookmarks/saved_items.hpp": {
+        "main": null,
+        "standalone_base": null,
+        "available_baseline": null,
+        "manifest_lab": "660f4b75184405dbac1388076a5791af401d032bb605ec4c8d9794640cb3aac7",
+        "available_lab": "660f4b75184405dbac1388076a5791af401d032bb605ec4c8d9794640cb3aac7"
+      },
+      "libs/search/bookmarks/saved_items_index.hpp": {
+        "main": null,
+        "standalone_base": null,
+        "available_baseline": null,
+        "manifest_lab": "64303951fa5b92175231076e3ca62e2f968b0b596e1471e1fc4d7ae4c95deea5",
+        "available_lab": "64303951fa5b92175231076e3ca62e2f968b0b596e1471e1fc4d7ae4c95deea5"
+      },
+      "libs/search/processor.cpp": {
+        "main": "3f514ff63d5ae82ac49e85fd2bf8352f7652ff4350ca263efdc94f5333c5c281",
+        "standalone_base": "5fbf5d1036ae3cdbd7226e238de683bab405e4df892b7ed7dcc975f20b19cb9e",
+        "available_baseline": "5fbf5d1036ae3cdbd7226e238de683bab405e4df892b7ed7dcc975f20b19cb9e",
+        "manifest_lab": "7def11c9e8bae8ccffa786cee1f21eda4393b3a8ca1f103515f3e6efa11a2232",
+        "available_lab": "7def11c9e8bae8ccffa786cee1f21eda4393b3a8ca1f103515f3e6efa11a2232"
+      },
+      "libs/search/processor.hpp": {
+        "main": "5b4473b605907b5afefa8274a8c721c7fc6625301d157ce4f8c98ddc79a36df0",
+        "standalone_base": "5b4473b605907b5afefa8274a8c721c7fc6625301d157ce4f8c98ddc79a36df0",
+        "available_baseline": "5b4473b605907b5afefa8274a8c721c7fc6625301d157ce4f8c98ddc79a36df0",
+        "manifest_lab": "4c382f7a7a556d73c917ebf559cfc70416ac47eff656cf2bca2d2025ac287232",
+        "available_lab": "4c382f7a7a556d73c917ebf559cfc70416ac47eff656cf2bca2d2025ac287232"
+      },
+      "libs/search/search_params.hpp": {
+        "main": "27a7c796df6b9a9e312be97533f710a8c9fc2e8d109accf03c5c59ada4f22fb9",
+        "standalone_base": "27a7c796df6b9a9e312be97533f710a8c9fc2e8d109accf03c5c59ada4f22fb9",
+        "available_baseline": "27a7c796df6b9a9e312be97533f710a8c9fc2e8d109accf03c5c59ada4f22fb9",
+        "manifest_lab": "06301a939b05dd5a06d725efdee66fcab914b33d85591b4ed1aec83108c1a0c4",
+        "available_lab": "06301a939b05dd5a06d725efdee66fcab914b33d85591b4ed1aec83108c1a0c4"
+      },
+      "libs/search/search_tests/bookmarks_processor_tests.cpp": {
+        "main": "5e40562df07da73377ce93f3964d466162bc2403b940607d1ea463253acfc285",
+        "standalone_base": "5e40562df07da73377ce93f3964d466162bc2403b940607d1ea463253acfc285",
+        "available_baseline": "5e40562df07da73377ce93f3964d466162bc2403b940607d1ea463253acfc285",
+        "manifest_lab": "cc63c24c0ec37aeb25b2695a70a6da17e626eadeb29ded3ccedfad6341c2dd3d",
+        "available_lab": "cc63c24c0ec37aeb25b2695a70a6da17e626eadeb29ded3ccedfad6341c2dd3d"
+      },
+      "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift": {
+        "main": "43a25c7da8d113d2ed85342e6d0ff27e2343de9db396c30cc456a224ae0013f9",
+        "standalone_base": "43a25c7da8d113d2ed85342e6d0ff27e2343de9db396c30cc456a224ae0013f9",
+        "available_baseline": "43a25c7da8d113d2ed85342e6d0ff27e2343de9db396c30cc456a224ae0013f9",
+        "manifest_lab": "c2896341135d8927261f100c9b83480e59c48726c567aae685c549deaf80ec2c",
+        "available_lab": "43a25c7da8d113d2ed85342e6d0ff27e2343de9db396c30cc456a224ae0013f9"
+      },
+      "iphone/Maps/Bookmarks/Categories/Categories/BMCCategoryCell.swift": {
+        "main": "4ccbe7528443b72b1c126042c96cee653b37bb42b92286cef64c1c7cd1ed44c5",
+        "standalone_base": "4ccbe7528443b72b1c126042c96cee653b37bb42b92286cef64c1c7cd1ed44c5",
+        "available_baseline": "4ccbe7528443b72b1c126042c96cee653b37bb42b92286cef64c1c7cd1ed44c5",
+        "manifest_lab": "7c28629467b63db335b6a707a21d46e938c7f4e9aeea35ddaf53ee39ecb4a978",
+        "available_lab": "4ccbe7528443b72b1c126042c96cee653b37bb42b92286cef64c1c7cd1ed44c5"
+      },
+      "iphone/Maps/Tests/Bookmarks/Categories/BookmarkFolderOrderTests.swift": {
+        "main": null,
+        "standalone_base": null,
+        "available_baseline": null,
+        "manifest_lab": "d0ec141321823175128595fec60508c80c9867c6291cec373bea7b487eb11634",
+        "available_lab": null
+      },
+      "libs/map/bookmark_helpers.cpp": {
+        "main": "9fb7a6e283d20f84f2d2de3dbae25cd1a67d1021c6af5c25892427ec8d7950bf",
+        "standalone_base": "0ba613b05b3d55600a84b090d0284ced2c0901d8bba7bcb712c6f4ab1e8427a6",
+        "available_baseline": "0ba613b05b3d55600a84b090d0284ced2c0901d8bba7bcb712c6f4ab1e8427a6",
+        "manifest_lab": "e39435e9d3aeb5c8359912defee8f1e4804e71c86bce20e68c5b2f47868dd81c",
+        "available_lab": "0ba613b05b3d55600a84b090d0284ced2c0901d8bba7bcb712c6f4ab1e8427a6"
+      },
+      "libs/map/bookmark_manager.cpp": {
+        "main": "867ba08f22822c9ccb2f83565362fba9f07186ecd4f10213e9709fc1aa7b455a",
+        "standalone_base": "867ba08f22822c9ccb2f83565362fba9f07186ecd4f10213e9709fc1aa7b455a",
+        "available_baseline": "867ba08f22822c9ccb2f83565362fba9f07186ecd4f10213e9709fc1aa7b455a",
+        "manifest_lab": "bc55c5aa9cdf7a1aff5ad1050890f7a4218f058bb65bb3689f94d91c7eb1906e",
+        "available_lab": "bc55c5aa9cdf7a1aff5ad1050890f7a4218f058bb65bb3689f94d91c7eb1906e"
+      },
+      "libs/map/map_tests/bookmarks_test.cpp": {
+        "main": "779372abb4236681d24b7b889b0f9f4a679f2ffcb62a1a0200d09bd2e5caa6f1",
+        "standalone_base": "3884709069ac6e0ba2a56d792f105194f5b8758ab6c0ee3b0a8a4a0a004c98c0",
+        "available_baseline": "3884709069ac6e0ba2a56d792f105194f5b8758ab6c0ee3b0a8a4a0a004c98c0",
+        "manifest_lab": "054c7857d4de27dd4efd7dd9bf2cd114d4fa4f3355ab433d3664b32639313adf",
+        "available_lab": "054c7857d4de27dd4efd7dd9bf2cd114d4fa4f3355ab433d3664b32639313adf"
+      },
+      "android/sdk/src/main/cpp/app/organicmaps/sdk/bookmarks/data/BookmarkManager.cpp": {
+        "main": "07bce4570afa2f0c3b7a7e57a01956dee184936c3a1b4bc9a7c7418d0e92ba47",
+        "standalone_base": "07bce4570afa2f0c3b7a7e57a01956dee184936c3a1b4bc9a7c7418d0e92ba47",
+        "available_baseline": "07bce4570afa2f0c3b7a7e57a01956dee184936c3a1b4bc9a7c7418d0e92ba47",
+        "manifest_lab": "06f21a4931916b23269c419b31c3595a70228af285344ed78323b98ee3065db6",
+        "available_lab": "06f21a4931916b23269c419b31c3595a70228af285344ed78323b98ee3065db6"
+      },
+      "iphone/Maps/Bookmarks/BookmarksList/BookmarkItemOrder.swift": {
+        "main": null,
+        "standalone_base": null,
+        "available_baseline": null,
+        "manifest_lab": "c4ab42b8c86de99a368f89e0a8758ff68226a62e3ea27a65cb4c4b5b1a82c2d0",
+        "available_lab": "c4ab42b8c86de99a368f89e0a8758ff68226a62e3ea27a65cb4c4b5b1a82c2d0"
+      },
+      "iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift": {
+        "main": null,
+        "standalone_base": null,
+        "available_baseline": null,
+        "manifest_lab": "791029410197c014605101416ceadea6d7907f574d4667042751303ce0c6f4fb",
+        "available_lab": "791029410197c014605101416ceadea6d7907f574d4667042751303ce0c6f4fb"
+      },
+      "libs/map/bookmark_manager.hpp": {
+        "main": "a47f4b5cb1de5f9a23f69e679ef0eccc73e71512dd91658052ba4cab264a7127",
+        "standalone_base": "a47f4b5cb1de5f9a23f69e679ef0eccc73e71512dd91658052ba4cab264a7127",
+        "available_baseline": "a47f4b5cb1de5f9a23f69e679ef0eccc73e71512dd91658052ba4cab264a7127",
+        "manifest_lab": "48e45d819a6639b1fbd2796f727a415de027827237a30acdf97caa6feedf739b",
+        "available_lab": "48e45d819a6639b1fbd2796f727a415de027827237a30acdf97caa6feedf739b"
+      },
+      "libs/map/track.cpp": {
+        "main": "3e288d5fce55ee1e146db52932c1fa62462609162750a51cb54a348ac1947f5a",
+        "standalone_base": "3e288d5fce55ee1e146db52932c1fa62462609162750a51cb54a348ac1947f5a",
+        "available_baseline": "3e288d5fce55ee1e146db52932c1fa62462609162750a51cb54a348ac1947f5a",
+        "manifest_lab": "251cfca9cf89656634dd7fa2ba92273e61ffae5b60fb1c7e6b1e2b8038d25967",
+        "available_lab": "251cfca9cf89656634dd7fa2ba92273e61ffae5b60fb1c7e6b1e2b8038d25967"
+      },
+      "libs/map/track.hpp": {
+        "main": "ecdb62f2733ba451a4291faa3d06daf5dec49ed561d115b8b96cdeab73b83cc7",
+        "standalone_base": "ecdb62f2733ba451a4291faa3d06daf5dec49ed561d115b8b96cdeab73b83cc7",
+        "available_baseline": "ecdb62f2733ba451a4291faa3d06daf5dec49ed561d115b8b96cdeab73b83cc7",
+        "manifest_lab": "e9c3dab0a752a06468fcc83b92cda2538bbc457a90011feff0dd088e03a89154",
+        "available_lab": "e9c3dab0a752a06468fcc83b92cda2538bbc457a90011feff0dd088e03a89154"
+      }
+    }
+  },
+  "issues": [
+    {
+      "number": 4403,
+      "title": "[iOS] Search all bookmarks",
+      "html_url": "https://codeberg.org/comaps/comaps/issues/4403",
+      "state": "open",
+      "updated_at": "2026-07-08T05:29:01+02:00"
+    },
+    {
+      "number": 4881,
+      "title": "Sort favorites list by custom order",
+      "html_url": "https://codeberg.org/comaps/comaps/issues/4881",
+      "state": "open",
+      "updated_at": "2026-09-20T00:11:58+02:00"
+    },
+    {
+      "number": 4232,
+      "title": "Bug Report: Renamed tracks switch back to original name with iCloud sync",
+      "html_url": "https://codeberg.org/comaps/comaps/issues/4232",
+      "state": "open",
+      "updated_at": "2026-08-08T02:23:16+02:00"
+    },
+    {
+      "number": 5622,
+      "title": "In favorites, bad sorting of accented letters.",
+      "html_url": "https://codeberg.org/comaps/comaps/issues/5622",
+      "state": "open",
+      "updated_at": "2026-11-07T18:01:36+01:00"
+    }
+  ],
+  "pull_requests": [
+    {
+      "number": 4407,
+      "title": "[android] Search across all bookmark categories",
+      "html_url": "https://codeberg.org/comaps/comaps/pulls/4407",
+      "state": "closed",
+      "merged": true,
+      "merged_at": "2026-07-07T08:16:00+02:00",
+      "updated_at": "2026-07-11T22:07:53+02:00",
+      "head_sha": "dfec7bf399e3122f53237574a877d679e684e17b"
+    },
+    {
+      "number": 4377,
+      "title": "[android] Sorting of bookmark folders / lists, incl. custom / manual ordering",
+      "html_url": "https://codeberg.org/comaps/comaps/pulls/4377",
+      "state": "closed",
+      "merged": true,
+      "merged_at": "2026-06-05T14:18:13+02:00",
+      "updated_at": "2026-06-05T14:55:26+02:00",
+      "head_sha": "37c24f1bb44868b8eb7f7c16ad98b28aa610fe6e"
+    },
+    {
+      "number": 5655,
+      "title": "WIP: remote bookmark categories",
+      "html_url": "https://codeberg.org/comaps/comaps/pulls/5655",
+      "state": "open",
+      "merged": false,
+      "merged_at": null,
+      "updated_at": "2026-11-10T20:19:38+01:00",
+      "head_sha": "08f40f94ccd763a6448711e093d82127c8f2f6de"
+    },
+    {
+      "number": 5607,
+      "title": "WIP: [android] Add multi selection to delete bookmark categories",
+      "html_url": "https://codeberg.org/comaps/comaps/pulls/5607",
+      "state": "open",
+      "merged": false,
+      "merged_at": null,
+      "updated_at": "2026-11-09T22:30:20+01:00",
+      "head_sha": "359dd3704065aaebd3b93903b2c7f33d5fa452a0"
+    },
+    {
+      "number": 5621,
+      "title": "[map] Bookmark types-based POI matching fix",
+      "html_url": "https://codeberg.org/comaps/comaps/pulls/5621",
+      "state": "closed",
+      "merged": true,
+      "merged_at": "2026-11-08T10:09:45+01:00",
+      "updated_at": "2026-11-08T10:11:07+01:00",
+      "head_sha": "6f4d9e395f9eac9dfe499a05e53c084066268391"
+    },
+    {
+      "number": 5518,
+      "title": "[tests] Fix and enable search unit tests #5431",
+      "html_url": "https://codeberg.org/comaps/comaps/pulls/5518",
+      "state": "open",
+      "merged": false,
+      "merged_at": null,
+      "updated_at": "2026-11-11T03:10:45+01:00",
+      "head_sha": "37a3dd5268044bd53a81415ac4a9ba3e0653782c"
+    }
+  ],
+  "contribution_rules": {
+    "template_commit": "8a08c651d16d72fd7b1c3445c32b0dd1d5276a83",
+    "governance_commit": "e63d0aa655fe175e39d8e405bea90f3bf3dae0e1",
+    "template_sha256": "82f0fedd05f4ffc70aeddfdffb6aa6827506c762ecca9db418b2f28f4034a6f1",
+    "ai_policy_sha256": "8035c81c9d15b1d6bb41e324425e7b16c936d4daeddabe7fa2c3c992cf5d33ab"
+  },
+  "limitations": [
+    "Strict patch applicability is not compilation or runtime verification.",
+    "Full 39-patch series was not reapplied or compiled on new upstream.",
+    "Targeted related-work search is not an exhaustive proof that no competing PR exists.",
+    "Existing Mac Lab still uses its October source; no app installed or updated in this audit.",
+    "No live iCloud testing, upstream publication, or DCO sign-off."
+  ],
+  "sync_source_comparison": {
+    "source_hashes": {
+      "android/app/src/main/java/app/organicmaps/bookmarks/BookmarkCategoriesFragment.java": {
+        "full_base_sha256": "39f97de56271dbab980e61787ac2ed9b8ec20caa1d8a41a3bbf205c099690864",
+        "official_main_sha256": "39f97de56271dbab980e61787ac2ed9b8ec20caa1d8a41a3bbf205c099690864"
+      },
+      "android/sdk/src/main/cpp/app/organicmaps/sdk/bookmarks/data/BookmarkManager.cpp": {
+        "full_base_sha256": "07bce4570afa2f0c3b7a7e57a01956dee184936c3a1b4bc9a7c7418d0e92ba47",
+        "official_main_sha256": "07bce4570afa2f0c3b7a7e57a01956dee184936c3a1b4bc9a7c7418d0e92ba47"
+      },
+      "android/sdk/src/main/java/app/organicmaps/sdk/bookmarks/data/BookmarkManager.java": {
+        "full_base_sha256": "b9605914892210e3ca94b00d0efcf7e9c15cc346dc223115bcf441d69a7fdf11",
+        "official_main_sha256": "b9605914892210e3ca94b00d0efcf7e9c15cc346dc223115bcf441d69a7fdf11"
+      },
+      "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.h": {
+        "full_base_sha256": "5e2ac2932fbd33d6ddf3bb9e753aae2fe0a926bf0c9429f6466e0d56e3b1e9f2",
+        "official_main_sha256": "5e2ac2932fbd33d6ddf3bb9e753aae2fe0a926bf0c9429f6466e0d56e3b1e9f2"
+      },
+      "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm": {
+        "full_base_sha256": "4ddbd698fdeefc2b15fce04dff5737f4c3c4b652fc8e1a7d3aa1bee7d09175c8",
+        "official_main_sha256": "4ddbd698fdeefc2b15fce04dff5737f4c3c4b652fc8e1a7d3aa1bee7d09175c8"
+      },
+      "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInfoViewController.swift": {
+        "full_base_sha256": "3c32e6fdb130fc77cf7491fd1c24429735298c5334cc250e2753315661ed0665",
+        "official_main_sha256": "3c32e6fdb130fc77cf7491fd1c24429735298c5334cc250e2753315661ed0665"
+      },
+      "iphone/Maps/Bookmarks/BookmarksList/BookmarksListInteractor.swift": {
+        "full_base_sha256": "daa3abe41f4920a1cc9e8bef4f90e90f32d3f11252bacb57e57c5ae6faec13ae",
+        "official_main_sha256": "daa3abe41f4920a1cc9e8bef4f90e90f32d3f11252bacb57e57c5ae6faec13ae"
+      },
+      "iphone/Maps/Bookmarks/BookmarksList/BookmarksListPresenter.swift": {
+        "full_base_sha256": "b0f6a8513ef9ff722ca8d1186b80106c33787830ff4ac1b8965731bc4beb147c",
+        "official_main_sha256": "b0f6a8513ef9ff722ca8d1186b80106c33787830ff4ac1b8965731bc4beb147c"
+      },
+      "iphone/Maps/Bookmarks/Categories/BMCView/BMCViewController.swift": {
+        "full_base_sha256": "72f909c4d392282017a37f9c9266b02da192ff322b177357f7972685208a8f07",
+        "official_main_sha256": "72f909c4d392282017a37f9c9266b02da192ff322b177357f7972685208a8f07"
+      },
+      "iphone/Maps/Bookmarks/Categories/BMCViewModel/BMCDefaultViewModel.swift": {
+        "full_base_sha256": "43a25c7da8d113d2ed85342e6d0ff27e2343de9db396c30cc456a224ae0013f9",
+        "official_main_sha256": "43a25c7da8d113d2ed85342e6d0ff27e2343de9db396c30cc456a224ae0013f9"
+      },
+      "iphone/Maps/Bookmarks/Categories/Category settings/CategorySettingsViewController.swift": {
+        "full_base_sha256": "dafca429e43443b13cebfab0349cee70bf1320ad08c50855bcf374cdef4f05f1",
+        "official_main_sha256": "dafca429e43443b13cebfab0349cee70bf1320ad08c50855bcf374cdef4f05f1"
+      },
+      "iphone/Maps/Core/iCloud/CloudDirectoryMonitor.swift": {
+        "full_base_sha256": "3d7a5788fe1cd8d2772d7b9fe93adf9b70e483025bf65626b13d5b8ae9eb8030",
+        "official_main_sha256": "3d7a5788fe1cd8d2772d7b9fe93adf9b70e483025bf65626b13d5b8ae9eb8030"
+      },
+      "iphone/Maps/Core/iCloud/LocalDirectoryMonitor.swift": {
+        "full_base_sha256": "369ce47a0b0c6b8b538c1d91b4fd76ba3c9809064d2ac6dcd45239e52f3081b2",
+        "official_main_sha256": "369ce47a0b0c6b8b538c1d91b4fd76ba3c9809064d2ac6dcd45239e52f3081b2"
+      },
+      "iphone/Maps/Core/iCloud/MetadataItem.swift": {
+        "full_base_sha256": "3e61cef3d796371e6cafbd7bd5545cdd8db3519643e6380352d84f1e0f253246",
+        "official_main_sha256": "3e61cef3d796371e6cafbd7bd5545cdd8db3519643e6380352d84f1e0f253246"
+      },
+      "iphone/Maps/Core/iCloud/SynchronizaionManager.swift": {
+        "full_base_sha256": "c3d20a08b16b92ce4f53ce7b17d339887f561c757a6f332aa3dd6b6535d804ff",
+        "official_main_sha256": "c3d20a08b16b92ce4f53ce7b17d339887f561c757a6f332aa3dd6b6535d804ff"
+      },
+      "iphone/Maps/Core/iCloud/SynchronizationError.swift": {
+        "full_base_sha256": "3dbffbf2a660617833a912c1113464efcf1088782cc99cab400362e3318b36dc",
+        "official_main_sha256": "3dbffbf2a660617833a912c1113464efcf1088782cc99cab400362e3318b36dc"
+      },
+      "iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift": {
+        "full_base_sha256": "d4ff48e6bfed44cfa6d8f7cd16cf5b9e1d6acf78603691e58a93c222f0900c52",
+        "official_main_sha256": "d4ff48e6bfed44cfa6d8f7cd16cf5b9e1d6acf78603691e58a93c222f0900c52"
+      },
+      "iphone/Maps/Core/iCloud/SynchronizationStateResolver.swift": {
+        "full_base_sha256": "22fab0b4cc735cd72e21c893c470feb74bfb109e22fc5bc2cdeb5ab08637fbb1",
+        "official_main_sha256": "22fab0b4cc735cd72e21c893c470feb74bfb109e22fc5bc2cdeb5ab08637fbb1"
+      },
+      "iphone/Maps/Maps.xcodeproj/project.pbxproj": {
+        "full_base_sha256": "12a212c6b3d7a7b306b5b6457d5375808b1a5f61e153a17e8e4c2a4f2ec29f16",
+        "official_main_sha256": "cd598c6eba609405ea8218d66882f230845a2958b6aa0a158c1ffe59e3b7a6bb"
+      },
+      "iphone/Maps/PrivacyInfo.xcprivacy": {
+        "full_base_sha256": "33fff63a558f7a78efcd84c66c924d7aecb012c65b83b3f9ec9b47d15f089e95",
+        "official_main_sha256": "33fff63a558f7a78efcd84c66c924d7aecb012c65b83b3f9ec9b47d15f089e95"
+      },
+      "libs/map/bookmark.hpp": {
+        "full_base_sha256": "f62a94cc80e81c9da56ec7f3e167708d572bd27f9503c9a707793bca6379a31d",
+        "official_main_sha256": "f62a94cc80e81c9da56ec7f3e167708d572bd27f9503c9a707793bca6379a31d"
+      },
+      "libs/map/bookmark_helpers.cpp": {
+        "full_base_sha256": "0ba613b05b3d55600a84b090d0284ced2c0901d8bba7bcb712c6f4ab1e8427a6",
+        "official_main_sha256": "9fb7a6e283d20f84f2d2de3dbae25cd1a67d1021c6af5c25892427ec8d7950bf"
+      },
+      "libs/map/bookmark_manager.cpp": {
+        "full_base_sha256": "867ba08f22822c9ccb2f83565362fba9f07186ecd4f10213e9709fc1aa7b455a",
+        "official_main_sha256": "867ba08f22822c9ccb2f83565362fba9f07186ecd4f10213e9709fc1aa7b455a"
+      },
+      "libs/map/bookmark_manager.hpp": {
+        "full_base_sha256": "a47f4b5cb1de5f9a23f69e679ef0eccc73e71512dd91658052ba4cab264a7127",
+        "official_main_sha256": "a47f4b5cb1de5f9a23f69e679ef0eccc73e71512dd91658052ba4cab264a7127"
+      },
+      "libs/map/map_tests/bookmarks_test.cpp": {
+        "full_base_sha256": "3884709069ac6e0ba2a56d792f105194f5b8758ab6c0ee3b0a8a4a0a004c98c0",
+        "official_main_sha256": "779372abb4236681d24b7b889b0f9f4a679f2ffcb62a1a0200d09bd2e5caa6f1"
+      },
+      "libs/map/track.cpp": {
+        "full_base_sha256": "3e288d5fce55ee1e146db52932c1fa62462609162750a51cb54a348ac1947f5a",
+        "official_main_sha256": "3e288d5fce55ee1e146db52932c1fa62462609162750a51cb54a348ac1947f5a"
+      }
+    },
+    "icloud_source_directory": {
+      "api_url": "https://codeberg.org/api/v1/repos/comaps/comaps/contents/iphone/Maps/Core/iCloud?ref=df67cc017b1755b456180c3db258d519e1788bb7",
+      "url": "https://codeberg.org/comaps/comaps/src/commit/df67cc017b1755b456180c3db258d519e1788bb7/iphone/Maps/Core/iCloud",
+      "files": [
+        "iphone/Maps/Core/iCloud/CloudDirectoryMonitor.swift",
+        "iphone/Maps/Core/iCloud/LocalDirectoryMonitor.swift",
+        "iphone/Maps/Core/iCloud/MetadataItem.swift",
+        "iphone/Maps/Core/iCloud/SynchronizaionManager.swift",
+        "iphone/Maps/Core/iCloud/SynchronizationError.swift",
+        "iphone/Maps/Core/iCloud/SynchronizationFileWriter.swift",
+        "iphone/Maps/Core/iCloud/SynchronizationStateResolver.swift"
+      ],
+      "all_files_byte_identical_to_combined_base": true
+    },
+    "changed_audited_paths_since_combined_base": [
+      {
+        "path": "libs/map/bookmark_helpers.cpp",
+        "commit_urls": [
+          "https://codeberg.org/comaps/comaps/commit/2cd7d8f8c46a65587d01acfaf99f3849180067f1",
+          "https://codeberg.org/comaps/comaps/commit/88a70030407dca897b205f04ec35788af4a9a464"
+        ],
+        "summary": "POI icon table adds music venue and research institute; SaveKmlFile unchanged.",
+        "full_base_sha256": "0ba613b05b3d55600a84b090d0284ced2c0901d8bba7bcb712c6f4ab1e8427a6",
+        "official_main_sha256": "9fb7a6e283d20f84f2d2de3dbae25cd1a67d1021c6af5c25892427ec8d7950bf"
+      },
+      {
+        "path": "libs/map/map_tests/bookmarks_test.cpp",
+        "commit_urls": [
+          "https://codeberg.org/comaps/comaps/commit/58269d910d223397df7bee102ea90a8aaf5b023a"
+        ],
+        "summary": "KML extension and route-track category-file cleanup in existing fixtures. The same commit re-enables map_tests.",
+        "full_base_sha256": "3884709069ac6e0ba2a56d792f105194f5b8758ab6c0ee3b0a8a4a0a004c98c0",
+        "official_main_sha256": "779372abb4236681d24b7b889b0f9f4a679f2ffcb62a1a0200d09bd2e5caa6f1",
+        "standalone_base_sha256": "3884709069ac6e0ba2a56d792f105194f5b8758ab6c0ee3b0a8a4a0a004c98c0"
+      },
+      {
+        "path": "iphone/Maps/Maps.xcodeproj/project.pbxproj",
+        "commit_urls": [
+          "https://codeberg.org/comaps/comaps/commit/1120ce3eed983ac82370faf09072b1be49583a1c"
+        ],
+        "summary": "Routing-only MWMLaneInfo source and bridge header.",
+        "full_base_sha256": "12a212c6b3d7a7b306b5b6457d5375808b1a5f61e153a17e8e4c2a4f2ec29f16",
+        "official_main_sha256": "cd598c6eba609405ea8218d66882f230845a2958b6aa0a158c1ffe59e3b7a6bb"
+      }
+    ]
+  }
+}
