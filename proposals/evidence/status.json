@@ -1,8 +1,8 @@
 {
-  "updated_at_utc": "2026-11-12T07:35:10.264172+00:00",
+  "updated_at_utc": "2026-11-12T08:42:45.441254+00:00",
   "full_candidate_commit": "2d3c2da80f1e4c3a850d8820c68311952744bbe4",
   "standalone_upstream_revision": "871febfffe0ef2a970d4f6973442dd80c632da01",
-  "status": "FRESH_UPSTREAM_CI_REPAIR_PENDING",
+  "status": "STANDALONE_SAVED_ITEMS_VERIFIED_FULL_LAB_FAILED",
   "historical_full_verification": "combined-0237.json",
   "required_full": {
     "base_XCTest": 166,
@@ -24,8 +24,8 @@
       "required_native_search": 11,
       "sha256": "3145ed99469a088305894e378c1132f9dc847c37ce9ab1a5db3ab9aa3267fb09",
       "upstream_revision": "871febfffe0ef2a970d4f6973442dd80c632da01",
-      "status": "PENDING: refreshed base and CI repair; hosted tests and Release not yet run",
-      "verified": false,
+      "status": "PASS: exact native 12, XCTest 19/0failed/0skip/0expectedFailures, unsigned Release archive; downloaded artifact and source hashes verified",
+      "verified": true,
       "previous_verification": {
         "feature": "search",
         "patch": "proposals/saved-items/search.patch",
@@ -43,7 +43,11 @@
         "run_head_sha": "e5d73d2b3ec7f3a9f5561236e100c488a852ebaf",
         "job_budget_minutes": 180
       },
-      "job_budget_minutes": 180
+      "job_budget_minutes": 180,
+      "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43176499388",
+      "tested_repository_commit": "de8b66286684b9e884bfb75babe15721a13ffaac",
+      "run_head_sha": "de8b66286684b9e884bfb75babe15721a13ffaac",
+      "verification": "search-43176499388.json"
     },
     "folder-order": {
       "feature": "folder-order",
@@ -53,8 +57,8 @@
       "required_native_search": 0,
       "sha256": "6fd4191c2d0fe4a3b47be123c8ae081019ecf7314de4e7065deec428761e3727",
       "upstream_revision": "871febfffe0ef2a970d4f6973442dd80c632da01",
-      "status": "PENDING: refreshed base and CI repair; hosted tests and Release not yet run",
-      "verified": false,
+      "status": "PASS: exact native 3, XCTest 9/0failed/0skip/0expectedFailures, unsigned Release archive; downloaded artifact and source hashes verified",
+      "verified": true,
       "previous_verification": {
         "feature": "folder-order",
         "patch": "proposals/saved-items/folder-order.patch",
@@ -69,7 +73,11 @@
         "verified": true,
         "verification": "folder-order-39580010991.json"
       },
-      "job_budget_minutes": 180
+      "job_budget_minutes": 180,
+      "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43176499388",
+      "tested_repository_commit": "de8b66286684b9e884bfb75babe15721a13ffaac",
+      "run_head_sha": "de8b66286684b9e884bfb75babe15721a13ffaac",
+      "verification": "folder-order-43176499388.json"
     },
     "item-order": {
       "feature": "item-order",
@@ -79,8 +87,8 @@
       "required_native_search": 0,
       "sha256": "ab0edb38442a625c9410f43cc0e81df6cbf23e32dc0d369eaf466a3b508ba8dd",
       "upstream_revision": "871febfffe0ef2a970d4f6973442dd80c632da01",
-      "status": "PENDING: refreshed base and CI repair; hosted tests and Release not yet run",
-      "verified": false,
+      "status": "PASS: exact native 8, XCTest 13/0failed/0skip/0expectedFailures, unsigned Release archive; downloaded artifact and source hashes verified",
+      "verified": true,
       "previous_verification": {
         "feature": "item-order",
         "patch": "proposals/saved-items/item-order.patch",
@@ -99,7 +107,11 @@
         "verified": false,
         "verification": "item-order-39600576527-failure.json"
       },
-      "job_budget_minutes": 180
+      "job_budget_minutes": 180,
+      "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43176499388",
+      "tested_repository_commit": "de8b66286684b9e884bfb75babe15721a13ffaac",
+      "run_head_sha": "de8b66286684b9e884bfb75babe15721a13ffaac",
+      "verification": "item-order-43176499388.json"
     }
   },
   "Mac": {
@@ -146,9 +158,9 @@
   ],
   "full_Local_run_head_sha": "2d3c2da80f1e4c3a850d8820c68311952744bbe4",
   "CI_job_budget_minutes": 180,
-  "CI_budget_note": "Current configured ceiling180min; historical full2d3c used120min and failed inside xcodebuild before the overall budget. No active run is claimed.",
+  "CI_budget_note": "Standalone run43176499388 completed successfully within180min for each of3 jobs. Historical full2d3c used120min and failed inside xcodebuild; it remains failed and was not rerun here.",
   "full_Local_job_budget_minutes": 120,
-  "temporary_test_boundary": "Standalone item tests use the public native editButtonItem/action/editing-state contract with two retained synthetic images; integrated patch38 is unchanged. Production patch sections are unchanged.",
+  "temporary_test_boundary": "Standalone item tests use the public native editButtonItem/action/editing-state contract; both retained synthetic images were visually inspected. Integrated patch38 is unchanged. Production patch sections are unchanged.",
   "upstream_audit": "upstream-audit-2026-11-11.json",
   "full_Local_status": "FAILED: test host startup hung, zero XCTest methods; Release/IPA/fresh UI skipped",
   "full_Local_verification": "full-2d3c-failure.json"

@@ -123,7 +123,13 @@
       "baseline_revision": "a70fce4243e5c7eb4fc3f92ea0750e2b93c8ffb8",
       "verified_target_upstream_revision": "871febfffe0ef2a970d4f6973442dd80c632da01",
       "depends_on": [],
-      "standalone_ci_status": "pending_fresh_upstream_run"
+      "standalone_ci_status": "verified_native_xctest_and_release",
+      "standalone_ci_verification": {
+        "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43176499388",
+        "tested_repository_commit": "de8b66286684b9e884bfb75babe15721a13ffaac",
+        "evidence": "../evidence/search-43176499388.json",
+        "tested_manifest": "../evidence/saved-items-43176499388-tested-manifest.json"
+      }
     },
     "folder-order": {
       "patch": "proposals/saved-items/folder-order.patch",
@@ -191,7 +197,13 @@
         "libs/map/map_tests/bookmarks_test.cpp": "779372abb4236681d24b7b889b0f9f4a679f2ffcb62a1a0200d09bd2e5caa6f1"
       },
       "verified_target_upstream_revision": "871febfffe0ef2a970d4f6973442dd80c632da01",
-      "standalone_ci_status": "pending_fresh_upstream_run"
+      "standalone_ci_status": "verified_native_xctest_and_release",
+      "standalone_ci_verification": {
+        "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43176499388",
+        "tested_repository_commit": "de8b66286684b9e884bfb75babe15721a13ffaac",
+        "evidence": "../evidence/folder-order-43176499388.json",
+        "tested_manifest": "../evidence/saved-items-43176499388-tested-manifest.json"
+      }
     },
     "item-order": {
       "patch": "proposals/saved-items/item-order.patch",
@@ -274,7 +286,13 @@
       },
       "depends_on_other_feature_slices": [],
       "verified_target_upstream_revision": "871febfffe0ef2a970d4f6973442dd80c632da01",
-      "standalone_ci_status": "pending_fresh_upstream_run"
+      "standalone_ci_status": "verified_native_xctest_and_release",
+      "standalone_ci_verification": {
+        "run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43176499388",
+        "tested_repository_commit": "de8b66286684b9e884bfb75babe15721a13ffaac",
+        "evidence": "../evidence/item-order-43176499388.json",
+        "tested_manifest": "../evidence/saved-items-43176499388-tested-manifest.json"
+      }
     }
   }
 }

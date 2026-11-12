@@ -1,0 +1,116 @@
+{
+  "feature": "folder-order",
+  "run_id": 43176499388,
+  "job_id": 131041895941,
+  "run_url": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43176499388",
+  "commit": "de8b66286684b9e884bfb75babe15721a13ffaac",
+  "upstream_revision": "871febfffe0ef2a970d4f6973442dd80c632da01",
+  "job_name": "saved-items-proposals / verify (folder-order)",
+  "job_conclusion": "success",
+  "job_json_sha256": "6c9ef95016f29d69cc168e8ee435ed815c25f40bef756544e97fa34f9d8c47e3",
+  "manifest_sha256": "87f2ed5a415dda70d4841ad39ecf0ce7f7894469a53085ce086aea0c14c330d6",
+  "patch_sha256": "6fd4191c2d0fe4a3b47be123c8ae081019ecf7314de4e7065deec428761e3727",
+  "required_step_conclusions": {
+    "Set up job": "success",
+    "Run actions/checkout@v6": "success",
+    "Validate patch and test manifests": "success",
+    "Inspect the existing build toolchain": "success",
+    "Apply only this proposal to pinned current CoMaps": "success",
+    "Execute native regressions and existing automatic sorting": "success",
+    "Build the application and run exact feature XCTest plan": "success",
+    "Build an unsigned Release archive": "success",
+    "Retain exact proposal diagnostics": "success",
+    "Post Run actions/checkout@v6": "success",
+    "Complete job": "success",
+    "Export synthetic item-control diagnostics": "skipped"
+  },
+  "native": {
+    "map": {
+      "count": 3,
+      "executed": [
+        "bookmarks_test.cpp::Bookmarks_Sorting",
+        "bookmarks_test.cpp::Runner_Bookmarks_ManualFolderOrderPersistsEmptyCategories",
+        "bookmarks_test.cpp::Runner_Bookmarks_NewCategorySaveFailureRestoresUnsavedState"
+      ],
+      "exitCode": 0,
+      "failed": 0
+    }
+  },
+  "XCTest": {
+    "expected": 9,
+    "passed": 9,
+    "failed": 0,
+    "skipped": 0,
+    "expectedFailures": 0,
+    "classes": {
+      "BookmarkFolderOrderTests": {
+        "count": 9,
+        "passed_methods": [
+          "testAutomaticModeRejectsMoves",
+          "testAutomaticSortRestoresCategoryNameOrder",
+          "testHostedFolderReorderingUpdatesDisplayedAndStoredOrder",
+          "testInvalidDestinationsLeaveOrderUntouched",
+          "testManualOrderMovesNewEmptyCategories",
+          "testMenuTargetRemainsSameCategoryAfterOrderChanges",
+          "testNewFolderIsAppendedToExistingManualOrder",
+          "testRemovedMenuTargetNoLongerResolvesToAnotherCategory",
+          "testUnknownCategoryLeavesOrderUntouched"
+        ]
+      }
+    },
+    "device": {
+      "architecture": "arm64",
+      "deviceId": "E7339845-6694-44C7-9648-1A0DA5894D5D",
+      "deviceName": "CoMaps CI iPhone 18 Pro Max",
+      "modelName": "iPhone 18 Pro Max",
+      "osBuildNumber": "24A434",
+      "osVersion": "27.0",
+      "platform": "iOS Simulator"
+    }
+  },
+  "simulator": {
+    "id": "E7339845-6694-44C7-9648-1A0DA5894D5D",
+    "creation_recorded": true,
+    "readiness_recorded": true,
+    "build_and_test_destinations_match": true,
+    "cleanup": "Shutdown/delete are silent on success; artifact cannot independently confirm deletion."
+  },
+  "unsigned_release_archive": {
+    "job_step": "success",
+    "log_marker": "ARCHIVE SUCCEEDED",
+    "started_at": "2026-11-12T08:12:33Z",
+    "completed_at": "2026-11-12T08:38:09Z"
+  },
+  "screenshots": {},
+  "artifact_file_sha256": {
+    "proposals/saved-items/manifest.json": "87f2ed5a415dda70d4841ad39ecf0ce7f7894469a53085ce086aea0c14c330d6",
+    "proposals/saved-items/folder-order.patch": "6fd4191c2d0fe4a3b47be123c8ae081019ecf7314de4e7065deec428761e3727",
+    "proposals/saved-items/folder-order-ios-tests.json": "ea5a67c590ced33d364dd1a0c4aa00a0221254cc8244fcb1201b003f032706ad",
+    "proposals/saved-items/folder-order-map-tests.json": "0a2a3f34ad26b5ebc371204daf7b68154583a133c9346882362bda6683f0c801",
+    "results/feature-map-list.txt": "f47ffc9ef91bfd82d955dbf1922d5f130d12aeb7666ec1e37c851526f92d8a1e",
+    "results/feature-map-tests.log": "c96bc348214f1d94759f02c209c8748411554c728209f3a84342272d9190a891",
+    "results/feature-map-tests.json": "12162b3feabd9e92c9af598693d1706181b6997194b16e1720781407f7d8c83b",
+    "results/ios-summary.json": "efa670162be32b06e23e0811d4ad81fd93c18bb2f328972a51a8d1ee2e13aadf",
+    "results/xcodebuild-tests.log": "f45d185b1d741d5805dc4ed5f8decd4cef959c0dd4a686ef1a4cdad9267854e6",
+    "results/feature-ios-simulator.log": "08d7ec064159bed3314a09a23104635bca36f0c7a8c0fa69844b657d06b84edd",
+    "results/feature-ios-build.log": "5e982e7e1b0046356af7d8bcca06c5ec2dc5920ea2e2c89647efefb334daf821",
+    "results/feature-release-archive.log": "7bc0079f42c6df02c39138146a2202ad7773f03f6867c973289d44c0b8040e4a"
+  },
+  "verification_passed": true,
+  "test_verification_passed": true,
+  "limitations": [
+    "Synthetic standalone checks; no live iCloud or physical-device synchronization tested.",
+    "No screenshot export is part of this feature plan; the item-control images belong only to the item-order job."
+  ],
+  "matched_tested_commit_and_worktree_at_verification": true,
+  "tested_manifest": "saved-items-43176499388-tested-manifest.json",
+  "documentation_update_note": "Later metadata/docs changes do not change the verified patches, source hashes, test plans or CI scripts. The exact tested manifest is retained separately.",
+  "verified_at_utc": "2026-11-12T08:42:45.441254+00:00",
+  "downloaded_artifact": {
+    "id": 13928106608,
+    "name": "saved-items-folder-order",
+    "sha256": "1a4a631b851754a2a363fc8b4e34769666ec91a5c0fbe0ce88a4ae6e1b2f0bbe",
+    "github_digest_matches": true,
+    "url": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43176499388/artifacts/13928106608"
+  }
+}

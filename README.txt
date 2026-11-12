@@ -9,6 +9,19 @@ https://github.com/pvl-grdv/comaps-icloud-ci/blob/comaps-lab/proposals/UPSTREAM-
 https://github.com/pvl-grdv/comaps-icloud-ci/blob/comaps-lab/proposals/evidence/status.json
 Organic Maps is referenced for borrowed code/ideas only; CoMaps is the target.
 
+On 12 November 2026, the three independent saved-item patches passed on CoMaps
+871febfffe0ef2a970d4f6973442dd80c632da01: search: 12 native / 19 XCTest,
+folder order: 3 native / 9 XCTest, item order: 8 native / 13 XCTest, zero failures/skips,
+and all three unsigned Release archives. Tested repository commit:
+de8b66286684b9e884bfb75babe15721a13ffaac. Exact artifact verification and two
+reviewed item-control images: proposals/evidence/saved-items-43176499388.txt.
+https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43176499388
+This does not turn the historical integrated Lab167 failure into a success.
+
+Separate iPhone GPX investigation: proposals/GPX-OPEN-WITH-INVESTIGATION.txt.
+Send a Copy successfully imports into official CoMaps; its absence from Files'
+Open With menu is still reproduced and has no verified cause or code fix here.
+
 Independent, AI-assisted diagnostic repository. Not an official CoMaps release
 or an upstream submission. CoMaps Lab branch: comaps-lab. Read LAB-SETUP-RU.txt
 for installation prerequisites and the signing setup, and LAB-TESTING-RU.txt

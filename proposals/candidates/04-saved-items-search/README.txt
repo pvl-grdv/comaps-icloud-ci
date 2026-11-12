@@ -15,11 +15,13 @@ AI-assisted техническая карточка для личного раз
 Готовность
 Независимый срез выделен: proposals/saved-items/search.patch
 SHA-256: 3145ed99469a088305894e378c1132f9dc847c37ce9ab1a5db3ab9aa3267fb09
-База: a64450d0c7cd7cdfc792c9fc6c2dd620156abecd
-Текущий CI: https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39597911665
-Требуется: native map=1, search=11, XCTest=19 без пропусков, unsigned Release archive.
-Текущий статус и точный проверенный SHA: ../../evidence/status.json. Общий зелёный Lab CI не
-заменяет этот прогон.
+База: 871febfffe0ef2a970d4f6973442dd80c632da01
+Проверенный CI: https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43176499388
+Точный проверенный коммит: de8b66286684b9e884bfb75babe15721a13ffaac
+PASS: native=12, XCTest=19,0 ошибок/пропусков/expected failures,
+unsigned Release archive. Проверены реальные методы, журналы и SHA артефактов.
+Доказательство: ../../evidence/search-43176499388.json.
+Общий отчёт: ../../evidence/saved-items-43176499388.txt.
 Ни одна тема не опубликована в CoMaps.
 
 Зависимости
@@ -84,11 +86,6 @@ https://github.com/pvl-grdv/comaps-icloud-ci/blob/2d3c2da80f1e4c3a850d8820c68311
 Поиск по названию самой папки или описанию в UI не заявляется. Перенос между папками —
 существующая команда Move для точек и треков, а не наша новая функция.
 
-Текущий прогон использует общий бюджет180мин; состав и ожидания отдельных
-тестов не менялись. Предыдущий прогон прошёл native map1/search11 и19 XCTest,
-но Release остановился на Ld/LTO по общему120-минутному лимиту. Это частичный
-результат; подробности — ../../evidence/search-39582197192-partial.json.
-Текущий точный HEAD e5d73d2b3ec7f3a9f5561236e100c488a852ebaf, запуск завершился ошибкой, см. ../../evidence/status.json.
-
-Сверка11ноября: patch применим к main df67cc0 без конфликтов. Это не новый CI.
-См. ../../UPSTREAM-2026-11-11.txt и ../../evidence/status.json.
+Исторические ошибки октября (лимит Release и затем старт test host с0 XCTest)
+сохранены в ../../evidence/status.json. Они не засчитывались за успешную проверку.
+Ноябрьский независимый прогон на новой базе завершён полностью.

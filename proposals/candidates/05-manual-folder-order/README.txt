@@ -15,11 +15,13 @@ iOS показывает существующие режимы ядра: дат�
 Готовность
 Независимый срез выделен: proposals/saved-items/folder-order.patch
 SHA-256: 6fd4191c2d0fe4a3b47be123c8ae081019ecf7314de4e7065deec428761e3727
-База: a64450d0c7cd7cdfc792c9fc6c2dd620156abecd
-CI: https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39580010991
-Требуется: native map=3, search=0, XCTest=9 без пропусков, unsigned Release archive.
-Текущий статус и точный проверенный SHA: ../../evidence/status.json. Общий зелёный Lab CI не
-заменяет этот прогон.
+База: 871febfffe0ef2a970d4f6973442dd80c632da01
+Проверенный CI: https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43176499388
+Точный проверенный коммит: de8b66286684b9e884bfb75babe15721a13ffaac
+PASS: native=3, XCTest=9,0 ошибок/пропусков/expected failures,
+unsigned Release archive. Проверены реальные методы, журналы и SHA артефактов.
+Доказательство: ../../evidence/folder-order-43176499388.json.
+Общий отчёт: ../../evidence/saved-items-43176499388.txt.
 Ни одна тема не опубликована в CoMaps.
 
 Зависимости
@@ -61,7 +63,5 @@ https://github.com/pvl-grdv/comaps-icloud-ci/blob/2d3c2da80f1e4c3a850d8820c68311
 У общего набора10 XCTest этого класса; один входящий/cloud тест принадлежит теме08. В
 самостоятельном folder-order остаётся9. KVS не входит в этот patch.
 
-Проверено по скачанным артефактам CI39580010991: native3/3, XCTest9/9,
-0ошибок,0пропусков; TEST SUCCEEDED и ARCHIVE SUCCEEDED. SHAпатча и
-исходников соответствует текущему manifest. Доказательство:
-../../evidence/folder-order-39580010991.json
+Исторический CI39580010991 был успешным на базе a644; он сохранён как история
+и не подменяет новую независимую проверку CI43176499388 на базе871febff.

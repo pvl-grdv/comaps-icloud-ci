@@ -12,18 +12,19 @@ Edit убран. Кнопки удаления сохранены, сессия 
 Смешанный список точек и треков не реализован. Две конфликтующие KML-версии не сливаются по
 отдельным рангам. JNI fallback сохраняет совместимость, но Android UI ручного порядка не
 добавлен. Отдельной регрессии доставки уже поставленного в очередь autosort-callback после reset
-в плане нет. Снимки HostedBookmarksUISmokeTests не показывают экран/жест перестановки точек и
-треков; это остаётся ручной проверкой. Отдельная Android-сборка JNI-изменений не подтверждена.
+в плане нет. Два свежих снимка самостоятельного XCTest показывают элементы до/после Edit;
+физический жест перестановки ими не проверяется. Отдельная Android-сборка JNI-изменений не подтверждена.
 
 Готовность
 Независимый срез выделен: proposals/saved-items/item-order.patch
-SHA-256: a0464a4f896877bd07e343e32c74a01e7905351d09cbfaddaa77601aef03fbc4
-База: a64450d0c7cd7cdfc792c9fc6c2dd620156abecd
-Текущий CI: https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/39600576527
-Точный HEAD: e3d2d0316e01e73a35905fe1a1f7a1cd9fd8e7a9; запуск завершился ошибкой, см. ../../evidence/status.json.
-Требуется: native map=8, search=0, XCTest=13 без пропусков, unsigned Release archive.
-Текущий статус и точный проверенный SHA: ../../evidence/status.json. Общий зелёный Lab CI не
-заменяет этот прогон.
+SHA-256: ab0edb38442a625c9410f43cc0e81df6cbf23e32dc0d369eaf466a3b508ba8dd
+База: 871febfffe0ef2a970d4f6973442dd80c632da01
+Проверенный CI: https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43176499388
+Точный проверенный коммит: de8b66286684b9e884bfb75babe15721a13ffaac
+PASS: native=8, XCTest=13,0 ошибок/пропусков/expected failures,
+unsigned Release archive. Проверены реальные методы, журналы и SHA артефактов.
+Доказательство: ../../evidence/item-order-43176499388.json.
+Общий отчёт: ../../evidence/saved-items-43176499388.txt.
 Ни одна тема не опубликована в CoMaps.
 
 Зависимости
@@ -73,12 +74,11 @@ Mac Lab85: Edit/Done проверены на живом окне; пользов
 сохранение после перезапуска. Отдельная Android-сборка не выполнялась.
 
 Проверяемая тестовая граница
-Host ожидает настоящее viewDidAppear. Public UIView/AX-проверка ищет семантику
-Edit/Done у видимого системного control; при сбое сохраняет PNG и дерево.
-Проверки action/state/manualmode/удаления/поиска сохранены. Это наблюдение
-English CI, не универсальный аудит локализации, VoiceOver или физического жеста.
-История и точные причины предыдущих ошибок — ../../evidence/status.json и
-../../evidence/item-order-39590985347-failure.json; они не являются PASS.
-
-Сверка11ноября: patch применим к main df67cc0 без конфликтов. Это не новый CI.
-См. ../../UPSTREAM-2026-11-11.txt и ../../evidence/status.json.
+Host ожидает настоящее viewDidAppear. Проверяются штатная editButtonItem,
+её действие и состояние экрана/таблицы. UIKit показывает завершение галочкой;
+буквальная английская надпись Done не требуется. Все13 методов и проверки
+manualmode/удаления/поиска сохранены. Два свежих PNG до/после Edit осмотрены:
+../../evidence/item-order-before-edit-43176499388.png
+../../evidence/item-order-after-edit-43176499388.png
+Это не универсальный аудит локализации, VoiceOver или физического жеста.
+История предыдущих ошибок сохранена в ../../evidence/status.json.
