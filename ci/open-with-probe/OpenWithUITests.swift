@@ -20,7 +20,7 @@ final class OpenWithUITests: XCTestCase {
 
   func testFilesOpenWithEligibilityAndDelivery() throws {
     let data = try Data(contentsOf: XCTUnwrap(Bundle(for: type(of: self)).url(forResource: "Fixture", withExtension: "gpx")))
-    let expectedHash = SHA256.hash(data).map { String(format: "%02x", $0) }.joined()
+    let expectedHash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     for app in [probe, control, fixtures] {
       app.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
       app.launch()
