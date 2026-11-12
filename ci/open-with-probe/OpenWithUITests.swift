@@ -35,10 +35,12 @@ final class OpenWithUITests: XCTestCase {
     files.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
     files.launch()
     XCTAssertTrue(files.wait(for: .runningForeground, timeout: 10), "HARNESS_FILES_DID_NOT_LAUNCH")
+    dismissKeyboardIntroduction()
     let browse = files.tabBars.buttons["Browse"]
     if browse.waitForExistence(timeout: 5) { browse.tap() }
     try tap(label: "On My iPhone")
     try tap(label: "GPX Fixtures")
+    dismissKeyboardIntroduction()
     let fixture = files.cells.matching(NSPredicate(format: "label CONTAINS %@", "OpenWithProbe")).firstMatch
     let fixtureText = files.staticTexts.matching(NSPredicate(format: "label CONTAINS %@", "OpenWithProbe")).firstMatch
     let item = fixture.waitForExistence(timeout: 5) ? fixture : fixtureText
@@ -83,6 +85,17 @@ final class OpenWithUITests: XCTestCase {
 
   private func namedHandler(_ name: String) -> XCUIElement {
     files.descendants(matching: .any).matching(NSPredicate(format: "label == %@ OR label == %@", name, "Open in " + name)).firstMatch
+  }
+
+  private func dismissKeyboardIntroduction() {
+    let introduction = files.staticTexts["Speed up your typing by sliding your finger across the letters to compose a word."]
+    guard introduction.exists else { return }
+    attachScreen("keyboard-introduction")
+    let button = files.buttons["Continue"]
+    XCTAssertTrue(button.exists && button.isHittable, "HARNESS_KEYBOARD_INTRODUCTION_NOT_DISMISSIBLE")
+    button.tap()
+    let dismissed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: introduction)
+    XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 10), .completed, "HARNESS_KEYBOARD_INTRODUCTION_REMAINS")
   }
 
   private func tap(label: String) throws {

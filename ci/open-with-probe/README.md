@@ -103,3 +103,5 @@ build products. Therefore each matrix arm builds the correct plist variant;
 the experiment does not merely mutate an installed app behind XCTest's back.
 
 On an install deadline, the runner captures bounded host process/resource, installer stack and CoreSimulator log diagnostics before terminating the installer. These diagnostics never replace a failed result. The non-handler fixture host is installed first in both variants, to distinguish general simulator installation failure from receiver registration.
+
+Both arms pass `-collect-test-diagnostics never` to avoid automatic system-wide failure diagnostics delaying the expected negative assertion. Exact XCTest results, the full result bundle, explicit screenshots/accessibility trees, receipts, and our bounded install diagnostics are still retained and checked. The test dismisses only the observed keyboard introduction, gated by its exact text; it does not dismiss arbitrary alerts or permissions.

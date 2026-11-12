@@ -200,6 +200,7 @@ def main():
                     on_timeout=lambda pid: diagnose_install(results, simulator_id, pid))
         bundle = results / "OpenWith.xcresult"
         test_status = command(["xcodebuild", "test-without-building", *options, "-resultBundlePath", bundle,
+                               "-collect-test-diagnostics", "never",
                                f"-only-testing:OpenWithUITests/OpenWithUITests/{METHOD}"],
                               results / "test.log", 360, allowed=(0, 65))
         # Extract evidence even when the expected NO arm returns xcodebuild 65.
