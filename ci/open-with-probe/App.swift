@@ -1,11 +1,35 @@
 import CryptoKit
 import UIKit
 
+private enum ProbeTrace {
+  static func record(_ event: String, _ fields: [String: Any] = [:]) {
+    var value = fields
+    value["event"] = event
+    value["time"] = Date().timeIntervalSince1970
+    do {
+      let directory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+      try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+      let url = directory.appendingPathComponent("open-with-events.jsonl")
+      if !FileManager.default.fileExists(atPath: url.path) {
+        FileManager.default.createFile(atPath: url.path, contents: nil)
+      }
+      let file = try FileHandle(forWritingTo: url)
+      defer { try? file.close() }
+      try file.seekToEnd()
+      try file.write(contentsOf: JSONSerialization.data(withJSONObject: value, options: [.sortedKeys]) + Data([10]))
+    } catch {
+      NSLog("Probe trace error: %@", String(describing: error))
+    }
+  }
+}
+
 @main
 final class AppDelegate: UIResponder, UIApplicationDelegate {
   func application(_ application: UIApplication,
                    configurationForConnecting session: UISceneSession,
                    options: UIScene.ConnectionOptions) -> UISceneConfiguration {
+    ProbeTrace.record("configuration", ["urls": options.urlContexts.count,
+                                         "activities": options.userActivities.map(\.activityType)])
     let configuration = UISceneConfiguration(name: "Default", sessionRole: session.role)
     configuration.delegateClass = SceneDelegate.self
     return configuration
@@ -24,6 +48,8 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
 
   func scene(_ scene: UIScene, willConnectTo session: UISceneSession,
              options connectionOptions: UIScene.ConnectionOptions) {
+    ProbeTrace.record("willConnect", ["urls": connectionOptions.urlContexts.count,
+                                       "activities": connectionOptions.userActivities.map(\.activityType)])
     guard let scene = scene as? UIWindowScene else { return }
     let controller = UIViewController()
     controller.view.backgroundColor = .systemBackground
@@ -67,16 +93,25 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
   }
 
   func sceneDidBecomeActive(_ scene: UIScene) {
+    ProbeTrace.record("becameActive")
     if isFixtureHost { refreshFixtureStatus() }
   }
 
   func scene(_ scene: UIScene, openURLContexts contexts: Set<UIOpenURLContext>) {
+    ProbeTrace.record("openURLContexts", ["urls": contexts.count])
     handle(contexts)
+  }
+
+  func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
+    ProbeTrace.record("continueActivity", ["type": userActivity.activityType])
   }
 
   private func handle(_ contexts: Set<UIOpenURLContext>) {
     guard let context = contexts.first else { return }
+    ProbeTrace.record("receivedURL", ["filename": context.url.lastPathComponent,
+                                       "openInPlace": context.options.openInPlace])
     let scoped = context.url.startAccessingSecurityScopedResource()
+    ProbeTrace.record("scope", ["granted": scoped])
     defer { if scoped { context.url.stopAccessingSecurityScopedResource() } }
     var result: [String: Any] = [
       "filename": context.url.lastPathComponent,
@@ -87,7 +122,9 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     var coordinationError: NSError?
     // The diagnostic receiver completes a coordinated read while its access
     // scope is alive. It does not claim CoMaps' asynchronous import is safe.
+    ProbeTrace.record("coordinateBegin")
     NSFileCoordinator().coordinate(readingItemAt: context.url, options: [], error: &coordinationError) { url in
+      ProbeTrace.record("coordinateAccessor")
       do {
         let data = try Data(contentsOf: url)
         result["readSucceeded"] = true
@@ -97,6 +134,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         result["error"] = String(describing: error)
       }
     }
+    ProbeTrace.record("coordinateEnd", ["error": coordinationError?.localizedDescription ?? ""])
     if let coordinationError { result["error"] = String(describing: coordinationError) }
     receipt.text = Self.json(result)
   }

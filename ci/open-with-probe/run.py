@@ -208,6 +208,16 @@ def main():
                 results / "summary.json", 30)
         command(["xcrun", "xcresulttool", "export", "attachments", "--path", bundle, "--output-path", results / "attachments"],
                 results / "attachments-export.log", 30)
+        # Retain callback-phase evidence even when a receipt assertion fails.
+        try:
+            command(["xcrun", "simctl", "get_app_container", simulator_id,
+                     "org.comaps.diagnostic.gpxprobe", "data"], results / "receiver-container.txt", 30)
+            container = Path((results / "receiver-container.txt").read_text().strip())
+            trace = container / "Library/Caches/open-with-events.jsonl"
+            require(trace.is_file(), "Receiver callback trace missing")
+            (results / "receiver-events.jsonl").write_bytes(trace.read_bytes())
+        except (RuntimeError, OSError) as error:
+            (results / "receiver-trace-error.txt").write_text(str(error) + "\n")
         report = verify(args.variant, results, test_status)
         report["simulator_id"] = simulator_id
         report["declarations"] = declarations

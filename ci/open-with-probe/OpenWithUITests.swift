@@ -15,6 +15,7 @@ final class OpenWithUITests: XCTestCase {
   override func tearDownWithError() throws {
     attachScreen("final-screen")
     attachText(files.debugDescription, named: "files-final-accessibility")
+    attachText(probe.debugDescription, named: "probe-final-accessibility")
     try super.tearDownWithError()
   }
 
@@ -47,6 +48,13 @@ final class OpenWithUITests: XCTestCase {
     XCTAssertTrue(item.waitForExistence(timeout: 5) && item.isHittable, "HARNESS_FIXTURE_NOT_VISIBLE")
     attachScreen("fixture-in-files")
     item.press(forDuration: 1.2)
+    if dismissKeyboardIntroduction() {
+      // Dismissing the keyboard introduction can also dismiss the underlying
+      // file menu. Reopen that same observed fixture only in this exact case.
+      if !files.descendants(matching: .any).matching(NSPredicate(format: "label == %@", "Open With")).firstMatch.exists {
+        item.press(forDuration: 1.2)
+      }
+    }
     try tap(label: "Open With")
     let controlEntry = namedHandler("GPX Control")
     XCTAssertTrue(controlEntry.waitForExistence(timeout: 5) && controlEntry.isHittable,
@@ -87,15 +95,17 @@ final class OpenWithUITests: XCTestCase {
     files.descendants(matching: .any).matching(NSPredicate(format: "label == %@ OR label == %@", name, "Open in " + name)).firstMatch
   }
 
-  private func dismissKeyboardIntroduction() {
+  @discardableResult
+  private func dismissKeyboardIntroduction() -> Bool {
     let introduction = files.staticTexts["Speed up your typing by sliding your finger across the letters to compose a word."]
-    guard introduction.exists else { return }
+    guard introduction.exists else { return false }
     attachScreen("keyboard-introduction")
     let button = files.buttons["Continue"]
     XCTAssertTrue(button.exists && button.isHittable, "HARNESS_KEYBOARD_INTRODUCTION_NOT_DISMISSIBLE")
     button.tap()
     let dismissed = XCTNSPredicateExpectation(predicate: NSPredicate(format: "exists == false"), object: introduction)
     XCTAssertEqual(XCTWaiter.wait(for: [dismissed], timeout: 10), .completed, "HARNESS_KEYBOARD_INTRODUCTION_REMAINS")
+    return true
   }
 
   private func tap(label: String) throws {
