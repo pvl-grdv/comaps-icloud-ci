@@ -42,7 +42,10 @@ redesign. The in-app picker still requests a copy and uses its existing endpoint
   full menus were visually checked: NO showed only the fixed control handler;
   YES additionally showed the probe. The YES arm still failed its separate URL
   receipt assertion. This is evidence about menu membership, **not a successful
-  end-to-end import test**. Follow-up diagnostics are in progress.
+  end-to-end import test**. Later runs stalled while installing the first
+  non-handler fixture app; their bounded diagnostics did not establish the
+  host-service cause. Further blind probe reruns were stopped. The candidate
+  must instead pass the required real-CoMaps delivery test below.
 * The candidate patch has passed source-hash, patch-application, project-wiring,
   and independent source review. **Candidate compilation, XCTest, real CoMaps
   Files delivery, and unsigned Release validation are still pending.**

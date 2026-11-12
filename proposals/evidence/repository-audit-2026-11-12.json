@@ -1,0 +1,75 @@
+{
+  "checked_on": "2026-11-12",
+  "repository": "https://github.com/pvl-grdv/comaps-icloud-ci",
+  "live_default_branch": "main",
+  "branch_snapshot": [
+    {
+      "name": "main",
+      "head": "771835614fa575f15c120da4223f2d3c097e7eca",
+      "unique_commits_vs_lab": 0,
+      "lab_only_commits": 61
+    },
+    {
+      "name": "comaps-lab",
+      "head": "b394bd288e16833816d6a01015680832fd3683ea",
+      "unique_commits_vs_lab": 0,
+      "lab_only_commits": 0
+    },
+    {
+      "name": "ios-library-features",
+      "head": "1abb002e9267fa90760129c16066bd0a0f25c640",
+      "unique_commits_vs_lab": 0,
+      "lab_only_commits": 58
+    },
+    {
+      "name": "ios-saved-items",
+      "head": "0237ee3737e6b2deeb80fbe03b6c72d82aee43d8",
+      "unique_commits_vs_lab": 0,
+      "lab_only_commits": 41
+    },
+    {
+      "name": "om-reuse-regressions",
+      "head": "c24048474b0506f63fa3a64865ac0b91fc7c1982",
+      "unique_commits_vs_lab": 1,
+      "lab_only_commits": 60
+    },
+    {
+      "name": "upstream-preparation",
+      "head": "ca40b7aef6060031f7b24ba2f2cd6bc0eb83f8fa",
+      "unique_commits_vs_lab": 1,
+      "lab_only_commits": 39
+    }
+  ],
+  "notes": [
+    "Live remote main differs from stale local origin/main; snapshot uses actual API SHA.",
+    "The sole nonancestral om-reuse-regressions commit is patch-equivalent to 1abb002 in Lab history.",
+    "upstream-preparation has an unmerged 26-file documentation commit; preserve exact snapshot.",
+    "No branch deletion, default-branch change, upstream publication or DCO sign-off occurred."
+  ],
+  "policy_sources": [
+    {
+      "file": "AI_USAGE.md",
+      "url": "https://codeberg.org/comaps/Governance/raw/branch/main/AI_USAGE.md",
+      "sha256": "8035c81c9d15b1d6bb41e324425e7b16c936d4daeddabe7fa2c3c992cf5d33ab",
+      "bytes": 4320
+    },
+    {
+      "file": "PR_GUIDE.md",
+      "url": "https://codeberg.org/comaps/comaps/raw/branch/main/docs/PR_GUIDE.md",
+      "sha256": "5752c193993583b9949530a3f38d00af12ba0c55de5470814f7138aa5c172f5a",
+      "bytes": 6591
+    },
+    {
+      "file": "CONTRIBUTING.md",
+      "url": "https://codeberg.org/comaps/comaps/raw/branch/main/docs/CONTRIBUTING.md",
+      "sha256": "04b277519811ce614a9612ce4143f3618cb28129629fab6b0b8bbaf883414e06",
+      "bytes": 7171
+    },
+    {
+      "file": "DCO.md",
+      "url": "https://codeberg.org/comaps/Governance/raw/branch/main/DCO.md",
+      "sha256": "3399a010bb18b6da4772e5e1d6d3b6fed14ef6cbc1ace9d43720950f42958ed3",
+      "bytes": 3665
+    }
+  ]
+}

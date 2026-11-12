@@ -19,8 +19,10 @@ https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43176499388
 This does not turn the historical integrated Lab167 failure into a success.
 
 Separate iPhone GPX investigation: proposals/GPX-OPEN-WITH-INVESTIGATION.txt.
-Send a Copy successfully imports into official CoMaps; its absence from Files'
-Open With menu is still reproduced and has no verified cause or code fix here.
+Send a Copy successfully imports into official CoMaps. A controlled simulator
+experiment links Files' Open With membership to in-place document support;
+an independent regression reproduces an unsafe delayed read in the importer.
+The separate candidate and its exact validation status: proposals/open-with/README.md.
 
 Independent, AI-assisted diagnostic repository. Not an official CoMaps release
 or an upstream submission. CoMaps Lab branch: comaps-lab. Read LAB-SETUP-RU.txt

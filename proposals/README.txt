@@ -20,7 +20,10 @@ evidence/saved-items-43176499388.txt. Полный совмещённый Lab о
 4. evidence/status.json: точный SHA, ссылки на CI, что подтверждено и что ожидается.
 5. CONTRIBUTION.txt: правила человеческой подготовки предложения в CoMaps.
 6. GPX-OPEN-WITH-INVESTIGATION.txt: отдельная диагностика импорта на iPhone;
-   Send a Copy работает, причина отсутствия в Open With пока не подтверждена.
+   Send a Copy работает. Отдельный кандидат Open With и безопасного импорта,
+   контрольные эксперименты и состояние CI: open-with/README.md.
+7. REPOSITORY-ROADMAP.md: зачем нужны существующие ветки GitHub, какие можно
+   архивировать и как из самостоятельных патчей получить отдельные PR на Codeberg.
 Проверка согласованности каталога: python3 ci/check-contribution-inventory.py
 (из корня репозитория; это проверка документации, не сборка приложения).
 
