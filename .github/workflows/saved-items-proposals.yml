@@ -84,6 +84,7 @@ jobs:
             results/feature-*.log
             results/feature-*.json
             results/feature-*.txt
+            results/ios-simulators.json
             results/ios-summary.json
             results/xcodebuild-tests.log
             results/feature-ui-diagnostics/**/*.png

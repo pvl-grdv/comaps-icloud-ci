@@ -684,7 +684,7 @@ diff --git a/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
 new file mode 100644
 --- /dev/null
 +++ b/iphone/Maps/Tests/Bookmarks/Categories/BookmarkItemOrderTests.swift
-@@ -0,0 +1,495 @@
+@@ -0,0 +1,423 @@
 +import UIKit
 +import XCTest
 +@testable import CoMaps__Debug_
@@ -878,8 +878,7 @@ new file mode 100644
 +  func testTopEditStartsManualOrderWithDeleteAndReorderControls() async throws {
 +    let category = try XCTUnwrap(category)
 +    try await withHostedItemList { controller, table in
-+      XCTAssertFalse(controller.isEditing)
-+      try assertItemEditButton(controller, editing: false)
++      try assertItemEditing(controller, table: table, editing: false)
 +      let hadSortingType = manager.hasLastSortingType(category.categoryId)
 +      let initialSortingType = hadSortingType ? manager.lastSortingType(category.categoryId) : nil
 +      let firstRow = IndexPath(row: 0, section: 0)
@@ -892,17 +891,15 @@ new file mode 100644
 +      XCTAssertFalse(controller.tableView(table, canMoveRowAt: firstRow))
 +      XCTAssertFalse(table.isEditing)
 +      controller.tableView(table, didEndEditingRowAt: firstRow)
-+      try assertItemEditButton(controller, editing: false)
++      try assertItemEditing(controller, table: table, editing: false)
++      try attachItemListScreenshot(controller, named: "item-order-before-edit")
 +      try tapItemEditButton(controller)
-+      XCTAssertTrue(controller.isEditing)
-+      XCTAssertTrue(table.isEditing)
-+      try assertItemEditButton(controller, editing: true)
++      try assertItemEditing(controller, table: table, editing: true)
++      try attachItemListScreenshot(controller, named: "item-order-after-edit")
 +      // A delayed swipe lifecycle callback must not reset the explicit Edit session.
 +      controller.tableView(table, willBeginEditingRowAt: IndexPath(row: 0, section: 0))
 +      controller.tableView(table, didEndEditingRowAt: nil)
-+      XCTAssertTrue(controller.isEditing)
-+      XCTAssertTrue(table.isEditing)
-+      try assertItemEditButton(controller, editing: true)
++      try assertItemEditing(controller, table: table, editing: true)
 +      XCTAssertEqual(manager.lastSortingType(category.categoryId), .manual)
 +      XCTAssertTrue(table.visibleCells.contains { $0.showsReorderControl })
 +      let section = try XCTUnwrap((0..<table.numberOfSections).first { section in
@@ -918,13 +915,10 @@ new file mode 100644
 +  func testDoneEndsItemEditingAndSearchDisablesThenRestoresEdit() async throws {
 +    try await withHostedItemList { controller, table in
 +      try tapItemEditButton(controller)
-+      XCTAssertTrue(controller.isEditing)
-+      try assertItemEditButton(controller, editing: true)
++      try assertItemEditing(controller, table: table, editing: true)
 +      controller.tableView(table, didEndEditingRowAt: nil)
 +      try tapItemEditButton(controller)
-+      XCTAssertFalse(controller.isEditing)
-+      XCTAssertFalse(table.isEditing)
-+      try assertItemEditButton(controller, editing: false)
++      try assertItemEditing(controller, table: table, editing: false)
 +      let search = try XCTUnwrap(controller.navigationItem.searchController)
 +      XCTAssertTrue(search.searchBar.isUserInteractionEnabled)
 +      search.isActive = true
@@ -934,6 +928,7 @@ new file mode 100644
 +      }
 +      XCTAssertFalse(controller.editButtonItem.isEnabled)
 +      XCTAssertFalse(controller.isEditing)
++      XCTAssertFalse(table.isEditing)
 +      search.isActive = false
 +      for _ in 0..<30 {
 +        if controller.editButtonItem.isEnabled { break }
@@ -942,6 +937,7 @@ new file mode 100644
 +      XCTAssertTrue(controller.editButtonItem.isEnabled)
 +      try tapItemEditButton(controller)
 +      XCTAssertTrue(controller.isEditing)
++      XCTAssertTrue(table.isEditing)
 +    }
 +  }
 +
@@ -988,106 +984,38 @@ new file mode 100644
 +  }
 +
 +  @MainActor
-+  private func assertItemEditButton(_ controller: BookmarksListViewController, editing: Bool) throws {
-+    let button = try XCTUnwrap(controller.navigationItem.rightBarButtonItem)
-+    XCTAssertTrue(button === controller.editButtonItem)
-+    XCTAssertTrue(button.isEnabled)
-+    let bar = try XCTUnwrap(controller.navigationController?.navigationBar)
++  private func assertItemEditing(_ controller: BookmarksListViewController,
++                                 table: UITableView,
++                                 editing: Bool,
++                                 file: StaticString = #filePath,
++                                 line: UInt = #line) throws {
++    let navigation = try XCTUnwrap(controller.navigationController, file: file, line: line)
++    let window = try XCTUnwrap(controller.view.window, file: file, line: line)
++    XCTAssertTrue(navigation.navigationBar.window === window, file: file, line: line)
++    XCTAssertFalse(navigation.isNavigationBarHidden, file: file, line: line)
++    XCTAssertTrue(navigation.navigationBar.topItem === controller.navigationItem, file: file, line: line)
++    // UIKit presents Edit or Done for its editButtonItem based on the controller's editing state.
++    let button = try XCTUnwrap(controller.navigationItem.rightBarButtonItem, file: file, line: line)
++    XCTAssertTrue(button === controller.editButtonItem, file: file, line: line)
++    XCTAssertTrue(button.isEnabled, file: file, line: line)
++    XCTAssertEqual(controller.isEditing, editing, file: file, line: line)
++    XCTAssertEqual(table.isEditing, editing, file: file, line: line)
++  }
++
++  @MainActor
++  private func attachItemListScreenshot(_ controller: BookmarksListViewController, named name: String) throws {
++    // Only synthetic fixture content is in this hosted test window.
 +    let window = try XCTUnwrap(controller.view.window)
 +    window.layoutIfNeeded()
-+    bar.layoutIfNeeded()
-+    XCTAssertTrue(bar.window === window)
-+    var texts = Set<String>()
-+    var tree: [String] = []
-+    var visited = Set<ObjectIdentifier>()
-+    let screenFrame = window.convert(window.bounds, to: window.screen.coordinateSpace)
-+
-+    func isVisible(_ view: UIView) -> Bool {
-+      guard view.window === window else { return false }
-+      var frame = view.convert(view.bounds, to: window).intersection(window.bounds)
-+      guard !frame.isEmpty else { return false }
-+      var ancestor: UIView? = view
-+      while let current = ancestor {
-+        if current.isHidden || current.alpha <= 0 { return false }
-+        if current.clipsToBounds {
-+          frame = frame.intersection(current.convert(current.bounds, to: window))
-+          if frame.isEmpty { return false }
-+        }
-+        ancestor = current.superview
-+      }
-+      return true
++    let format = UIGraphicsImageRendererFormat()
++    format.scale = 1
++    let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
++      window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
 +    }
-+
-+    func visit(_ object: NSObject, depth: Int, ancestorHidden: Bool = false) {
-+      guard visited.insert(ObjectIdentifier(object)).inserted else { return }
-+      let prefix = String(repeating: " ", count: depth)
-+      let label = object.accessibilityLabel
-+      let traits = object.accessibilityTraits
-+      let frame = object.accessibilityFrame
-+      tree.append("\(prefix)\(type(of: object)) AXlabel=\(label ?? "nil") traits=\(traits.rawValue) AXframe=\(frame)")
-+      let visible: Bool
-+      var hidden = ancestorHidden
-+      if let view = object as? UIView {
-+        hidden = hidden || view.isHidden || view.alpha <= 0
-+        visible = !hidden && isVisible(view)
-+        tree.append("\(prefix)view frame=\(view.frame) bounds=\(view.bounds) hidden=\(view.isHidden) alpha=\(view.alpha) clips=\(view.clipsToBounds) visible=\(visible)")
-+        if let textLabel = view as? UILabel {
-+          tree.append("\(prefix)UILabel text=\(textLabel.text ?? "nil")")
-+          if visible, let text = textLabel.text, !text.isEmpty { texts.insert(text) }
-+        }
-+        if let control = view as? UIButton {
-+          tree.append("\(prefix)UIButton currentTitle=\(control.currentTitle ?? "nil") configuration=\(control.configuration?.title ?? "nil") enabled=\(control.isEnabled)")
-+          if visible {
-+            for text in [control.currentTitle, control.configuration?.title] {
-+              if let text, !text.isEmpty { texts.insert(text) }
-+            }
-+          }
-+        }
-+        // Empty or out-of-bounds layout containers can still have visible, unclipped children.
-+        for child in view.subviews { visit(child, depth: depth + 1, ancestorHidden: hidden) }
-+      } else {
-+        visible = !hidden && !frame.isEmpty && frame.intersects(screenFrame)
-+      }
-+      if visible, traits.contains(.button), let label, !label.isEmpty { texts.insert(label) }
-+      if let elements = object.accessibilityElements {
-+        for case let element as NSObject in elements { visit(element, depth: depth + 1, ancestorHidden: hidden) }
-+      } else {
-+        let count = object.accessibilityElementCount()
-+        if count > 0 && count != NSNotFound {
-+          for index in 0..<count {
-+            if let element = object.accessibilityElement(at: index) as? NSObject {
-+              visit(element, depth: depth + 1, ancestorHidden: hidden)
-+            }
-+          }
-+        }
-+      }
-+    }
-+    visit(bar, depth: 0)
-+    let expectedTitle = L(editing ? "done" : "edit")
-+    let previousTitle = L(editing ? "edit" : "done")
-+    let context = "editing=\(editing) expected=\(expectedTitle) barFrame=\(bar.frame) windowFrame=\(window.frame)"
-+    if !texts.contains(expectedTitle) || texts.contains(previousTitle) {
-+      // Only synthetic fixture content is in this hosted test window.
-+      let diagnostic = context + "\n" + tree.joined(separator: "\n")
-+      print("Item navigation public view/AX probe:\n\(diagnostic)")
-+      let fields = XCTAttachment(string: diagnostic)
-+      fields.name = "item-navigation-public-fields"
-+      fields.lifetime = .keepAlways
-+      add(fields)
-+      let format = UIGraphicsImageRendererFormat()
-+      format.scale = 1
-+      let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
-+        window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-+      }
-+      let screenshot = XCTAttachment(image: image)
-+      screenshot.name = "item-navigation-synthetic-window"
-+      screenshot.lifetime = .keepAlways
-+      add(screenshot)
-+    }
-+    XCTAssertFalse(expectedTitle.isEmpty)
-+    XCTAssertTrue(texts.contains(expectedTitle), "\(context) visible navigation semantics: \(texts)")
-+    XCTAssertFalse(texts.contains(previousTitle), "\(context) visible navigation semantics: \(texts)")
-+    XCTAssertEqual(controller.isEditing, editing)
++    let attachment = XCTAttachment(image: image)
++    attachment.name = name
++    attachment.lifetime = .keepAlways
++    add(attachment)
 +  }
 +
 +  @MainActor
