@@ -152,7 +152,7 @@ def main():
         command(["xcrun", "simctl", "bootstatus", simulator_id, "-b"], results / "bootstatus.log", 180)
         for name in ["GPXProbe", "GPXControl", "GPXFixtures"]:
             command(["xcrun", "simctl", "install", simulator_id, built / f"{name}.app"],
-                    results / f"install-{name}.log", 30)
+                    results / f"install-{name}.log", 120)
         bundle = results / "OpenWith.xcresult"
         test_status = command(["xcodebuild", "test-without-building", *options, "-resultBundlePath", bundle,
                                f"-only-testing:OpenWithUITests/OpenWithUITests/{METHOD}"],
