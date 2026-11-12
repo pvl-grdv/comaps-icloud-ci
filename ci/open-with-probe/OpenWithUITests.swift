@@ -28,6 +28,9 @@ final class OpenWithUITests: XCTestCase {
     }
     let initial = try status(fixtures.staticTexts["fixtureStatus"])
     XCTAssertEqual(initial["sha256"] as? String, expectedHash, "HARNESS_FIXTURE_HASH_MISMATCH")
+    let modificationTime = try XCTUnwrap(initial["modificationTime"] as? Double)
+    attachText(String(data: try JSONSerialization.data(withJSONObject: initial, options: [.sortedKeys]), encoding: .utf8)!,
+               named: "source-before-receipt")
 
     files.launchArguments = ["-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
     files.launch()
@@ -73,6 +76,7 @@ final class OpenWithUITests: XCTestCase {
     let final = try status(fixtures.staticTexts["fixtureStatus"])
     XCTAssertEqual(final["sha256"] as? String, expectedHash, "ORIGINAL_FILE_CHANGED")
     XCTAssertEqual(final["bytes"] as? Int, data.count)
+    XCTAssertEqual(final["modificationTime"] as? Double, modificationTime, "ORIGINAL_MODIFICATION_DATE_CHANGED")
     attachText(String(data: try JSONSerialization.data(withJSONObject: final, options: [.sortedKeys]), encoding: .utf8)!,
                named: "source-after-receipt")
   }

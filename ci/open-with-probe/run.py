@@ -24,24 +24,63 @@ def require(condition, message):
         raise RuntimeError(message)
 
 
-def command(args, log, timeout, allowed=(0,)):
+def command(args, log, timeout, allowed=(0,), on_timeout=None):
     print("Running:", " ".join(map(str, args)), flush=True)
     with log.open("wb") as output:
         process = subprocess.Popen(list(map(str, args)), stdout=output, stderr=subprocess.STDOUT, start_new_session=True)
         try:
             status = process.wait(timeout=timeout)
         except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGTERM)
+            if on_timeout:
+                try:
+                    on_timeout(process.pid)
+                except Exception as error:
+                    print(f"Timeout diagnostics failed: {error}", file=sys.stderr)
+            try:
+                if process.poll() is None:
+                    os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
             try:
                 process.wait(timeout=10)
             except subprocess.TimeoutExpired:
-                os.killpg(process.pid, signal.SIGKILL)
-                process.wait()
+                try:
+                    if process.poll() is None:
+                        os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    raise RuntimeError(f"Timed-out process {process.pid} did not terminate after SIGKILL")
             raise RuntimeError(f"Timeout after {timeout}s: {args[0]}")
     if status not in allowed:
         print(log.read_text(errors="replace")[-6000:], flush=True)
         raise RuntimeError(f"Command failed ({status}): {args[0]}; see {log.name}")
     return status
+
+
+def diagnose_install(results, simulator_id, install_pid):
+    # Inspect the stall BEFORE terminating the installer. Diagnostic failure
+    # must never replace the original timeout or turn it into a passing test.
+    commands = [
+        (["/usr/bin/sample", str(install_pid), "3"], "install-sample.log", 10),
+        (["/bin/ps", "-axo", "pid,ppid,state,etime,pcpu,pmem,comm"], "processes.log", 10),
+        (["/usr/bin/vm_stat"], "memory.log", 10),
+        (["/bin/df", "-h"], "disk.log", 10),
+        (["xcrun", "simctl", "list", "devices", "--json"], "devices.json", 20),
+        (["/usr/bin/log", "show", "--last", "6m", "--style", "compact", "--info", "--predicate",
+          'process == "CoreSimulatorService" OR process == "installd" OR process == "simulatord" OR process == "simdiskimaged"'],
+         "simulator-services.log", 30),
+    ]
+    diagnostics = results / "install-diagnostics"
+    diagnostics.mkdir(exist_ok=True)
+    (diagnostics / "own-simulator.txt").write_text(simulator_id + "\n")
+    for args, name, timeout in commands:
+        try:
+            command(args, diagnostics / name, timeout)
+        except (RuntimeError, OSError) as error:
+            (diagnostics / (name + ".error.txt")).write_text(str(error) + "\n")
 
 
 def verify(variant, results, test_status):
@@ -95,12 +134,15 @@ def verify(variant, results, test_status):
     receipt = None
     if not negative:
         receipt = json.loads(attachment("receiver-receipt", ".txt"))
+        before = json.loads(attachment("source-before-receipt", ".txt"))
         source = json.loads(attachment("source-after-receipt", ".txt"))
         require(receipt["filename"] == "OpenWithProbe.gpx" and receipt["readSucceeded"] is True,
                 "Receiver did not read the real selected fixture")
         require(receipt["openInPlace"] is True and "error" not in receipt, "Receiver did not complete in-place read")
         require(receipt["sha256"] == source["sha256"] == expected_hash, "Received/original bytes differ")
         require(receipt["bytes"] == source["bytes"] == len(expected_bytes), "Received/original length differs")
+        require(before == source and isinstance(before["modificationTime"], (int, float)),
+                "Original file bytes or modification time changed")
         attachment("receiver-after-open-with", ".png")
     return {
         "variant": variant,
@@ -150,9 +192,12 @@ def main():
                 require(info.get(key) == expected.get(key), f"Built {name} has unexpected {key}")
             (results / f"{name}-built.plist").write_bytes(plistlib.dumps(info))
         command(["xcrun", "simctl", "bootstatus", simulator_id, "-b"], results / "bootstatus.log", 180)
-        for name in ["GPXProbe", "GPXControl", "GPXFixtures"]:
+        # Install the non-handler host first in both variants. If this stalls,
+        # GPX registration cannot explain that first installation failure.
+        for name in ["GPXFixtures", "GPXProbe", "GPXControl"]:
             command(["xcrun", "simctl", "install", simulator_id, built / f"{name}.app"],
-                    results / f"install-{name}.log", 120)
+                    results / f"install-{name}.log", 120,
+                    on_timeout=lambda pid: diagnose_install(results, simulator_id, pid))
         bundle = results / "OpenWith.xcresult"
         test_status = command(["xcodebuild", "test-without-building", *options, "-resultBundlePath", bundle,
                                f"-only-testing:OpenWithUITests/OpenWithUITests/{METHOD}"],

@@ -53,9 +53,10 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
       do {
         // Never overwrite the source on reactivation: a later hash check must
         // detect any change made by a receiving application.
-        if !FileManager.default.fileExists(atPath: fixtureURL.path) {
+        if !UserDefaults.standard.bool(forKey: "ProbeFixtureSeeded") {
           try FileManager.default.copyItem(at: Bundle.main.url(forResource: "Fixture", withExtension: "gpx")!,
                                            to: fixtureURL)
+          UserDefaults.standard.set(true, forKey: "ProbeFixtureSeeded")
         }
         refreshFixtureStatus()
       } catch {
@@ -103,7 +104,13 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
   private func refreshFixtureStatus() {
     do {
       let data = try Data(contentsOf: fixtureURL)
-      fixtureStatus.text = Self.json(["sha256": Self.digest(data), "bytes": data.count])
+      let attributes = try FileManager.default.attributesOfItem(atPath: fixtureURL.path)
+      guard let modified = attributes[.modificationDate] as? Date else {
+        fixtureStatus.text = "ERROR: missing modification date"
+        return
+      }
+      fixtureStatus.text = Self.json(["sha256": Self.digest(data), "bytes": data.count,
+                                     "modificationTime": modified.timeIntervalSince1970])
     } catch {
       fixtureStatus.text = "ERROR: \(error)"
     }

@@ -37,8 +37,9 @@ Three tiny application targets share `App.swift`:
 
 * **GPX Fixtures** creates one GPX in its shared Documents directory and exposes
   it in Files using both file-sharing and in-place flags. It declares no GPX
-  handler. On later activation it reads the existing source; it never rewrites
-  the fixture, so the unchanged-source check can detect mutation.
+  handler. A persistent seed-once marker prevents recreating a deleted fixture on a later
+  launch. Later activation reads the existing source and its modification time,
+  so the unchanged-source check can detect deletion or mutation.
 * **GPX Probe** is the experimental receiver, identical between jobs except for
   the boolean above.
 * **GPX Control** is a fixed positive control with the same GPX declarations and
@@ -68,7 +69,7 @@ the receiving app in the foreground with a successful actual URL callback.
 The receiver synchronously coordinates a read while its security scope is
 active. Its receipt must contain `openInPlace=true`, the exact fixture filename,
 length and SHA-256. Reopening the source host must show the original still has
-the same bytes. No fixture contents are fabricated in the test or passed
+the same bytes and modification time. No fixture contents are fabricated in the test or passed
 through launch arguments.
 
 `verification.json` explicitly records `negative_control_reproduced` or
@@ -100,3 +101,5 @@ Apple references:
 The second reference matters because XCUIAutomation can reinstall matching
 build products. Therefore each matrix arm builds the correct plist variant;
 the experiment does not merely mutate an installed app behind XCTest's back.
+
+On an install deadline, the runner captures bounded host process/resource, installer stack and CoreSimulator log diagnostics before terminating the installer. These diagnostics never replace a failed result. The non-handler fixture host is installed first in both variants, to distinguish general simulator installation failure from receiver registration.
