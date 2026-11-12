@@ -1,0 +1,337 @@
+diff --git a/iphone/Maps/Maps.xcodeproj/project.pbxproj b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+--- a/iphone/Maps/Maps.xcodeproj/project.pbxproj
++++ b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+@@ -7,6 +7,8 @@
+ 	objects = {
+ 
+ /* Begin PBXBuildFile section */
++		A0E011120000000000000101 /* OpenWithImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0E011120000000000000201 /* OpenWithImportTests.swift */; };
++		A0E011120000000000000102 /* OpenWithImportTestSupport.mm in Sources */ = {isa = PBXBuildFile; fileRef = A0E011120000000000000202 /* OpenWithImportTestSupport.mm */; };
+ 		039371B62C5B68CD00708377 /* UIFont+monospaced.swift in Sources */ = {isa = PBXBuildFile; fileRef = 039371B52C5B68CD00708377 /* UIFont+monospaced.swift */; };
+ 		165953742CB1D85500CFED7C /* fonts in Resources */ = {isa = PBXBuildFile; fileRef = 165953732CB1D83700CFED7C /* fonts */; };
+ 		165953942CB44B5600CFED7C /* symbols in Resources */ = {isa = PBXBuildFile; fileRef = 165953932CB44B3B00CFED7C /* symbols */; };
+@@ -775,6 +777,10 @@
+ /* End PBXCopyFilesBuildPhase section */
+ 
+ /* Begin PBXFileReference section */
++		A0E011120000000000000201 /* OpenWithImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenWithImportTests.swift; sourceTree = "<group>"; };
++		A0E011120000000000000202 /* OpenWithImportTestSupport.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = OpenWithImportTestSupport.mm; sourceTree = "<group>"; };
++		A0E011120000000000000203 /* OpenWithImportTestSupport.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpenWithImportTestSupport.h; sourceTree = "<group>"; };
++		A0E011120000000000000204 /* Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Bridging-Header.h"; sourceTree = "<group>"; };
+ 		039371B52C5B68CD00708377 /* UIFont+monospaced.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIFont+monospaced.swift"; sourceTree = "<group>"; };
+ 		165953732CB1D83700CFED7C /* fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = fonts; path = ../../data/fonts; sourceTree = "<group>"; };
+ 		165953932CB44B3B00CFED7C /* symbols */ = {isa = PBXFileReference; lastKnownFileType = folder; name = symbols; path = ../../data/symbols; sourceTree = "<group>"; };
+@@ -3191,6 +3197,9 @@
+ 			isa = PBXGroup;
+ 			children = (
+ 				A15DEE02A15DEE02A15DEE02 /* DeepLinkHandlerTests.swift */,
++				A0E011120000000000000201 /* OpenWithImportTests.swift */,
++				A0E011120000000000000202 /* OpenWithImportTestSupport.mm */,
++				A0E011120000000000000203 /* OpenWithImportTestSupport.h */,
+ 			);
+ 			path = DeepLink;
+ 			sourceTree = "<group>";
+@@ -3297,6 +3306,7 @@
+ 		ED1ADA312BC6B19E0029209F /* Tests */ = {
+ 			isa = PBXGroup;
+ 			children = (
++				A0E011120000000000000204 /* Bridging-Header.h */,
+ 				ED810EC02D566E6F00ECDE2C /* UI */,
+ 				EDC4E3442C5D1BD3009286A2 /* Bookmarks */,
+ 				4B4153B82BF970B800EE4B02 /* Classes */,
+@@ -4936,6 +4946,8 @@
+ 			buildActionMask = 2147483647;
+ 			files = (
+ 				A15DEE01A15DEE01A15DEE01 /* DeepLinkHandlerTests.swift in Sources */,
++				A0E011120000000000000101 /* OpenWithImportTests.swift in Sources */,
++				A0E011120000000000000102 /* OpenWithImportTestSupport.mm in Sources */,
+ 				EDF838C12C00B9D6007E4E67 /* iCloudDirectoryMonitorTests.swift in Sources */,
+ 				EDF838C02C00B9D0007E4E67 /* DefaultLocalDirectoryMonitorTests.swift in Sources */,
+ 				ED1ADA332BC6B1B40029209F /* CarPlayServiceTests.swift in Sources */,
+@@ -5285,6 +5297,7 @@
+ 			baseConfigurationReference = 347526FA1DC0B00F00918CF5 /* common-debug.xcconfig */;
+ 			buildSettings = {
+ 				BUNDLE_LOADER = "$(TEST_HOST)";
++				SWIFT_OBJC_BRIDGING_HEADER = "Tests/Bridging-Header.h";
+ 				CODE_SIGN_IDENTITY = "Apple Development";
+ 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+ 				CODE_SIGN_STYLE = Automatic;
+@@ -5300,6 +5313,7 @@
+ 			baseConfigurationReference = 347526FB1DC0B00F00918CF5 /* common-release.xcconfig */;
+ 			buildSettings = {
+ 				BUNDLE_LOADER = "$(TEST_HOST)";
++				SWIFT_OBJC_BRIDGING_HEADER = "Tests/Bridging-Header.h";
+ 				CODE_SIGN_IDENTITY = "Apple Development";
+ 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+ 				CODE_SIGN_STYLE = Automatic;
+diff --git a/iphone/Maps/Tests/Bridging-Header.h b/iphone/Maps/Tests/Bridging-Header.h
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Tests/Bridging-Header.h
+@@ -0,0 +1,2 @@
++#import "../Bridging-Header.h"
++#import "Core/DeepLink/OpenWithImportTestSupport.h"
+diff --git a/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTestSupport.h b/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTestSupport.h
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTestSupport.h
+@@ -0,0 +1,16 @@
++#import <Foundation/Foundation.h>
++
++NS_ASSUME_NONNULL_BEGIN
++
++@interface OpenWithImportFileQueueGate : NSObject
++@property(nonatomic, readonly) BOOL didTimeOut;
++- (void)unblock;
++@end
++
++@interface OpenWithImportTestSupport : NSObject
+++ (NSURL *)bookmarksDirectoryURL NS_SWIFT_NAME(bookmarksDirectoryURL());
+++ (OpenWithImportFileQueueGate *)holdFileQueueWithReady:(void (^)(void))ready
++    NS_SWIFT_NAME(holdFileQueue(ready:));
++@end
++
++NS_ASSUME_NONNULL_END
+diff --git a/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTestSupport.mm b/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTestSupport.mm
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTestSupport.mm
+@@ -0,0 +1,80 @@
++#import "OpenWithImportTestSupport.h"
++
++#include "map/bookmark_helpers.hpp"
++#include "platform/platform.hpp"
++
++#include <atomic>
++#include <chrono>
++#include <condition_variable>
++#include <memory>
++#include <mutex>
++
++namespace
++{
++struct FileQueueGate
++{
++  std::mutex m_mutex;
++  std::condition_variable m_changed;
++  bool m_released = false;
++  std::atomic<bool> m_timedOut = false;
++};
++}  // namespace
++
++@implementation OpenWithImportFileQueueGate
++{
++  std::shared_ptr<FileQueueGate> _state;
++}
++
++- (instancetype)initWithReady:(void (^)(void))ready
++{
++  self = [super init];
++  if (self)
++  {
++    _state = std::make_shared<FileQueueGate>();
++    auto state = _state;
++    // Platform::File uses a single worker. No importer scheduled after this
++    // task can read its source until the test releases this gate.
++    GetPlatform().RunTask(Platform::Thread::File, [state, ready]() {
++      dispatch_async(dispatch_get_main_queue(), ready);
++      std::unique_lock<std::mutex> lock(state->m_mutex);
++      if (!state->m_changed.wait_for(lock, std::chrono::seconds(60), [state]() { return state->m_released; }))
++        state->m_timedOut = true;
++    });
++  }
++  return self;
++}
++
++- (BOOL)didTimeOut
++{
++  return _state->m_timedOut;
++}
++
++- (void)unblock
++{
++  {
++    std::lock_guard<std::mutex> lock(_state->m_mutex);
++    _state->m_released = true;
++  }
++  _state->m_changed.notify_all();
++}
++
++- (void)dealloc
++{
++  [self unblock];
++}
++
++@end
++
++@implementation OpenWithImportTestSupport
++
+++ (NSURL *)bookmarksDirectoryURL
++{
++  return [NSURL fileURLWithPath:@(GetBookmarksDirectory().c_str()) isDirectory:YES];
++}
++
+++ (OpenWithImportFileQueueGate *)holdFileQueueWithReady:(void (^)(void))ready
++{
++  return [[OpenWithImportFileQueueGate alloc] initWithReady:ready];
++}
++
++@end
+diff --git a/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTests.swift b/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTests.swift
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTests.swift
+@@ -0,0 +1,153 @@
++import CryptoKit
++import XCTest
++@testable import CoMaps__Debug_
++
++final class OpenWithImportTests: XCTestCase, BookmarksObserver {
++  private var manager: BookmarksManager { BookmarksManager.shared() }
++  private var loading: XCTestExpectation?
++  private var gate: OpenWithImportFileQueueGate?
++  private var fixtureDirectory: URL?
++  private var categoryTitle = ""
++  private var fileSuccesses = 0
++  private var fileErrors = 0
++
++  override func setUp() async throws {
++    try await super.setUp()
++    try await prepareFixture()
++  }
++
++  @MainActor
++  private func prepareFixture() async throws {
++    DeepLinkHandler.shared.reset()
++    try FileManager.default.createDirectory(at: OpenWithImportTestSupport.bookmarksDirectoryURL(),
++                                            withIntermediateDirectories: true)
++    manager.add(self)
++    if !manager.areBookmarksLoaded() {
++      let finished = expectation(description: "Initial bookmark loading completed")
++      loading = finished
++      manager.loadBookmarks()
++      await fulfillment(of: [finished], timeout: 30)
++      loading = nil
++    }
++    XCTAssertTrue(manager.areBookmarksLoaded(), "SETUP: bookmark manager must be ready before testing import")
++    categoryTitle = "Open With import fixture \(UUID().uuidString)"
++    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString,
++                                                                                  isDirectory: true)
++    fixtureDirectory = directory
++    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
++    fileSuccesses = 0
++    fileErrors = 0
++  }
++
++  override func tearDown() async throws {
++    await cleanupFixture()
++    try await super.tearDown()
++  }
++
++  @MainActor
++  private func cleanupFixture() {
++    gate?.unblock()
++    gate = nil
++    manager.remove(self)
++    for category in manager.sortedUserCategories() where category.title == categoryTitle {
++      manager.deleteCategory(category.categoryId)
++    }
++    if let fixtureDirectory { try? FileManager.default.removeItem(at: fixtureDirectory) }
++    fixtureDirectory = nil
++    loading = nil
++    DeepLinkHandler.shared.reset()
++  }
++
++  @MainActor
++  func testNormalImportPreservesOriginalHashAndModificationDate() async throws {
++    let source = try makeSource(trackName: "Original route")
++    let originalHash = SHA256.hash(data: try Data(contentsOf: source))
++    let originalDate = try modificationDate(of: source)
++    let finished = expectImport()
++
++    XCTAssertTrue(DeepLinkHandler.shared.applicationDidOpenUrl(source))
++    await fulfillment(of: [finished], timeout: 30)
++
++    XCTAssertEqual(fileSuccesses, 1, "CONTROL: real importer must report one successful file")
++    XCTAssertEqual(fileErrors, 0, "CONTROL: real importer must not report a file error")
++    XCTAssertEqual(try importedTrackNames(), ["Original route"])
++    XCTAssertEqual(SHA256.hash(data: try Data(contentsOf: source)), originalHash,
++                   "Import must preserve the original file bytes")
++    XCTAssertEqual(try modificationDate(of: source), originalDate,
++                   "Import must preserve the original file modification date")
++  }
++
++  @MainActor
++  func testQueuedImportCapturesOriginalBeforeFileHandlerReturns() async throws {
++    let source = try makeSource(trackName: "Original before handoff")
++    let gateEntered = expectation(description: "Real Platform::File queue is held")
++    let queueGate = OpenWithImportTestSupport.holdFileQueue { gateEntered.fulfill() }
++    gate = queueGate
++    defer { queueGate.unblock() }
++    await fulfillment(of: [gateEntered], timeout: 30)
++    XCTAssertFalse(queueGate.didTimeOut, "SETUP: file queue gate timed out")
++
++    let finished = expectImport()
++    XCTAssertTrue(DeepLinkHandler.shared.applicationDidOpenUrl(source))
++
++    // The system's coordinated access has ended when the handler returns.
++    // Replace only this test's file before the queued importer can read it.
++    try gpx(trackName: "Replacement after handoff").write(to: source, options: .atomic)
++    queueGate.unblock()
++    await fulfillment(of: [finished], timeout: 30)
++
++    XCTAssertFalse(queueGate.didTimeOut, "SETUP: file queue gate timed out")
++    XCTAssertEqual(fileSuccesses, 1, "CONTROL: real importer must complete successfully")
++    XCTAssertEqual(fileErrors, 0, "CONTROL: malformed or missing fixtures do not prove the regression")
++    XCTAssertEqual(try importedTrackNames(), ["Original before handoff"],
++                   "OPEN_WITH_IMPORT_SNAPSHOT: import must retain the GPX contents read before the file URL handler returns")
++  }
++
++  @MainActor
++  private func expectImport() -> XCTestExpectation {
++    let finished = expectation(description: "Real bookmark import completed")
++    loading = finished
++    return finished
++  }
++
++  @MainActor
++  private func importedTrackNames() throws -> [String] {
++    let category = try XCTUnwrap(manager.sortedUserCategories().first { $0.title == categoryTitle },
++                                "CONTROL: real importer must install the synthetic GPX category")
++    return category.tracks.map(\.trackName)
++  }
++
++  private func makeSource(trackName: String) throws -> URL {
++    let source = try XCTUnwrap(fixtureDirectory).appendingPathComponent("Original route.gpx")
++    try gpx(trackName: trackName).write(to: source)
++    try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1_700_000_000)],
++                                         ofItemAtPath: source.path)
++    return source
++  }
++
++  private func modificationDate(of source: URL) throws -> Date {
++    try XCTUnwrap(FileManager.default.attributesOfItem(atPath: source.path)[.modificationDate] as? Date)
++  }
++
++  private func gpx(trackName: String) -> Data {
++    Data("""
++    <?xml version="1.0" encoding="UTF-8"?>
++    <gpx version="1.1" creator="CoMaps XCTest" xmlns="http://www.topografix.com/GPX/1/1">
++      <metadata><name>\(categoryTitle)</name></metadata>
++      <trk><name>\(trackName)</name><trkseg>
++        <trkpt lat="41.70" lon="44.80"><ele>400</ele></trkpt>
++        <trkpt lat="41.71" lon="44.81"><ele>410</ele></trkpt>
++      </trkseg></trk>
++    </gpx>
++    """.utf8)
++  }
++
++  func onBookmarksLoadFinished() {
++    let finished = loading
++    loading = nil
++    finished?.fulfill()
++  }
++
++  func onBookmarksFileLoadSuccess() { fileSuccesses += 1 }
++  func onBookmarksFileLoadError() { fileErrors += 1 }
++}

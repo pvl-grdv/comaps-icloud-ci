@@ -1,0 +1,26 @@
+{
+  "upstream": "871febfffe0ef2a970d4f6973442dd80c632da01",
+  "files": {
+    "iphone/Maps/Maps.xcodeproj/project.pbxproj": {
+      "sha256": "247b4bd4a56712348fab70950672cfb667e6bd1f1a2c7f2110678ca571c35ef9",
+      "baseSha256": "cd598c6eba609405ea8218d66882f230845a2958b6aa0a158c1ffe59e3b7a6bb"
+    },
+    "iphone/Maps/Tests/Bridging-Header.h": {
+      "sha256": "54e169c78ad8705e1468409c6a5d51f3ed40b8c0d2c627383d18585b2a61fa3b",
+      "baseSha256": null
+    },
+    "iphone/Maps/Tests/Core/DeepLink/OpenWithImportTestSupport.h": {
+      "sha256": "3973e866171a8adafeb72ee3c4d39c87efa15b2511a39eaa0e3c4dbb9042dbe0",
+      "baseSha256": null
+    },
+    "iphone/Maps/Tests/Core/DeepLink/OpenWithImportTestSupport.mm": {
+      "sha256": "913bdc583d25e8f5008ff0887b9d1169396ff82d497ddca8023f512fce8b0b40",
+      "baseSha256": null
+    },
+    "iphone/Maps/Tests/Core/DeepLink/OpenWithImportTests.swift": {
+      "sha256": "c2abc364390b62eb1627e5ae64ec52efb954c1a9a6953f897ca9e004382969bb",
+      "baseSha256": null
+    }
+  },
+  "patchSha256": "bd7ba3b62d5e32f3b901e5ef28480a554bf0e6ecb6c63ae6cf8da706e3d6adf5"
+}

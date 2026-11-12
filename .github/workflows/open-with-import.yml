@@ -1,0 +1,51 @@
+name: CoMaps external file import regression
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  import:
+    runs-on: xcode-27
+    timeout-minutes: 120
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
+    steps:
+      - uses: actions/checkout@v6
+      - name: Inspect the existing CoMaps build toolchain
+        run: |
+          xcodebuild -version
+          xcodebuild -showsdks
+          if ! xcrun metal -v >/dev/null 2>&1; then
+            xcodebuild -downloadComponent MetalToolchain
+            xcrun -k
+          fi
+          xcrun metal -v
+          for formula in wget optipng cmake ninja qt jq coreutils gnu-getopt icu4c; do
+            if ! brew list --versions "$formula" >/dev/null 2>&1; then brew install "$formula"; fi
+          done
+          printf '%s\n' "$(brew --prefix gnu-getopt)/bin" >> "$GITHUB_PATH"
+          printf '%s\n' "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
+          printf '%s\n' "$(brew --prefix icu4c)/bin" >> "$GITHUB_PATH"
+      - name: Apply test-only patch to pinned CoMaps
+        run: bash ci/open-with-import/prepare.sh
+      - name: Reproduce the ordinary import snapshot failure
+        run: bash ci/open-with-import/test.sh
+      - name: Retain exact import regression evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: open-with-import-baseline
+          path: |
+            results/feature-*.log
+            results/feature-*.json
+            results/ios-*.json
+            results/xcodebuild-tests.log
+            results/open-with-import-*.json
+            ci/open-with-import/
+          if-no-files-found: error
+          retention-days: 7
