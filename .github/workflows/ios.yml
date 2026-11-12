@@ -4,6 +4,10 @@ on:
     branches: [main, om-reuse-regressions, ios-library-features, ios-saved-items]
   workflow_dispatch:
     inputs:
+      open_with_probe:
+        description: Diagnose Files Open With eligibility using isolated synthetic applications
+        type: boolean
+        default: false
       lab:
         description: Verify the separate CoMaps Lab application
         type: boolean
@@ -38,7 +42,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: comaps-icloud-${{ github.ref }}${{ inputs.lab_mac && '-mac' || '' }}${{ inputs.saved_items_proposals && format('-proposals-{0}', inputs.saved_items_feature || 'all') || '' }}
+  group: comaps-icloud-${{ github.ref }}${{ inputs.lab_mac && '-mac' || '' }}${{ inputs.saved_items_proposals && format('-proposals-{0}', inputs.saved_items_feature || 'all') || '' }}${{ inputs.open_with_probe && '-open-with-probe' || '' }}
   cancel-in-progress: true
 
 env:
@@ -47,20 +51,24 @@ env:
   LC_ALL: en_US.UTF-8
 
 jobs:
+  open-with-probe:
+    if: github.event_name == 'workflow_dispatch' && inputs.open_with_probe
+    uses: ./.github/workflows/open-with-probe.yml
+
   saved-items-proposals:
-    if: github.event_name == 'workflow_dispatch' && inputs.saved_items_proposals
+    if: github.event_name == 'workflow_dispatch' && inputs.saved_items_proposals && !inputs.open_with_probe
     uses: ./.github/workflows/saved-items-proposals.yml
     with:
       feature: ${{ inputs.saved_items_feature || 'all' }}
 
   mac-lab:
-    if: github.event_name == 'workflow_dispatch' && inputs.lab_mac && !inputs.saved_items_proposals
+    if: github.event_name == 'workflow_dispatch' && inputs.lab_mac && !inputs.saved_items_proposals && !inputs.open_with_probe
     uses: ./.github/workflows/mac.yml
     with:
       upload_requested: ${{ inputs.lab_upload }}
 
   lab:
-    if: github.event_name == 'workflow_dispatch' && !inputs.saved_items_proposals && !inputs.lab_mac && (inputs.lab || inputs.lab_local)
+    if: github.event_name == 'workflow_dispatch' && !inputs.open_with_probe && !inputs.saved_items_proposals && !inputs.lab_mac && (inputs.lab || inputs.lab_local)
     uses: ./.github/workflows/lab.yml
     with:
       upload: ${{ inputs.lab_upload }}
@@ -68,7 +76,7 @@ jobs:
     secrets: inherit
 
   file-pipeline:
-    if: github.event_name != 'workflow_dispatch' || (!inputs.lab && !inputs.lab_local && !inputs.lab_mac && !inputs.saved_items_proposals)
+    if: github.event_name != 'workflow_dispatch' || (!inputs.lab && !inputs.lab_local && !inputs.lab_mac && !inputs.saved_items_proposals && !inputs.open_with_probe)
     runs-on: xcode-27
     timeout-minutes: 15
     steps:
@@ -86,7 +94,7 @@ jobs:
           printf '\n```\n' >> "$GITHUB_STEP_SUMMARY"
 
   ios:
-    if: github.event_name != 'workflow_dispatch' || (!inputs.lab && !inputs.lab_local && !inputs.lab_mac && !inputs.saved_items_proposals)
+    if: github.event_name != 'workflow_dispatch' || (!inputs.lab && !inputs.lab_local && !inputs.lab_mac && !inputs.saved_items_proposals && !inputs.open_with_probe)
     needs: file-pipeline
     runs-on: xcode-27
     timeout-minutes: 120

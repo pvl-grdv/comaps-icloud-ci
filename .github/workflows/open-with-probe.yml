@@ -1,0 +1,34 @@
+name: Files Open With controlled probe
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        in_place: ['no', 'yes']
+    runs-on: xcode-27
+    timeout-minutes: 30
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
+      LANG: en_US.UTF-8
+      LC_ALL: en_US.UTF-8
+    steps:
+      - uses: actions/checkout@v6
+      - name: Inspect the existing Xcode toolchain
+        run: xcodebuild -version
+      - name: Exercise the real Files Open With menu
+        run: bash ci/open-with-probe/run.sh "${{ matrix.in_place }}"
+      - name: Retain synthetic probe evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: open-with-probe-${{ matrix.in_place }}
+          path: results/open-with-probe/
+          if-no-files-found: error
+          retention-days: 7
