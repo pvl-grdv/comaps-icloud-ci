@@ -1,0 +1,20 @@
+{
+  "result": "negative_control_reproduced",
+  "xcodebuild_exit": 65,
+  "XCTest": {
+    "totalTestCount": 2,
+    "passedTests": 1,
+    "failedTests": 1,
+    "skippedTests": 0,
+    "expectedFailures": 0
+  },
+  "failure": {
+    "failureText": "XCTAssertEqual failed: (\"[\"Replacement after handoff\"]\") is not equal to (\"[\"Original before handoff\"]\") - OPEN_WITH_IMPORT_SNAPSHOT: import must retain the GPX contents read before the file URL handler returns",
+    "targetName": "CoMapsTests",
+    "testIdentifier": 2,
+    "testIdentifierString": "OpenWithImportTests/testQueuedImportCapturesOriginalBeforeFileHandlerReturns()",
+    "testIdentifierURL": "test://com.apple.xcode/Maps/CoMapsTests/OpenWithImportTests/testQueuedImportCapturesOriginalBeforeFileHandlerReturns",
+    "testName": "testQueuedImportCapturesOriginalBeforeFileHandlerReturns()"
+  },
+  "scope": "Real CoMaps asynchronous import, synthetic app-local source; not a provider or device access test."
+}

@@ -1,0 +1,45 @@
+{
+  "upstream": "871febfffe0ef2a970d4f6973442dd80c632da01",
+  "files": {
+    "iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm": {
+      "sha256": "1a282bc7e4f3c2537ff41c1379d7abccc6c737b468b1997f7649f445b77a44d5",
+      "baseSha256": "4ddbd698fdeefc2b15fce04dff5737f4c3c4b652fc8e1a7d3aa1bee7d09175c8"
+    },
+    "iphone/CoreApi/CoreApi/DeepLink/DeepLinkParser.h": {
+      "sha256": "443af3bfe33d4ec55986f7a510a9e536de7f705c893a51c56a1fd4c1adb275fc",
+      "baseSha256": "3e18e382692a9e419ea44f19c87c189f90e7c4b4f491fd54477c3cf95d6f72c0"
+    },
+    "iphone/CoreApi/CoreApi/DeepLink/DeepLinkParser.mm": {
+      "sha256": "8635e279f2faa3255e1b5227560945dce665d0c06521b6878cef120d3f52cc4f",
+      "baseSha256": "0cfad16fb2dab6b551c219a366c7f31a968ece749a5b85b4e34c8e6ad11b535d"
+    },
+    "iphone/Maps/Core/DeepLink/DeepLinkHandler.swift": {
+      "sha256": "399d153f7f80173c9d5c416d0edf6b1835dda415359620db2464567ae9121df4",
+      "baseSha256": "a0b70852973b05e2ef0b6808d4f44d9d3b9cf09fd2540210a458dc21b560f56a"
+    },
+    "iphone/Maps/Maps.xcodeproj/project.pbxproj": {
+      "sha256": "59a376213a6b33f1e77f4bbab9c896607c470642131f6eea1e9d489016e602e0",
+      "baseSha256": "cd598c6eba609405ea8218d66882f230845a2958b6aa0a158c1ffe59e3b7a6bb"
+    },
+    "iphone/Maps/Tests/Bridging-Header.h": {
+      "sha256": "54e169c78ad8705e1468409c6a5d51f3ed40b8c0d2c627383d18585b2a61fa3b",
+      "baseSha256": null
+    },
+    "iphone/Maps/Tests/Core/DeepLink/OpenWithImportTestSupport.h": {
+      "sha256": "a44106a2f041dd8ad0ebd7b5ade9c06cc44164ef29c9ad19753964b5a83c4167",
+      "baseSha256": null
+    },
+    "iphone/Maps/Tests/Core/DeepLink/OpenWithImportTestSupport.mm": {
+      "sha256": "08165b0e45c593cfe5d7c8396d98581ed80d351eda2572db225038de24e53af6",
+      "baseSha256": null
+    },
+    "iphone/Maps/Tests/Core/DeepLink/OpenWithImportTests.swift": {
+      "sha256": "0df83cba22286b07d855ed6d7f47f6711031b85e50b7bf9e222d493d92ef69c6",
+      "baseSha256": null
+    }
+  },
+  "unchangedTestFiles": {
+    "iphone/Maps/Tests/Core/DeepLink/DeepLinkHandlerTests.swift": "5d1bffb774795269db9e1b0b1eaff4e03165ea1b92627a4efebf06b790df0396"
+  },
+  "patchSha256": "88d7d6fe2ebe8d785793ee13af9104dafac51fa9cbec54f43302bd2e836b9bf0"
+}

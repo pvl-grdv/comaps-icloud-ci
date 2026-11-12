@@ -1,0 +1,260 @@
+{
+  "date": "2026-11-12",
+  "status": "Probe monitoring stopped; no additional rerun requested. Delivery remains unresolved.",
+  "provenance": {
+    "repository": "pvl-grdv/comaps-icloud-ci",
+    "upstream_revision": "871febfffe0ef2a970d4f6973442dd80c632da01",
+    "upstream_plist": "iphone/Maps/CoMaps.plist",
+    "upstream_plist_sha256": "5781977ce31d3060208e0481be3bbe60ceca42de1326bafced5ae1f75275465a",
+    "fixture_sha256": "260f23ba98b295463f447690f7b83b81b8d7e58f9c697b30001a00d460385092",
+    "receiver_bundle_id": "org.comaps.diagnostic.gpxprobe",
+    "verified_built_plist_difference_run 43193416416": {
+      "LSSupportsOpeningDocumentsInPlace": [
+        false,
+        true
+      ]
+    },
+    "toolchain": "Xcode 27.0 (27A266a), iOS 27.0 (24A434), iPhone 18 Pro Max simulator, public xcode-27 runner",
+    "declarations": "Exact extracted GPX document and imported UTI records; role absent, rank Default; positive control always YES."
+  },
+  "claim_supported": "With identical receiver GPX declarations, the tested iOS 27.0 Files Open With menu omitted the receiver with the flag NO and included it with YES.",
+  "claim_not_supported": "Successful URL delivery/read, unchanged source after delivery, actual CoMaps end-to-end import, iOS 27.3 beta physical-device behavior, or a fully passing two-arm experiment.",
+  "runs": [
+    {
+      "run": 43188726003,
+      "url": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43188726003",
+      "head": "93e1475bbc36830132e71d3dd4c6b3dabe5adbc2",
+      "workflow_conclusion": "failure",
+      "job_conclusions": {
+        "no": "failure",
+        "yes": "failure"
+      },
+      "observation": "Both fail compilation: missing SHA256 data: argument label. No XCTest or Files observation.",
+      "retained_directory": "open-with-probe-review-43188726003",
+      "artifacts": [
+        {
+          "variant": "no",
+          "id": 13928744627,
+          "name": "open-with-probe-no",
+          "github_reported_archive_sha256": "ffbb160816db33ccdc23eb1ea95179ac6397f0b1d0fcc2fff58022c328bf68e6",
+          "size_bytes": 25121,
+          "expires_at": "2026-11-19T09:09:04Z"
+        },
+        {
+          "variant": "yes",
+          "id": 13929198391,
+          "name": "open-with-probe-yes",
+          "github_reported_archive_sha256": "20732415d0f636380aef0e63abede87aced42cb844489b6ad960c2c455874798",
+          "size_bytes": 26125,
+          "expires_at": "2026-11-19T09:08:51Z"
+        }
+      ],
+      "tested_harness_source_sha256": {
+        "App.swift": "313423de10d362d9dbdb2fef6a71e2835299922b13b33ba2e1c2b3eeae92161d",
+        "OpenWithUITests.swift": "018a0b6b8aa43086d9d17f7403758731e29906a4eaadef4d8e5d3527818ae471",
+        "generate.py": "8b0a80510aced830a70c076af75cd0ff64403fdee5958a750f556a88c15720d1",
+        "run.py": "81fd952d14c566cff3bbf5f363fa5c9f9fc90d7445648f5472b002ed16f454ca",
+        "run.sh": "1b82208d66be0a7a5cf45d158adb71a4d522e92bfe7a19dfd6b944570c5c92d1",
+        "Fixture.gpx": "260f23ba98b295463f447690f7b83b81b8d7e58f9c697b30001a00d460385092",
+        "reference/CoMaps.plist": "5781977ce31d3060208e0481be3bbe60ceca42de1326bafced5ae1f75275465a"
+      }
+    },
+    {
+      "run": 43189372960,
+      "url": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43189372960",
+      "head": "0b5570ede909ec95ae63992715f21e962e71f3c8",
+      "workflow_conclusion": "failure",
+      "job_conclusions": {
+        "no": "failure",
+        "yes": "failure"
+      },
+      "observation": "Both build/boot; first GPXProbe installation times out at 30 s. No XCTest or Files observation.",
+      "retained_directory": "open-with-probe-review-43189372960",
+      "artifacts": [
+        {
+          "variant": "no",
+          "id": 13930228307,
+          "name": "open-with-probe-no",
+          "github_reported_archive_sha256": "99c74a8df046561399605879c8791b9ea80af726cc68df4d8ae76cedb0703ee9",
+          "size_bytes": 31485,
+          "expires_at": "2026-11-19T09:19:57Z"
+        },
+        {
+          "variant": "yes",
+          "id": 13930475738,
+          "name": "open-with-probe-yes",
+          "github_reported_archive_sha256": "e48981ce9bf4d015329d2b6a43ce21f94e2bdffe5a27d4e17720bd47a36773d1",
+          "size_bytes": 30536,
+          "expires_at": "2026-11-19T09:16:24Z"
+        }
+      ],
+      "tested_harness_source_sha256": {
+        "App.swift": "313423de10d362d9dbdb2fef6a71e2835299922b13b33ba2e1c2b3eeae92161d",
+        "OpenWithUITests.swift": "7b6572a5b66c0960ef69e20c5f0f34d4e86d153ffe222bf36c27a43c09aef819",
+        "generate.py": "8b0a80510aced830a70c076af75cd0ff64403fdee5958a750f556a88c15720d1",
+        "run.py": "81fd952d14c566cff3bbf5f363fa5c9f9fc90d7445648f5472b002ed16f454ca",
+        "run.sh": "1b82208d66be0a7a5cf45d158adb71a4d522e92bfe7a19dfd6b944570c5c92d1",
+        "Fixture.gpx": "260f23ba98b295463f447690f7b83b81b8d7e58f9c697b30001a00d460385092",
+        "reference/CoMaps.plist": "5781977ce31d3060208e0481be3bbe60ceca42de1326bafced5ae1f75275465a"
+      }
+    },
+    {
+      "run": 43190746576,
+      "url": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43190746576",
+      "head": "9a9cf6f785abc1582cdfdc5c76420d1cdbdbd536",
+      "workflow_conclusion": "failure",
+      "job_conclusions": {
+        "no": "failure",
+        "yes": "failure"
+      },
+      "observation": "NO reaches full menu and ordinary missing-receiver assertion, then xcodebuild is interrupted at 360 s. YES first installation times out at 120 s. Incomplete control.",
+      "retained_directory": "open-with-probe-review-43190746576",
+      "artifacts": [
+        {
+          "variant": "no",
+          "id": 13931178300,
+          "name": "open-with-probe-no",
+          "github_reported_archive_sha256": "c8033d6290ac31963654beca874b273571e3acb186548b110fdf9b45c2f2199e",
+          "size_bytes": 9357206,
+          "expires_at": "2026-11-19T09:33:59Z"
+        },
+        {
+          "variant": "yes",
+          "id": 13930807138,
+          "name": "open-with-probe-yes",
+          "github_reported_archive_sha256": "bed5f8c3f870fd806b3780bbebc901a300fc2be887383d9d7fb9d45d55b040b9",
+          "size_bytes": 31541,
+          "expires_at": "2026-11-19T09:27:11Z"
+        }
+      ],
+      "tested_harness_source_sha256": {
+        "App.swift": "313423de10d362d9dbdb2fef6a71e2835299922b13b33ba2e1c2b3eeae92161d",
+        "OpenWithUITests.swift": "7b6572a5b66c0960ef69e20c5f0f34d4e86d153ffe222bf36c27a43c09aef819",
+        "generate.py": "8b0a80510aced830a70c076af75cd0ff64403fdee5958a750f556a88c15720d1",
+        "run.py": "89839327a17c7f6088f5613b19b127f12ea31cca22fd4bc59bbc7f34d7e391dd",
+        "run.sh": "1b82208d66be0a7a5cf45d158adb71a4d522e92bfe7a19dfd6b944570c5c92d1",
+        "Fixture.gpx": "260f23ba98b295463f447690f7b83b81b8d7e58f9c697b30001a00d460385092",
+        "reference/CoMaps.plist": "5781977ce31d3060208e0481be3bbe60ceca42de1326bafced5ae1f75275465a"
+      }
+    },
+    {
+      "run": 43193416416,
+      "url": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43193416416",
+      "head": "6e5323bf38fd9a65b129abe4c5928d39c84d4942",
+      "workflow_conclusion": "failure",
+      "job_conclusions": {
+        "no": "success",
+        "yes": "failure"
+      },
+      "observation": "NO is a completed, verified negative control. YES full menu contains Probe and foreground launch succeeds, but receipt remains WAITING; HARNESS_RECEIPT_NOT_READY.",
+      "retained_directory": "open-with-probe-review-43193416416",
+      "artifacts": [
+        {
+          "variant": "no",
+          "id": 13931689535,
+          "name": "open-with-probe-no",
+          "github_reported_archive_sha256": "89c21055bfa0385411753ec6709bce51dcaaea9566ec875d9d2c8d1cbe35a03f",
+          "size_bytes": 20528786,
+          "expires_at": "2026-11-19T09:50:52Z"
+        },
+        {
+          "variant": "yes",
+          "id": 13932546399,
+          "name": "open-with-probe-yes",
+          "github_reported_archive_sha256": "2903a61d427358ffe116e4925161e895905730ea146d4080901e4de9c4b6c009",
+          "size_bytes": 21689977,
+          "expires_at": "2026-11-19T09:49:58Z"
+        }
+      ],
+      "tested_harness_source_sha256": {
+        "App.swift": "b6d49ae3320e24b9345aeb039f11688a7b705c53bdd924937aebc91b5ecdd93c",
+        "OpenWithUITests.swift": "cea6f02b405cb6683b27e9fbd0ce97599aa924608decb46fcfc046b410164342",
+        "generate.py": "8b0a80510aced830a70c076af75cd0ff64403fdee5958a750f556a88c15720d1",
+        "run.py": "e0e2d7360a7db9caa8973b32aac45e38ba0d9c9b8f5ca8e52d96e50f3885215c",
+        "run.sh": "1b82208d66be0a7a5cf45d158adb71a4d522e92bfe7a19dfd6b944570c5c92d1",
+        "Fixture.gpx": "260f23ba98b295463f447690f7b83b81b8d7e58f9c697b30001a00d460385092",
+        "reference/CoMaps.plist": "5781977ce31d3060208e0481be3bbe60ceca42de1326bafced5ae1f75275465a"
+      }
+    },
+    {
+      "run": 43196102950,
+      "url": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43196102950",
+      "head": "4fd6371dda3e94a7d9c62b7f27497ad85cdfbf2c",
+      "workflow_conclusion": "failure",
+      "job_conclusions": {
+        "no": "failure",
+        "yes": "failure"
+      },
+      "observation": "Both first non-handler GPXFixtures installs time out at 120 s; independent host/process diagnostics stall too. No XCTest, menu or callback trace.",
+      "retained_directory": "open-with-probe-review-43196102950",
+      "artifacts": [
+        {
+          "variant": "no",
+          "id": 13933731529,
+          "name": "open-with-probe-no",
+          "github_reported_archive_sha256": "6bc8afe465177551b88d15b50055ced5ca1ab247fdedb12cc76300a8761869e5",
+          "size_bytes": 34423,
+          "expires_at": "2026-11-19T10:05:33Z"
+        },
+        {
+          "variant": "yes",
+          "id": 13934170542,
+          "name": "open-with-probe-yes",
+          "github_reported_archive_sha256": "678851b76f706874b6833e09ab52f1e7f2a71fb0cce5ab06a555d04b4ab82150",
+          "size_bytes": 34417,
+          "expires_at": "2026-11-19T10:05:35Z"
+        }
+      ],
+      "tested_harness_source_sha256": {
+        "App.swift": "9f21c91b2979b6205ffba8ff17183847971588d24a463985896f2a6ffb109f27",
+        "OpenWithUITests.swift": "5f758c4a1e729ec41f974bb73789acb9d04a74f3b0caa533ca87e2f58f7588f2",
+        "generate.py": "8b0a80510aced830a70c076af75cd0ff64403fdee5958a750f556a88c15720d1",
+        "run.py": "30aeb6ba7b3e66e119bd90580af14e37946bedea619c97a005453a7bdcc1a874",
+        "run.sh": "1b82208d66be0a7a5cf45d158adb71a4d522e92bfe7a19dfd6b944570c5c92d1",
+        "Fixture.gpx": "260f23ba98b295463f447690f7b83b81b8d7e58f9c697b30001a00d460385092",
+        "reference/CoMaps.plist": "5781977ce31d3060208e0481be3bbe60ceca42de1326bafced5ae1f75275465a"
+      }
+    }
+  ],
+  "visually_reviewed_images": [
+    {
+      "variant": "no",
+      "image": "menu",
+      "relative_path": "open-with-probe-review-43193416416/no/attachments/33CA4005-B147-4CB0-A909-B49DFF822F4A.png",
+      "sha256": "c0ccdcdb180643933e90a87ca652aec237c6e501f7669df898fffedbe5bb134d"
+    },
+    {
+      "variant": "yes",
+      "image": "menu",
+      "relative_path": "open-with-probe-review-43193416416/yes/attachments/3BE9255B-B566-4447-AEC1-F86061F6BFBD.png",
+      "sha256": "600690717fc91f12ca545c7635e195a0d5df970e963eff1b5fb5074f9e4e6a97"
+    },
+    {
+      "variant": "yes",
+      "image": "final receiver",
+      "relative_path": "open-with-probe-review-43193416416/yes/attachments/F99A04A3-32E9-4433-8FF6-D8CF1EEBE5F1.png",
+      "sha256": "5fcd08806871c3fe7e0008ed57aa5c63db7ad9a190872da72dcb168e61fcca4c"
+    }
+  ],
+  "limits": [
+    "All five workflows concluded failure; NO job success in 43193416416 means a validated expected ordinary assertion failure, not a passing XCTest.",
+    "Keyboard introduction remains visible in both43193416416 menu images; all listed receiver entries and Quick Look are fully visible.",
+    "Latest host stalls are retained as an unresolved external diagnostic limitation; exact service/root cause is unproven.",
+    "GitHub archive SHA values are API-reported. Extracted PNG SHA values were recomputed locally. No local Xcode/dependencies were used.",
+    "Separate actual CoMaps unit/full-app validation is not included in this probe matrix; preserve its independent status."
+  ],
+  "primary_references": [
+    {
+      "url": "https://developer.apple.com/documentation/bundleresources/information-property-list/uiapplicationscenemanifest/uisceneconfigurations",
+      "supports": "Dynamic scene configuration is allowed when app delegate implements configurationForConnecting."
+    },
+    {
+      "url": "https://developer.apple.com/documentation/uikit/synchronizing-documents-in-the-icloud-environment",
+      "supports": "Document open-in-place uses scene openURLContexts and scoped access."
+    },
+    {
+      "url": "https://developer.apple.com/forums/thread/698054",
+      "supports": "collect-test-diagnostics never disables verbose failure diagnostics; exact XCTest outcomes remain separately required."
+    }
+  ]
+}

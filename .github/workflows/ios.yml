@@ -8,6 +8,11 @@ on:
         description: Verify CoMaps external file import ownership
         type: boolean
         default: false
+      open_with_import_mode:
+        description: External file import revision to verify
+        type: choice
+        default: candidate
+        options: [baseline, candidate]
       open_with_probe:
         description: Diagnose Files Open With eligibility using isolated synthetic applications
         type: boolean
@@ -46,7 +51,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: comaps-icloud-${{ github.ref }}${{ inputs.lab_mac && '-mac' || '' }}${{ inputs.saved_items_proposals && format('-proposals-{0}', inputs.saved_items_feature || 'all') || '' }}${{ inputs.open_with_probe && '-open-with-probe' || '' }}${{ inputs.open_with_import && '-open-with-import' || '' }}
+  group: comaps-icloud-${{ github.ref }}${{ inputs.lab_mac && '-mac' || '' }}${{ inputs.saved_items_proposals && format('-proposals-{0}', inputs.saved_items_feature || 'all') || '' }}${{ inputs.open_with_probe && '-open-with-probe' || '' }}${{ inputs.open_with_import && format('-open-with-import-{0}', inputs.open_with_import_mode || 'candidate') || '' }}
   cancel-in-progress: true
 
 env:
@@ -58,6 +63,8 @@ jobs:
   open-with-import:
     if: github.event_name == 'workflow_dispatch' && inputs.open_with_import
     uses: ./.github/workflows/open-with-import.yml
+    with:
+      variant: ${{ inputs.open_with_import_mode || 'candidate' }}
 
   open-with-probe:
     if: github.event_name == 'workflow_dispatch' && inputs.open_with_probe && !inputs.open_with_import

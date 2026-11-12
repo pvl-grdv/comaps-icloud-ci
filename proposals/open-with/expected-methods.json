@@ -1,0 +1,15 @@
+[
+  "OpenWithImportTests/testNormalImportPreservesOriginalHashAndModificationDate",
+  "OpenWithImportTests/testQueuedImportCapturesOriginalBeforeFileHandlerReturns",
+  "OpenWithImportTests/testQueuedImportSurvivesOriginalDeletion",
+  "OpenWithImportTests/testOwnedCopyPreservesFileMetadataAndIsRemovedAfterSuccess",
+  "OpenWithImportTests/testMalformedImportRemovesOwnedCopyAndPreservesOriginal",
+  "OpenWithImportTests/testTwoQueuedFilesWithSameBasenameKeepSeparateContents",
+  "OpenWithImportTests/testCleanupRejectsForeignPathEvenInsideStagingRoot",
+  "OpenWithImportTests/testKMLAndKMZImportsKeepCompatibilityAndCleanOwnedCopies",
+  "OpenWithImportTests/testInAppCopiedFileImporterRetainsItsInput",
+  "OpenWithImportTests/testRejectsMissingFilesDirectoriesAndSymbolicLinks",
+  "DeepLinkHandlerTests/testColdStartCustomSchemeLinkBecomesPending",
+  "DeepLinkHandlerTests/testColdStartUniversalLinksAreConvertedAndBecomePending",
+  "DeepLinkHandlerTests/testResetClearsPendingDeepLinkState"
+]

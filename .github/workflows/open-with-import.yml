@@ -2,6 +2,10 @@ name: CoMaps external file import regression
 
 on:
   workflow_call:
+    inputs:
+      variant:
+        type: string
+        default: candidate
 
 permissions:
   contents: read
@@ -9,7 +13,7 @@ permissions:
 jobs:
   import:
     runs-on: xcode-27
-    timeout-minutes: 120
+    timeout-minutes: 180
     env:
       DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
       LANG: en_US.UTF-8
@@ -31,21 +35,48 @@ jobs:
           printf '%s\n' "$(brew --prefix gnu-getopt)/bin" >> "$GITHUB_PATH"
           printf '%s\n' "$(brew --prefix coreutils)/libexec/gnubin" >> "$GITHUB_PATH"
           printf '%s\n' "$(brew --prefix icu4c)/bin" >> "$GITHUB_PATH"
-      - name: Apply test-only patch to pinned CoMaps
-        run: bash ci/open-with-import/prepare.sh
-      - name: Reproduce the ordinary import snapshot failure
-        run: bash ci/open-with-import/test.sh
+      - name: Apply the selected standalone patch to pinned CoMaps
+        run: bash ci/open-with-import/prepare.sh "${{ inputs.variant }}"
+      - name: Execute exact import and existing deep-link regressions
+        id: import_tests
+        run: bash ci/open-with-import/test.sh "${{ inputs.variant }}"
+      - name: Verify the actual simulator app declarations
+        id: verify_app
+        if: inputs.variant == 'candidate'
+        run: python3 ci/open-with-import/check-app.py "$RUNNER_TEMP/comaps-derived-data/Build/Products/Debug-iphonesimulator/CoMaps (Debug).app" simulator
+      - name: Import through Files into actual CoMaps when cold and warm
+        if: inputs.variant == 'candidate'
+        run: bash ci/open-with-comaps/run.sh "$RUNNER_TEMP/comaps-derived-data/Build/Products/Debug-iphonesimulator/CoMaps (Debug).app"
+      - name: Build an unsigned Release archive
+        if: always() && inputs.variant == 'candidate' && steps.import_tests.outcome == 'success' && steps.verify_app.outcome == 'success'
+        working-directory: comaps
+        run: |
+          xcodebuild archive \
+            -workspace xcode/CoMaps.xcworkspace -scheme CoMaps -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath "$RUNNER_TEMP/comaps-derived-data" \
+            -archivePath "$RUNNER_TEMP/CoMaps-Open-With-Release.xcarchive" \
+            CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO \
+            > "$GITHUB_WORKSPACE/results/open-with-release-archive.log" 2>&1
+          python3 "$GITHUB_WORKSPACE/ci/open-with-import/check-app.py" \
+            "$RUNNER_TEMP/CoMaps-Open-With-Release.xcarchive/Products/Applications/CoMaps.app" release
       - name: Retain exact import regression evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: open-with-import-baseline
+          name: open-with-import-${{ inputs.variant }}
           path: |
             results/feature-*.log
             results/feature-*.json
             results/ios-*.json
             results/xcodebuild-tests.log
             results/open-with-import-*.json
+            results/open-with-*.json
+            results/open-with-*.log
             ci/open-with-import/
+            ci/open-with-comaps/
+            results/open-with-comaps/
+            proposals/open-with/
           if-no-files-found: error
           retention-days: 7

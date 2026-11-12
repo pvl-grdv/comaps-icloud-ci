@@ -1,0 +1,783 @@
+diff --git a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+--- a/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
++++ b/iphone/CoreApi/CoreApi/Bookmarks/MWMBookmarksManager.mm
+@@ -1,4 +1,5 @@
+ #import "MWMBookmarksManager.h"
++#import "DeepLinkParser.h"
+ 
+ #import "MWMBookmark+Core.h"
+ #import "MWMBookmarksSection.h"
+@@ -173,6 +174,8 @@
+     __weak auto wSelf = self;
+     bookmarkCallbacks.m_onFileSuccess = [wSelf](std::string const & filePath,
+                                                 bool isTemporaryFile) {
++      if (isTemporaryFile)
++        [DeepLinkParser removeTemporaryBookmarksFileAtPath:@(filePath.c_str())];
+       __strong __typeof(self) self = wSelf;
+       [self loopObservers:^(id<MWMBookmarksObserver> observer) {
+         if ([observer respondsToSelector:@selector(onBookmarksFileLoadSuccess)])
+@@ -183,6 +186,8 @@
+   {
+     __weak auto wSelf = self;
+     bookmarkCallbacks.m_onFileError = [wSelf](std::string const & filePath, bool isTemporaryFile) {
++      if (isTemporaryFile)
++        [DeepLinkParser removeTemporaryBookmarksFileAtPath:@(filePath.c_str())];
+       __strong __typeof(self) self = wSelf;
+       [self loopObservers:^(id<MWMBookmarksObserver> observer) {
+         if ([observer respondsToSelector:@selector(onBookmarksFileLoadError)])
+diff --git a/iphone/CoreApi/CoreApi/DeepLink/DeepLinkParser.h b/iphone/CoreApi/CoreApi/DeepLink/DeepLinkParser.h
+--- a/iphone/CoreApi/CoreApi/DeepLink/DeepLinkParser.h
++++ b/iphone/CoreApi/CoreApi/DeepLink/DeepLinkParser.h
+@@ -17,7 +17,10 @@
+ 
+ + (DeeplinkUrlType)parseAndSetApiURL:(NSURL *)url;
+ + (void)executeMapApiRequest;
+-+ (void)addBookmarksFile:(NSURL*)url;
+++ (BOOL)addBookmarksFile:(NSURL *)url error:(NSError * _Nullable * _Nullable)error;
++// Removes only a copy created by addBookmarksFile; unknown paths are ignored.
+++ (void)removeTemporaryBookmarksFileAtPath:(NSString *)filePath
++    NS_SWIFT_NAME(removeTemporaryBookmarksFile(atPath:));
+ @end
+ 
+ NS_ASSUME_NONNULL_END
+diff --git a/iphone/CoreApi/CoreApi/DeepLink/DeepLinkParser.mm b/iphone/CoreApi/CoreApi/DeepLink/DeepLinkParser.mm
+--- a/iphone/CoreApi/CoreApi/DeepLink/DeepLinkParser.mm
++++ b/iphone/CoreApi/CoreApi/DeepLink/DeepLinkParser.mm
+@@ -3,6 +3,13 @@
+ #import "DeepLinkSearchData.h"
+ 
+ #import "map/mwm_url.hpp"
++
++static NSMutableDictionary<NSString *, NSURL *> *temporaryBookmarkDirectories()
++{
++  NSCAssert(NSThread.isMainThread, @"Bookmark imports must run on the main thread");
++  static NSMutableDictionary<NSString *, NSURL *> *directories = [NSMutableDictionary dictionary];
++  return directories;
++}
+ 
+ static inline DeeplinkUrlType deeplinkUrlType(url_scheme::ParsedMapApi::UrlType type)
+ {
+@@ -35,9 +42,82 @@
+   GetFramework().ExecuteMapApiRequest();
+ }
+ 
+-+ (void)addBookmarksFile:(NSURL *)url {
+-  // iOS doesn't create temporary files on import at least in Safari and Files.
+-  GetFramework().AddBookmarksFile(url.path.UTF8String, false /* isTemporaryFile */);
+++ (BOOL)addBookmarksFile:(NSURL *)url error:(NSError **)error {
++  NSAssert(NSThread.isMainThread, @"Bookmark imports must run on the main thread");
++  if (!url.isFileURL) {
++    if (error)
++      *error = [NSError errorWithDomain:NSCocoaErrorDomain code:NSFileReadUnsupportedSchemeError userInfo:nil];
++    return NO;
++  }
++
++  NSFileManager *files = NSFileManager.defaultManager;
++  BOOL scoped = [url startAccessingSecurityScopedResource];
++  // The coordinator can relocate the source. This preflight must not require
++  // the original path to remain readable once coordinated access begins.
++  NSDictionary *originalAttributes = [files attributesOfItemAtPath:url.path error:nullptr];
++  BOOL sourceIsSymlink = [originalAttributes[NSFileType] isEqual:NSFileTypeSymbolicLink];
++  __block NSURL *directory = nil;
++  __block NSURL *stagedURL = nil;
++  __block NSError *copyError = nil;
++  NSError *coordinationError = nil;
++  NSFileCoordinator *coordinator = [[NSFileCoordinator alloc] initWithFilePresenter:nil];
++  [coordinator coordinateReadingItemAtURL:url options:0 error:&coordinationError byAccessor:^(NSURL *fileURL) {
++    NSDictionary *attributes = [files attributesOfItemAtPath:fileURL.path error:&copyError];
++    if (!attributes)
++      return;
++    if (sourceIsSymlink || ![attributes[NSFileType] isEqual:NSFileTypeRegular] ||
++        !attributes[NSFileModificationDate]) {
++      copyError = [NSError errorWithDomain:NSCocoaErrorDomain code:NSFileReadUnknownError
++                                 userInfo:@{NSLocalizedDescriptionKey: @"Only regular files can be imported."}];
++      return;
++    }
++
++    directory = [[[NSURL fileURLWithPath:NSTemporaryDirectory() isDirectory:YES]
++                  URLByAppendingPathComponent:@"CoMapsImports" isDirectory:YES]
++                 URLByAppendingPathComponent:NSUUID.UUID.UUIDString isDirectory:YES];
++    NSURL *destination = [directory URLByAppendingPathComponent:url.lastPathComponent];
++    if (![files createDirectoryAtURL:directory withIntermediateDirectories:YES attributes:nil error:&copyError] ||
++        ![files copyItemAtURL:fileURL toURL:destination error:&copyError])
++      return;
++    NSDictionary *copiedAttributes = [files attributesOfItemAtPath:destination.path error:&copyError];
++    if (!copiedAttributes)
++      return;
++    if (![copiedAttributes[NSFileType] isEqual:NSFileTypeRegular]) {
++      copyError = [NSError errorWithDomain:NSCocoaErrorDomain code:NSFileReadUnknownError
++                                 userInfo:@{NSLocalizedDescriptionKey: @"The import copy must be a regular file."}];
++      return;
++    }
++    if (![files setAttributes:@{NSFileModificationDate: attributes[NSFileModificationDate]}
++                 ofItemAtPath:destination.path error:&copyError])
++      return;
++    stagedURL = destination;
++  }];
++  if (scoped)
++    [url stopAccessingSecurityScopedResource];
++
++  if (!stagedURL || coordinationError) {
++    if (directory)
++      [files removeItemAtURL:directory error:nullptr];
++    if (error)
++      *error = coordinationError ?: copyError ?:
++          [NSError errorWithDomain:NSCocoaErrorDomain code:NSFileReadUnknownError userInfo:nil];
++    return NO;
++  }
++
++  temporaryBookmarkDirectories()[stagedURL.path] = directory;
++  GetFramework().AddBookmarksFile(stagedURL.path.UTF8String, true /* isTemporaryFile */);
++  return YES;
++}
++
+++ (void)removeTemporaryBookmarksFileAtPath:(NSString *)filePath {
++  NSMutableDictionary<NSString *, NSURL *> *directories = temporaryBookmarkDirectories();
++  NSURL *directory = directories[filePath];
++  if (!directory)
++    return;
++  [directories removeObjectForKey:filePath];
++  NSError *error = nil;
++  if (![NSFileManager.defaultManager removeItemAtURL:directory error:&error])
++    NSLog(@"Failed to remove temporary bookmark import: %@", error);
+ }
+ 
+ @end
+diff --git a/iphone/Maps/Core/DeepLink/DeepLinkHandler.swift b/iphone/Maps/Core/DeepLink/DeepLinkHandler.swift
+--- a/iphone/Maps/Core/DeepLink/DeepLinkHandler.swift
++++ b/iphone/Maps/Core/DeepLink/DeepLinkHandler.swift
+@@ -82,13 +82,13 @@
+ 
+   private func handleFileImport(url: URL) -> Bool {
+     LOG(.info, "handleFileImport: \(url)")
+-    let fileCoordinator = NSFileCoordinator()
+-    var error: NSError?
+-    fileCoordinator.coordinate(readingItemAt: url, options: [], error: &error) { fileURL in
+-      DeepLinkParser.addBookmarksFile(fileURL)
+-    }
+-    if let error {
++    do {
++      try DeepLinkParser.addBookmarksFile(url)
++    } catch {
+       LOG(.error, "Failed to read file: \(error)")
++      MWMAlertViewController.activeAlert().presentInfoAlert(L("load_kmz_title"), text: L("load_kmz_failed"))
++      reset()
++      return false
+     }
+     reset()
+     return true
+diff --git a/iphone/Maps/Maps.xcodeproj/project.pbxproj b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+--- a/iphone/Maps/Maps.xcodeproj/project.pbxproj
++++ b/iphone/Maps/Maps.xcodeproj/project.pbxproj
+@@ -7,6 +7,8 @@
+ 	objects = {
+ 
+ /* Begin PBXBuildFile section */
++		A0E011120000000000000101 /* OpenWithImportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A0E011120000000000000201 /* OpenWithImportTests.swift */; };
++		A0E011120000000000000102 /* OpenWithImportTestSupport.mm in Sources */ = {isa = PBXBuildFile; fileRef = A0E011120000000000000202 /* OpenWithImportTestSupport.mm */; };
+ 		039371B62C5B68CD00708377 /* UIFont+monospaced.swift in Sources */ = {isa = PBXBuildFile; fileRef = 039371B52C5B68CD00708377 /* UIFont+monospaced.swift */; };
+ 		165953742CB1D85500CFED7C /* fonts in Resources */ = {isa = PBXBuildFile; fileRef = 165953732CB1D83700CFED7C /* fonts */; };
+ 		165953942CB44B5600CFED7C /* symbols in Resources */ = {isa = PBXBuildFile; fileRef = 165953932CB44B3B00CFED7C /* symbols */; };
+@@ -775,6 +777,10 @@
+ /* End PBXCopyFilesBuildPhase section */
+ 
+ /* Begin PBXFileReference section */
++		A0E011120000000000000201 /* OpenWithImportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenWithImportTests.swift; sourceTree = "<group>"; };
++		A0E011120000000000000202 /* OpenWithImportTestSupport.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; path = OpenWithImportTestSupport.mm; sourceTree = "<group>"; };
++		A0E011120000000000000203 /* OpenWithImportTestSupport.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OpenWithImportTestSupport.h; sourceTree = "<group>"; };
++		A0E011120000000000000204 /* Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Bridging-Header.h"; sourceTree = "<group>"; };
+ 		039371B52C5B68CD00708377 /* UIFont+monospaced.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UIFont+monospaced.swift"; sourceTree = "<group>"; };
+ 		165953732CB1D83700CFED7C /* fonts */ = {isa = PBXFileReference; lastKnownFileType = folder; name = fonts; path = ../../data/fonts; sourceTree = "<group>"; };
+ 		165953932CB44B3B00CFED7C /* symbols */ = {isa = PBXFileReference; lastKnownFileType = folder; name = symbols; path = ../../data/symbols; sourceTree = "<group>"; };
+@@ -3191,6 +3197,9 @@
+ 			isa = PBXGroup;
+ 			children = (
+ 				A15DEE02A15DEE02A15DEE02 /* DeepLinkHandlerTests.swift */,
++				A0E011120000000000000201 /* OpenWithImportTests.swift */,
++				A0E011120000000000000202 /* OpenWithImportTestSupport.mm */,
++				A0E011120000000000000203 /* OpenWithImportTestSupport.h */,
+ 			);
+ 			path = DeepLink;
+ 			sourceTree = "<group>";
+@@ -3297,6 +3306,7 @@
+ 		ED1ADA312BC6B19E0029209F /* Tests */ = {
+ 			isa = PBXGroup;
+ 			children = (
++				A0E011120000000000000204 /* Bridging-Header.h */,
+ 				ED810EC02D566E6F00ECDE2C /* UI */,
+ 				EDC4E3442C5D1BD3009286A2 /* Bookmarks */,
+ 				4B4153B82BF970B800EE4B02 /* Classes */,
+@@ -4936,6 +4946,8 @@
+ 			buildActionMask = 2147483647;
+ 			files = (
+ 				A15DEE01A15DEE01A15DEE01 /* DeepLinkHandlerTests.swift in Sources */,
++				A0E011120000000000000101 /* OpenWithImportTests.swift in Sources */,
++				A0E011120000000000000102 /* OpenWithImportTestSupport.mm in Sources */,
+ 				EDF838C12C00B9D6007E4E67 /* iCloudDirectoryMonitorTests.swift in Sources */,
+ 				EDF838C02C00B9D0007E4E67 /* DefaultLocalDirectoryMonitorTests.swift in Sources */,
+ 				ED1ADA332BC6B1B40029209F /* CarPlayServiceTests.swift in Sources */,
+@@ -5223,7 +5235,7 @@
+ 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
+ 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+ 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.navigation";
+-				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = NO;
++				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+ 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 CoMaps Contributors. All rights reserved.";
+ 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Determining your location is necessary for navigation and for saving your recently travelled track.";
+ 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+@@ -5259,7 +5271,7 @@
+ 				INFOPLIST_KEY_CFBundleDisplayName = "${PRODUCT_NAME}";
+ 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
+ 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.navigation";
+-				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = NO;
++				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
+ 				INFOPLIST_KEY_NSHumanReadableCopyright = "Copyright © 2025 CoMaps Contributors. All rights reserved.";
+ 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Determining your location is necessary for navigation and for saving your recently travelled track.";
+ 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
+@@ -5285,6 +5297,7 @@
+ 			baseConfigurationReference = 347526FA1DC0B00F00918CF5 /* common-debug.xcconfig */;
+ 			buildSettings = {
+ 				BUNDLE_LOADER = "$(TEST_HOST)";
++				SWIFT_OBJC_BRIDGING_HEADER = "Tests/Bridging-Header.h";
+ 				CODE_SIGN_IDENTITY = "Apple Development";
+ 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+ 				CODE_SIGN_STYLE = Automatic;
+@@ -5300,6 +5313,7 @@
+ 			baseConfigurationReference = 347526FB1DC0B00F00918CF5 /* common-release.xcconfig */;
+ 			buildSettings = {
+ 				BUNDLE_LOADER = "$(TEST_HOST)";
++				SWIFT_OBJC_BRIDGING_HEADER = "Tests/Bridging-Header.h";
+ 				CODE_SIGN_IDENTITY = "Apple Development";
+ 				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
+ 				CODE_SIGN_STYLE = Automatic;
+diff --git a/iphone/Maps/Tests/Bridging-Header.h b/iphone/Maps/Tests/Bridging-Header.h
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Tests/Bridging-Header.h
+@@ -0,0 +1,2 @@
++#import "../Bridging-Header.h"
++#import "Core/DeepLink/OpenWithImportTestSupport.h"
+diff --git a/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTestSupport.h b/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTestSupport.h
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTestSupport.h
+@@ -0,0 +1,18 @@
++#import <Foundation/Foundation.h>
++
++NS_ASSUME_NONNULL_BEGIN
++
++@interface OpenWithImportFileQueueGate : NSObject
++@property(nonatomic, readonly) BOOL didTimeOut;
++- (void)unblock;
++@end
++
++@interface OpenWithImportTestSupport : NSObject
+++ (NSURL *)bookmarksDirectoryURL NS_SWIFT_NAME(bookmarksDirectoryURL());
+++ (OpenWithImportFileQueueGate *)holdFileQueueWithReady:(void (^)(void))ready
++    NS_SWIFT_NAME(holdFileQueue(ready:));
+++ (BOOL)createKMZAtURL:(NSURL *)archiveURL fromKMLAtURL:(NSURL *)sourceURL
++    NS_SWIFT_NAME(createKMZ(at:from:));
++@end
++
++NS_ASSUME_NONNULL_END
+diff --git a/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTestSupport.mm b/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTestSupport.mm
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTestSupport.mm
+@@ -0,0 +1,86 @@
++#import "OpenWithImportTestSupport.h"
++
++#include "map/bookmark_helpers.hpp"
++#include "platform/platform.hpp"
++#include "coding/zip_creator.hpp"
++
++#include <atomic>
++#include <chrono>
++#include <condition_variable>
++#include <memory>
++#include <mutex>
++
++namespace
++{
++struct FileQueueGate
++{
++  std::mutex m_mutex;
++  std::condition_variable m_changed;
++  bool m_released = false;
++  std::atomic<bool> m_timedOut = false;
++};
++}  // namespace
++
++@implementation OpenWithImportFileQueueGate
++{
++  std::shared_ptr<FileQueueGate> _state;
++}
++
++- (instancetype)initWithReady:(void (^)(void))ready
++{
++  self = [super init];
++  if (self)
++  {
++    _state = std::make_shared<FileQueueGate>();
++    auto state = _state;
++    // Platform::File uses a single worker. No importer scheduled after this
++    // task can read its source until the test releases this gate.
++    GetPlatform().RunTask(Platform::Thread::File, [state, ready]() {
++      dispatch_async(dispatch_get_main_queue(), ready);
++      std::unique_lock<std::mutex> lock(state->m_mutex);
++      if (!state->m_changed.wait_for(lock, std::chrono::seconds(60), [state]() { return state->m_released; }))
++        state->m_timedOut = true;
++    });
++  }
++  return self;
++}
++
++- (BOOL)didTimeOut
++{
++  return _state->m_timedOut;
++}
++
++- (void)unblock
++{
++  {
++    std::lock_guard<std::mutex> lock(_state->m_mutex);
++    _state->m_released = true;
++  }
++  _state->m_changed.notify_all();
++}
++
++- (void)dealloc
++{
++  [self unblock];
++}
++
++@end
++
++@implementation OpenWithImportTestSupport
++
+++ (NSURL *)bookmarksDirectoryURL
++{
++  return [NSURL fileURLWithPath:@(GetBookmarksDirectory().c_str()) isDirectory:YES];
++}
++
+++ (OpenWithImportFileQueueGate *)holdFileQueueWithReady:(void (^)(void))ready
++{
++  return [[OpenWithImportFileQueueGate alloc] initWithReady:ready];
++}
++
+++ (BOOL)createKMZAtURL:(NSURL *)archiveURL fromKMLAtURL:(NSURL *)sourceURL
++{
++  return CreateZipFromFiles({sourceURL.path.UTF8String}, archiveURL.path.UTF8String);
++}
++
++@end
+diff --git a/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTests.swift b/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTests.swift
+new file mode 100644
+--- /dev/null
++++ b/iphone/Maps/Tests/Core/DeepLink/OpenWithImportTests.swift
+@@ -0,0 +1,405 @@
++import CryptoKit
++import XCTest
++@testable import CoMaps__Debug_
++
++final class OpenWithImportTests: XCTestCase, BookmarksObserver {
++  private var manager: BookmarksManager { BookmarksManager.shared() }
++  private var loading: XCTestExpectation?
++  private var gate: OpenWithImportFileQueueGate?
++  private var fixtureDirectory: URL?
++  private var categoryTitle = ""
++  private var categoryTitles: Set<String> = []
++  private var fileSuccesses = 0
++  private var fileErrors = 0
++
++  override func setUp() async throws {
++    try await super.setUp()
++    try await prepareFixture()
++  }
++
++  @MainActor
++  private func prepareFixture() async throws {
++    DeepLinkHandler.shared.reset()
++    try FileManager.default.createDirectory(at: OpenWithImportTestSupport.bookmarksDirectoryURL(),
++                                            withIntermediateDirectories: true)
++    manager.add(self)
++    if !manager.areBookmarksLoaded() {
++      let finished = expectation(description: "Initial bookmark loading completed")
++      loading = finished
++      manager.loadBookmarks()
++      await fulfillment(of: [finished], timeout: 30)
++      loading = nil
++    }
++    XCTAssertTrue(manager.areBookmarksLoaded(), "SETUP: bookmark manager must be ready before testing import")
++    categoryTitle = "Open With import fixture \(UUID().uuidString)"
++    categoryTitles = [categoryTitle]
++    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString,
++                                                                                  isDirectory: true)
++    fixtureDirectory = directory
++    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
++    fileSuccesses = 0
++    fileErrors = 0
++  }
++
++  override func tearDown() async throws {
++    await cleanupFixture()
++    try await super.tearDown()
++  }
++
++  @MainActor
++  private func cleanupFixture() async {
++    gate?.unblock()
++    gate = nil
++    if let loading { await fulfillment(of: [loading], timeout: 30) }
++    manager.remove(self)
++    for category in manager.sortedUserCategories() where categoryTitles.contains(category.title) {
++      manager.deleteCategory(category.categoryId)
++    }
++    if let fixtureDirectory { try? FileManager.default.removeItem(at: fixtureDirectory) }
++    fixtureDirectory = nil
++    loading = nil
++    DeepLinkHandler.shared.reset()
++  }
++
++  @MainActor
++  func testNormalImportPreservesOriginalHashAndModificationDate() async throws {
++    let source = try makeSource(trackName: "Original route")
++    let originalHash = SHA256.hash(data: try Data(contentsOf: source))
++    let originalDate = try modificationDate(of: source)
++    let finished = expectImport()
++
++    XCTAssertTrue(DeepLinkHandler.shared.applicationDidOpenUrl(source))
++    await fulfillment(of: [finished], timeout: 30)
++
++    XCTAssertEqual(fileSuccesses, 1, "CONTROL: real importer must report one successful file")
++    XCTAssertEqual(fileErrors, 0, "CONTROL: real importer must not report a file error")
++    XCTAssertEqual(try importedTrackNames(), ["Original route"])
++    XCTAssertEqual(SHA256.hash(data: try Data(contentsOf: source)), originalHash,
++                   "Import must preserve the original file bytes")
++    XCTAssertEqual(try modificationDate(of: source), originalDate,
++                   "Import must preserve the original file modification date")
++  }
++
++  @MainActor
++  func testQueuedImportCapturesOriginalBeforeFileHandlerReturns() async throws {
++    let source = try makeSource(trackName: "Original before handoff")
++    let gateEntered = expectation(description: "Real Platform::File queue is held")
++    let queueGate = OpenWithImportTestSupport.holdFileQueue { gateEntered.fulfill() }
++    gate = queueGate
++    defer { queueGate.unblock() }
++    await fulfillment(of: [gateEntered], timeout: 30)
++    XCTAssertFalse(queueGate.didTimeOut, "SETUP: file queue gate timed out")
++
++    let finished = expectImport()
++    XCTAssertTrue(DeepLinkHandler.shared.applicationDidOpenUrl(source))
++
++    // The system's coordinated access has ended when the handler returns.
++    // Replace only this test's file before the queued importer can read it.
++    try gpx(trackName: "Replacement after handoff").write(to: source, options: .atomic)
++    queueGate.unblock()
++    await fulfillment(of: [finished], timeout: 30)
++
++    XCTAssertFalse(queueGate.didTimeOut, "SETUP: file queue gate timed out")
++    XCTAssertEqual(fileSuccesses, 1, "CONTROL: real importer must complete successfully")
++    XCTAssertEqual(fileErrors, 0, "CONTROL: malformed or missing fixtures do not prove the regression")
++    XCTAssertEqual(try importedTrackNames(), ["Original before handoff"],
++                   "OPEN_WITH_IMPORT_SNAPSHOT: import must retain the GPX contents read before the file URL handler returns")
++  }
++
++  @MainActor
++  func testQueuedImportSurvivesOriginalDeletion() async throws {
++    let source = try makeSource(trackName: "Route retained after deletion")
++    let queueGate = await holdFileQueue()
++    defer { queueGate.unblock() }
++    let before = try stagingDirectories()
++    let finished = expectImport()
++    XCTAssertTrue(DeepLinkHandler.shared.applicationDidOpenUrl(source))
++    let staged = try newStagedFile(since: before, basename: source.lastPathComponent)
++    try FileManager.default.removeItem(at: source)
++    queueGate.unblock()
++
++    await finishImport(finished)
++    XCTAssertEqual(try importedTrackNames(), ["Route retained after deletion"])
++    XCTAssertFalse(FileManager.default.fileExists(atPath: staged.deletingLastPathComponent().path))
++  }
++
++  @MainActor
++  func testOwnedCopyPreservesFileMetadataAndIsRemovedAfterSuccess() async throws {
++    let source = try makeSource(trackName: "Staged route")
++    let original = try snapshot(of: source)
++    let queueGate = await holdFileQueue()
++    defer { queueGate.unblock() }
++    let before = try stagingDirectories()
++    let finished = expectImport()
++    XCTAssertTrue(DeepLinkHandler.shared.applicationDidOpenUrl(source))
++    let staged = try newStagedFile(since: before, basename: "Original route.gpx")
++    XCTAssertEqual(staged.lastPathComponent, "Original route.gpx")
++    assertUnchanged(staged, from: original)
++    queueGate.unblock()
++
++    await finishImport(finished)
++    XCTAssertEqual(try importedTrackNames(), ["Staged route"])
++    XCTAssertFalse(FileManager.default.fileExists(atPath: staged.deletingLastPathComponent().path))
++    assertUnchanged(source, from: original)
++  }
++
++  @MainActor
++  func testMalformedImportRemovesOwnedCopyAndPreservesOriginal() async throws {
++    let source = try makeSource(trackName: "Unused route")
++    try Data("<gpx>malformed".utf8).write(to: source)
++    let original = try snapshot(of: source)
++    let queueGate = await holdFileQueue()
++    defer { queueGate.unblock() }
++    let before = try stagingDirectories()
++    let finished = expectImport()
++    XCTAssertTrue(DeepLinkHandler.shared.applicationDidOpenUrl(source))
++    let staged = try newStagedFile(since: before, basename: source.lastPathComponent)
++    queueGate.unblock()
++
++    await finishImport(finished, successes: 0, errors: 1)
++    XCTAssertFalse(manager.sortedUserCategories().contains { $0.title == categoryTitle })
++    XCTAssertFalse(FileManager.default.fileExists(atPath: staged.deletingLastPathComponent().path))
++    assertUnchanged(source, from: original)
++  }
++
++  @MainActor
++  func testTwoQueuedFilesWithSameBasenameKeepSeparateContents() async throws {
++    let directory = try XCTUnwrap(fixtureDirectory)
++    let firstTitle = newCategoryTitle()
++    let secondTitle = newCategoryTitle()
++    let first = directory.appendingPathComponent("first/route.gpx")
++    let second = directory.appendingPathComponent("second/route.gpx")
++    for file in [first, second] {
++      try FileManager.default.createDirectory(at: file.deletingLastPathComponent(),
++                                              withIntermediateDirectories: true)
++    }
++    try gpx(trackName: "First route", category: firstTitle).write(to: first)
++    try gpx(trackName: "Second route", category: secondTitle).write(to: second)
++    let firstOriginal = try snapshot(of: first)
++    let secondOriginal = try snapshot(of: second)
++    let queueGate = await holdFileQueue()
++    defer { queueGate.unblock() }
++    let before = try stagingDirectories()
++    let finished = expectImport()
++    XCTAssertTrue(DeepLinkHandler.shared.applicationDidOpenUrl(first))
++    let firstStaged = try newStagedFile(since: before, basename: "route.gpx")
++    let afterFirst = try stagingDirectories()
++    XCTAssertTrue(DeepLinkHandler.shared.applicationDidOpenUrl(second))
++    let secondStaged = try newStagedFile(since: afterFirst, basename: "route.gpx")
++    XCTAssertNotEqual(firstStaged.deletingLastPathComponent(), secondStaged.deletingLastPathComponent())
++    assertUnchanged(firstStaged, from: firstOriginal)
++    assertUnchanged(secondStaged, from: secondOriginal)
++    queueGate.unblock()
++
++    await finishImport(finished, successes: 2)
++    XCTAssertEqual(try importedTrackNames(in: firstTitle), ["First route"])
++    XCTAssertEqual(try importedTrackNames(in: secondTitle), ["Second route"])
++    for staged in [firstStaged, secondStaged] {
++      XCTAssertFalse(FileManager.default.fileExists(atPath: staged.deletingLastPathComponent().path))
++    }
++    assertUnchanged(first, from: firstOriginal)
++    assertUnchanged(second, from: secondOriginal)
++  }
++
++  @MainActor
++  func testCleanupRejectsForeignPathEvenInsideStagingRoot() throws {
++    let foreignDirectory = stagingRoot.appendingPathComponent(UUID().uuidString, isDirectory: true)
++    try FileManager.default.createDirectory(at: foreignDirectory, withIntermediateDirectories: true)
++    defer { try? FileManager.default.removeItem(at: foreignDirectory) }
++    let foreign = foreignDirectory.appendingPathComponent("route.gpx")
++    try gpx(trackName: "Foreign route").write(to: foreign)
++    let original = try snapshot(of: foreign)
++    let directoryDate = try modificationDate(of: foreignDirectory)
++
++    DeepLinkParser.removeTemporaryBookmarksFile(atPath: foreign.path)
++
++    assertUnchanged(foreign, from: original)
++    XCTAssertEqual(try modificationDate(of: foreignDirectory), directoryDate)
++  }
++
++  @MainActor
++  func testKMLAndKMZImportsKeepCompatibilityAndCleanOwnedCopies() async throws {
++    for ext in ["kml", "kmz"] {
++      let title = newCategoryTitle()
++      let routeName = ext == "kml" ? "KML route" : "KMZ route"
++      let directory = try XCTUnwrap(fixtureDirectory)
++      let kml = directory.appendingPathComponent("\(ext)-fixture.kml")
++      let xml = """
++      <?xml version="1.0" encoding="UTF-8"?>
++      <kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>\(title)</name>
++      <Placemark><name>\(routeName)</name><LineString>
++      <coordinates>44.80,41.70,400 44.81,41.71,410</coordinates>
++      </LineString></Placemark></Document></kml>
++      """
++      try Data(xml.utf8).write(to: kml)
++      let source: URL
++      if ext == "kmz" {
++        source = directory.appendingPathComponent("route.kmz")
++        XCTAssertTrue(OpenWithImportTestSupport.createKMZ(at: source, from: kml))
++      } else {
++        source = kml
++      }
++      let original = try snapshot(of: source)
++      let queueGate = await holdFileQueue()
++      defer { queueGate.unblock() }
++      let before = try stagingDirectories()
++      let finished = expectImport()
++      XCTAssertTrue(DeepLinkHandler.shared.applicationDidOpenUrl(source))
++      let staged = try newStagedFile(since: before, basename: source.lastPathComponent)
++      queueGate.unblock()
++
++      await finishImport(finished)
++      XCTAssertEqual(try importedTrackNames(in: title), [routeName])
++      XCTAssertFalse(FileManager.default.fileExists(atPath: staged.deletingLastPathComponent().path))
++      assertUnchanged(source, from: original)
++    }
++  }
++
++  @MainActor
++  func testInAppCopiedFileImporterRetainsItsInput() async throws {
++    let source = try makeSource(trackName: "In-app copied route")
++    let original = try snapshot(of: source)
++    let queueGate = await holdFileQueue()
++    defer { queueGate.unblock() }
++    let before = try stagingDirectories()
++    let finished = expectImport()
++    manager.loadBookmarkFile(source)
++    XCTAssertEqual(try stagingDirectories(), before)
++    queueGate.unblock()
++
++    await finishImport(finished)
++    XCTAssertEqual(try importedTrackNames(), ["In-app copied route"])
++    assertUnchanged(source, from: original)
++  }
++
++  @MainActor
++  func testRejectsMissingFilesDirectoriesAndSymbolicLinks() throws {
++    let target = try makeSource(trackName: "Symlink target")
++    let original = try snapshot(of: target)
++    let directory = try XCTUnwrap(fixtureDirectory)
++    let symlink = directory.appendingPathComponent("linked.gpx")
++    try FileManager.default.createSymbolicLink(at: symlink, withDestinationURL: target)
++    let before = try stagingDirectories()
++
++    for source in [directory.appendingPathComponent("missing.gpx"), directory, symlink] {
++      XCTAssertThrowsError(try DeepLinkParser.addBookmarksFile(source))
++      XCTAssertEqual(try stagingDirectories(), before)
++    }
++    assertUnchanged(target, from: original)
++    XCTAssertEqual(try FileManager.default.destinationOfSymbolicLink(atPath: symlink.path), target.path)
++    XCTAssertEqual(fileSuccesses, 0)
++    XCTAssertEqual(fileErrors, 0)
++  }
++
++  private var stagingRoot: URL {
++    FileManager.default.temporaryDirectory.appendingPathComponent("CoMapsImports", isDirectory: true)
++  }
++
++  private func stagingDirectories() throws -> Set<URL> {
++    guard FileManager.default.fileExists(atPath: stagingRoot.path) else { return [] }
++    return Set(try FileManager.default.contentsOfDirectory(at: stagingRoot,
++                                                          includingPropertiesForKeys: nil))
++  }
++
++  private func newStagedFile(since before: Set<URL>, basename: String) throws -> URL {
++    let added = try stagingDirectories().subtracting(before)
++    XCTAssertEqual(added.count, 1, "Exactly one owned import directory must be created")
++    let directory = try XCTUnwrap(added.first)
++    let file = directory.appendingPathComponent(basename)
++    XCTAssertTrue(FileManager.default.fileExists(atPath: file.path))
++    XCTAssertEqual(try FileManager.default.attributesOfItem(atPath: file.path)[.type] as? FileAttributeType,
++                   FileAttributeType.typeRegular)
++    return file
++  }
++
++  private typealias FileSnapshot = (hash: SHA256.Digest, date: Date)
++
++  private func snapshot(of source: URL) throws -> FileSnapshot {
++    (SHA256.hash(data: try Data(contentsOf: source)), try modificationDate(of: source))
++  }
++
++  private func assertUnchanged(_ source: URL, from original: FileSnapshot,
++                               file: StaticString = #filePath, line: UInt = #line) {
++    do {
++      let current = try snapshot(of: source)
++      XCTAssertEqual(current.hash, original.hash, "File contents must be preserved", file: file, line: line)
++      XCTAssertEqual(current.date, original.date, "File mtime must be preserved", file: file, line: line)
++    } catch {
++      XCTFail("Expected retained file: \(error)", file: file, line: line)
++    }
++  }
++
++  @MainActor
++  private func holdFileQueue() async -> OpenWithImportFileQueueGate {
++    let entered = expectation(description: "Real Platform::File queue is held")
++    let queueGate = OpenWithImportTestSupport.holdFileQueue { entered.fulfill() }
++    gate = queueGate
++    await fulfillment(of: [entered], timeout: 30)
++    XCTAssertFalse(queueGate.didTimeOut)
++    return queueGate
++  }
++
++  @MainActor
++  private func finishImport(_ finished: XCTestExpectation, successes: Int = 1, errors: Int = 0) async {
++    await fulfillment(of: [finished], timeout: 30)
++    XCTAssertFalse(gate?.didTimeOut ?? false)
++    XCTAssertEqual(fileSuccesses, successes)
++    XCTAssertEqual(fileErrors, errors)
++  }
++
++  private func newCategoryTitle() -> String {
++    let title = "Open With import fixture \(UUID().uuidString)"
++    categoryTitles.insert(title)
++    return title
++  }
++
++  @MainActor
++  private func expectImport() -> XCTestExpectation {
++    fileSuccesses = 0
++    fileErrors = 0
++    let finished = expectation(description: "Real bookmark import completed")
++    loading = finished
++    return finished
++  }
++
++  @MainActor
++  private func importedTrackNames(in title: String? = nil) throws -> [String] {
++    let category = try XCTUnwrap(manager.sortedUserCategories().first { $0.title == (title ?? categoryTitle) },
++                                "CONTROL: real importer must install the synthetic GPX category")
++    return category.tracks.map(\.trackName)
++  }
++
++  private func makeSource(trackName: String) throws -> URL {
++    let source = try XCTUnwrap(fixtureDirectory).appendingPathComponent("Original route.gpx")
++    try gpx(trackName: trackName).write(to: source)
++    try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 1_700_000_000)],
++                                         ofItemAtPath: source.path)
++    return source
++  }
++
++  private func modificationDate(of source: URL) throws -> Date {
++    try XCTUnwrap(FileManager.default.attributesOfItem(atPath: source.path)[.modificationDate] as? Date)
++  }
++
++  private func gpx(trackName: String, category: String? = nil) -> Data {
++    Data("""
++    <?xml version="1.0" encoding="UTF-8"?>
++    <gpx version="1.1" creator="CoMaps XCTest" xmlns="http://www.topografix.com/GPX/1/1">
++      <metadata><name>\(category ?? categoryTitle)</name></metadata>
++      <trk><name>\(trackName)</name><trkseg>
++        <trkpt lat="41.70" lon="44.80"><ele>400</ele></trkpt>
++        <trkpt lat="41.71" lon="44.81"><ele>410</ele></trkpt>
++      </trkseg></trk>
++    </gpx>
++    """.utf8)
++  }
++
++  func onBookmarksLoadFinished() {
++    let finished = loading
++    loading = nil
++    finished?.fulfill()
++  }
++
++  func onBookmarksFileLoadSuccess() { fileSuccesses += 1 }
++  func onBookmarksFileLoadError() { fileErrors += 1 }
++}

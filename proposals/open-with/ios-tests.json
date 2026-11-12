@@ -1,0 +1,10 @@
+[
+  {
+    "className": "OpenWithImportTests",
+    "expectedTests": 10
+  },
+  {
+    "className": "DeepLinkHandlerTests",
+    "expectedTests": 3
+  }
+]

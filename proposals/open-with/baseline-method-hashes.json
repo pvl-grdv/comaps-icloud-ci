@@ -1,0 +1,7 @@
+{
+  "unchanged": true,
+  "methods": {
+    "testNormalImportPreservesOriginalHashAndModificationDate": "c46b0daa3762155d322e2fc2911e8c52ff7f536dd3e38771583f0a42858df3a6",
+    "testQueuedImportCapturesOriginalBeforeFileHandlerReturns": "26d5977463189aec73b43260022f3a96f54e7be04bd81e36962875e4c31dddfc"
+  }
+}
