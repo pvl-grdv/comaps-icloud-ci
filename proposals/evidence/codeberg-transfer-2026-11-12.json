@@ -1,0 +1,100 @@
+{
+  "upstream": "871febfffe0ef2a970d4f6973442dd80c632da01",
+  "fork_url": "https://codeberg.org/pvl-grdv/comaps-contrib",
+  "commits_created": true,
+  "remote_changes": true,
+  "features": {
+    "search": {
+      "patch_sha256": "3145ed99469a088305894e378c1132f9dc847c37ce9ab1a5db3ab9aa3267fb09",
+      "resulting_git_tree": "8b580227e8777dffa847ddc0162bb87e7617e203",
+      "changed_files": 26,
+      "source_hashes_verified": true,
+      "branch": "codex/ios-saved-items-search",
+      "commit": "afe03e768fbc1bf1508ae0dfca5229c29a6f25d3",
+      "commit_message_status": "AI-assisted WIP preparation; replace with human-authored text before upstream submission"
+    },
+    "folder-order": {
+      "patch_sha256": "6fd4191c2d0fe4a3b47be123c8ae081019ecf7314de4e7065deec428761e3727",
+      "resulting_git_tree": "2d132cc4b21571fdb8d7b6cf7384c3c5be6b0ea0",
+      "changed_files": 10,
+      "source_hashes_verified": true,
+      "branch": "codex/ios-manual-folder-order",
+      "commit": "9cbbc1a2499f292b91c43369343f8be66f1457fd",
+      "commit_message_status": "AI-assisted WIP preparation; replace with human-authored text before upstream submission"
+    },
+    "item-order": {
+      "patch_sha256": "ab0edb38442a625c9410f43cc0e81df6cbf23e32dc0d369eaf466a3b508ba8dd",
+      "resulting_git_tree": "ff54a2440d16e35851f6bf51c3d3e2c8f6763dee",
+      "changed_files": 15,
+      "source_hashes_verified": true,
+      "branch": "codex/ios-manual-item-order",
+      "commit": "f1d0251899a915ab816c79392e9e1fbbc23c9d20",
+      "commit_message_status": "AI-assisted WIP preparation; replace with human-authored text before upstream submission"
+    }
+  },
+  "phase": "three independent branches pushed and verified in owner fork",
+  "ci_run": "https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43176499388",
+  "ci_harness_commit": "de8b66286684b9e884bfb75babe15721a13ffaac",
+  "upstream_submission": false,
+  "DCO_signed": false,
+  "limitations": [
+    "Human review and human-authored submission text remain required",
+    "Item ordering includes Android compatibility changes; Android build was not tested"
+  ],
+  "remote_verified_at_utc": "2026-11-12T12:50:17.343730+00:00",
+  "remote_refs": {
+    "refs/heads/codex/ios-manual-folder-order": "9cbbc1a2499f292b91c43369343f8be66f1457fd",
+    "refs/heads/codex/ios-manual-item-order": "f1d0251899a915ab816c79392e9e1fbbc23c9d20",
+    "refs/heads/codex/ios-saved-items-search": "afe03e768fbc1bf1508ae0dfca5229c29a6f25d3",
+    "refs/heads/main": "871febfffe0ef2a970d4f6973442dd80c632da01"
+  },
+  "remote_commit_verification": {
+    "item-order": {
+      "commit": "f1d0251899a915ab816c79392e9e1fbbc23c9d20",
+      "tree": "ff54a2440d16e35851f6bf51c3d3e2c8f6763dee",
+      "tree_verification": "reconstructed Git tree object hash from complete nonrecursive Codeberg tree entries",
+      "parents": [
+        "871febfffe0ef2a970d4f6973442dd80c632da01"
+      ],
+      "message": "WIP: prepare manual saved-item ordering (AI-assisted)\n\nPreparation in the owner fork only. Human review and human-authored\nsubmission text are still required before an upstream proposal.\nNo DCO sign-off is included.\n"
+    },
+    "search": {
+      "commit": "afe03e768fbc1bf1508ae0dfca5229c29a6f25d3",
+      "tree": "8b580227e8777dffa847ddc0162bb87e7617e203",
+      "tree_verification": "reconstructed Git tree object hash from complete nonrecursive Codeberg tree entries",
+      "parents": [
+        "871febfffe0ef2a970d4f6973442dd80c632da01"
+      ],
+      "message": "WIP: prepare iOS saved-items search (AI-assisted)\n\nPreparation in the owner fork only. Human review and human-authored\nsubmission text are still required before an upstream proposal.\nNo DCO sign-off is included.\n"
+    },
+    "folder-order": {
+      "commit": "9cbbc1a2499f292b91c43369343f8be66f1457fd",
+      "tree": "2d132cc4b21571fdb8d7b6cf7384c3c5be6b0ea0",
+      "tree_verification": "reconstructed Git tree object hash from complete nonrecursive Codeberg tree entries",
+      "parents": [
+        "871febfffe0ef2a970d4f6973442dd80c632da01"
+      ],
+      "message": "WIP: prepare iOS manual folder ordering (AI-assisted)\n\nPreparation in the owner fork only. Human review and human-authored\nsubmission text are still required before an upstream proposal.\nNo DCO sign-off is included.\n"
+    }
+  },
+  "main_unchanged": true,
+  "upstream_PR_created": false,
+  "checks": {
+    "search": {
+      "native": 12,
+      "XCTest": 19,
+      "unsigned_Release": "passed"
+    },
+    "folder-order": {
+      "native": 3,
+      "XCTest": 9,
+      "unsigned_Release": "passed"
+    },
+    "item-order": {
+      "native": 8,
+      "XCTest": 13,
+      "unsigned_Release": "passed"
+    }
+  },
+  "scope": "Codeberg branch contents match the independently tested GitHub patches; no new Codeberg CI run is claimed"
+}

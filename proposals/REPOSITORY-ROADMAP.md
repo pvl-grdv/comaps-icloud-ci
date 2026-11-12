@@ -62,6 +62,35 @@ GitHub можно оставить для проверок и доказател
 сохраняются до завершения рассмотрения; их количество определяется работой,
 а не нынешними шестью экспериментальными ветками.
 
+## Что уже перенесено в Codeberg
+
+12 ноября три изменения отправлены в настоящий fork
+[pvl-grdv/comaps-contrib](https://codeberg.org/pvl-grdv/comaps-contrib).
+Каждая ветка содержит один подготовительный коммит непосредственно над
+`871febfffe0ef2a970d4f6973442dd80c632da01`. Исходная `main` не изменена.
+
+| Изменение | Ветка в вашем fork | Коммит |
+| --- | --- | --- |
+| Поиск точек и треков | [codex/ios-saved-items-search](https://codeberg.org/pvl-grdv/comaps-contrib/src/branch/codex/ios-saved-items-search) | `afe03e768fbc1bf1508ae0dfca5229c29a6f25d3` |
+| Ручной порядок папок | [codex/ios-manual-folder-order](https://codeberg.org/pvl-grdv/comaps-contrib/src/branch/codex/ios-manual-folder-order) | `9cbbc1a2499f292b91c43369343f8be66f1457fd` |
+| Ручной порядок точек и треков | [codex/ios-manual-item-order](https://codeberg.org/pvl-grdv/comaps-contrib/src/branch/codex/ios-manual-item-order) | `f1d0251899a915ab816c79392e9e1fbbc23c9d20` |
+
+Проверены удалённые ветки, их родительский коммит и полные деревья исходников.
+Изменённые файлы побайтно соответствуют трём независимым патчам из успешного
+[CI 43176499388](https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43176499388).
+Это связь с уже выполненной проверкой того же кода, а не новый запуск CI
+на Codeberg. Точные хеши и результаты — в
+[записи переноса](evidence/codeberg-transfer-2026-11-12.json).
+
+Ветки содержат только соответствующий код и тесты: история Lab, её CI,
+Mac-упаковка и iCloud-изменения туда не перенесены. Open With остаётся
+отдельным кандидатом в GitHub до завершения его собственных проверок.
+
+Коммиты намеренно помечены `WIP` и `AI-assisted`: перед предложением upstream
+нужны человеческое ревью и собственные сообщения коммитов. DCO не добавлен,
+PR не созданы. У item-order есть совместимость Android JNI с новым режимом
+порядка, но Android-сборка в указанном CI не проверялась.
+
 ## Что нужно перед отправкой
 
 CoMaps просит одну идею с её тестами в каждом PR, рабочие коммиты и проверки
@@ -84,5 +113,6 @@ DCO подтверждает сам автор; в этой лаборатори
 - [CoMaps: правила AI](https://codeberg.org/comaps/Governance/src/branch/main/AI_USAGE.md)
 - [CoMaps: DCO](https://codeberg.org/comaps/Governance/src/branch/main/DCO.md)
 
-Никаких issue, PR, сообщений сопровождающим или действий в Codeberg в рамках
-этого аудита не выполнялось.
+Сам аудит веток GitHub не менял репозитории. Последующий перенос создал только
+три перечисленные ветки в fork владельца. Issue, PR и сообщения сопровождающим
+CoMaps не публиковались; DCO за пользователя не подписывался.
