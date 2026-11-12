@@ -10,7 +10,7 @@
       "baseSha256": "3e18e382692a9e419ea44f19c87c189f90e7c4b4f491fd54477c3cf95d6f72c0"
     },
     "iphone/CoreApi/CoreApi/DeepLink/DeepLinkParser.mm": {
-      "sha256": "8635e279f2faa3255e1b5227560945dce665d0c06521b6878cef120d3f52cc4f",
+      "sha256": "975fad0a4fcda2d6d64a794189cce908ac799669d744e2a9021bf28e46afefb0",
       "baseSha256": "0cfad16fb2dab6b551c219a366c7f31a968ece749a5b85b4e34c8e6ad11b535d"
     },
     "iphone/Maps/Core/DeepLink/DeepLinkHandler.swift": {
@@ -41,5 +41,5 @@
   "unchangedTestFiles": {
     "iphone/Maps/Tests/Core/DeepLink/DeepLinkHandlerTests.swift": "5d1bffb774795269db9e1b0b1eaff4e03165ea1b92627a4efebf06b790df0396"
   },
-  "patchSha256": "88d7d6fe2ebe8d785793ee13af9104dafac51fa9cbec54f43302bd2e836b9bf0"
+  "patchSha256": "685584473f3a8474a925befe3bbbcd3f32092c1efa202374f85a4a0844ec945f"
 }

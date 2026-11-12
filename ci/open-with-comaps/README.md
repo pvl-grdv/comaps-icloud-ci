@@ -1,8 +1,8 @@
 # Actual CoMaps Files → Open With CI harness
 
-Private integration prototype, intended to become `ci/open-with-comaps/` after
-review. No upstream project changes or added dependencies. **Not compiled or
-run against Xcode locally; a passing CI result is still required.**
+Integration harness kept outside the upstream patch. No upstream project
+changes or added dependencies. **Not compiled or run against Xcode locally;
+a passing CI result is still required.**
 
 ## Call contract
 
@@ -129,3 +129,15 @@ The Python tests exercise source byte/mtime/deletion/symlink/container changes,
 app provenance changes/binding failures, xctestrun runner-environment placement
 and preservation, and rejection of skipped/zero/expected-failure runs. Swift and
 XCTest compilation/runtime validation belongs to the candidate CI job.
+## Bootstrap details verified before the next full run
+
+Files identifies the synthetic provider folder with the observed accessibility
+identifier `DOC.browsingRoot Source: com.apple.FileProvider.LocalStorage, Title: GPX Fixtures`;
+its navigation bar is not named after the folder. The selector follows the
+saved iOS 27 probe tree from run 43193416416.
+
+After denying the ordinary location permission during bootstrap, the test also
+dismisses CoMaps' own exact location-disabled warning with Cancel. This follows
+the pinned MWMLocationManager/MWMLocationAlert source and English localization.
+It never selects Settings or grants location access. These setup steps do not
+replace or alter the cold/warm import assertions.

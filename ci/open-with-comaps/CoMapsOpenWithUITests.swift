@@ -11,6 +11,7 @@ final class CoMapsOpenWithUITests: XCTestCase {
   private var displayName = ""
   private var expectedSourceURLs: [String: String] = [:]
   private var phase = "setup"
+  private var deniedLocationDuringBootstrap = false
 
   private struct Fixture {
     let stem: String
@@ -193,16 +194,17 @@ final class CoMapsOpenWithUITests: XCTestCase {
     button.tap()
   }
 
-  // Deliberately isolated: align only this helper with the independently
-  // observed Files probe before wiring this prototype into CI.
+  // Exact folder identity from the iOS 27 Files probe accessibility tree.
+  // The navigation bar itself is not named after the current folder.
   private func navigateToFixtureFolder() {
-    if files.navigationBars["GPX Fixtures"].exists { return }
+    let folder = files.otherElements["DOC.browsingRoot Source: com.apple.FileProvider.LocalStorage, Title: GPX Fixtures"]
+    if folder.exists { return }
     let browse = files.tabBars.buttons["Browse"]
     if browse.waitForExistence(timeout: 5) && browse.isHittable { browse.tap() }
-    if files.navigationBars["GPX Fixtures"].exists { return }
+    if folder.exists { return }
     tapFilesLabel("On My iPhone")
     tapFilesLabel("GPX Fixtures")
-    XCTAssertTrue(files.navigationBars["GPX Fixtures"].waitForExistence(timeout: 10), "HARNESS_WRONG_FIXTURE_FOLDER")
+    XCTAssertTrue(folder.waitForExistence(timeout: 10), "HARNESS_WRONG_FIXTURE_FOLDER")
   }
 
   private func fixtureElement(stem: String) -> XCUIElement {
@@ -237,6 +239,7 @@ final class CoMapsOpenWithUITests: XCTestCase {
     let deadline = Date().addingTimeInterval(timeout)
     repeat {
       handleStandardLocationPromptIfPresent()
+      dismissBootstrapLocationDeniedAlertIfPresent()
       if element.waitForExistence(timeout: 1) && element.isHittable { return }
     } while Date() < deadline
     snapshot("failure-\(phase)")
@@ -257,6 +260,24 @@ final class CoMapsOpenWithUITests: XCTestCase {
     // File import needs no location access. Deny through the ordinary prompt;
     // never grant a private permission or modify the simulator's TCC database.
     deny.tap()
+    if phase == "setup" { deniedLocationDuringBootstrap = true }
+  }
+
+  private func dismissBootstrapLocationDeniedAlertIfPresent() {
+    guard phase == "setup", deniedLocationDuringBootstrap,
+          let app = comaps, app.state == .runningForeground else { return }
+    // MWMLocationAlert.xib: exact English title/body; Cancel invokes closeTap
+    // and its callback disables the repeated warning. Settings is never tapped.
+    let title = app.staticTexts["Location services are disabled"]
+    let message = app.staticTexts["Enable access to geolocation in the device settings"]
+    guard title.exists && message.exists else { return }
+    let cancel = app.buttons["Cancel"]
+    XCTAssertTrue(cancel.waitForExistence(timeout: 5) && cancel.isHittable,
+                  "HARNESS_LOCATION_DENIED_CANCEL_MISSING")
+    snapshot("setup-comaps-location-denied")
+    cancel.tap()
+    XCTAssertTrue(title.waitForNonExistence(timeout: 10) && message.waitForNonExistence(timeout: 10),
+                  "HARNESS_LOCATION_DENIED_DIALOG_REMAINS")
   }
 
   private func snapshot(_ name: String) {

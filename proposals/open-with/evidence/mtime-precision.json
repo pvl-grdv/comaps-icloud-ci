@@ -1,0 +1,25 @@
+{
+  "source": 1700000000.123457,
+  "copy": 1700000000.123457,
+  "copyMatches": true,
+  "afterSetter": 1700000000.123457,
+  "setterMatches": false,
+  "referenceSeconds": {
+    "source": 721692800.1234568,
+    "copy": 721692800.1234568,
+    "afterSetter": 721692800.123457
+  },
+  "setterDeltaSeconds": 1.1920928955078125e-07,
+  "api": "NSFileManager copyItemAtURL:toURL:error:; setAttributes:ofItemAtPath:error:",
+  "local_macOS": "27.3",
+  "referenceSecondsBinary64Hex": {
+    "source": "41c58214400fcd6f",
+    "copy": "41c58214400fcd6f",
+    "afterSetter": "41c58214400fcd70"
+  },
+  "statMtimeNanoseconds": {
+    "source.gpx": 1700000000123456789,
+    "url-copy-reset.gpx": 1700000000123457000,
+    "url-copy-untouched.gpx": 1700000000123456789
+  }
+}

@@ -46,9 +46,21 @@ redesign. The in-app picker still requests a copy and uses its existing endpoint
   non-handler fixture app; their bounded diagnostics did not establish the
   host-service cause. Further blind probe reruns were stopped. The candidate
   must instead pass the required real-CoMaps delivery test below.
-* The candidate patch has passed source-hash, patch-application, project-wiring,
-  and independent source review. **Candidate compilation, XCTest, real CoMaps
-  Files delivery, and unsigned Release validation are still pending.**
+* [First candidate run 43199569249](https://github.com/pvl-grdv/comaps-icloud-ci/actions/runs/43199569249)
+  at `b394bd288e16833816d6a01015680832fd3683ea` compiled and executed all thirteen
+  selected XCTest methods: twelve passed, one failed, zero skipped/expected
+  failures. Both unchanged baseline methods passed. The same-basename test
+  failed only its exact staged modification-time assertions; Files UI and
+  Release did not run. Its [summary](evidence/candidate-43199569249-ios-summary.json)
+  remains recorded as a failure.
+* A synthetic Foundation URL-copy reproduction on local macOS 27.3 found that
+  copying preserved `1700000000123456789` ns, but the subsequent NSDate setter
+  changed it to `1700000000123457000` ns. [Exact evidence](evidence/mtime-precision.json).
+  The current patch removes that redundant setter. Every test source, including
+  naturally fractional timestamps and exact equality assertions, is unchanged.
+  **The corrected candidate still requires hosted XCTest, actual CoMaps Files
+  delivery, and unsigned Release validation.** Local reproduction is diagnosis,
+  not a substitute for those checks.
 
 `source-hashes.json` identifies the exact patch and resulting files.
 `ios-tests.json` and `expected-methods.json` select ten import tests plus three

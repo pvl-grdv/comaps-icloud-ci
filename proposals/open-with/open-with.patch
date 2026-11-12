@@ -57,7 +57,7 @@ diff --git a/iphone/CoreApi/CoreApi/DeepLink/DeepLinkParser.mm b/iphone/CoreApi/
  
  static inline DeeplinkUrlType deeplinkUrlType(url_scheme::ParsedMapApi::UrlType type)
  {
-@@ -35,9 +42,82 @@
+@@ -35,9 +42,81 @@
    GetFramework().ExecuteMapApiRequest();
  }
  
@@ -109,9 +109,8 @@ diff --git a/iphone/CoreApi/CoreApi/DeepLink/DeepLinkParser.mm b/iphone/CoreApi/
 +                                 userInfo:@{NSLocalizedDescriptionKey: @"The import copy must be a regular file."}];
 +      return;
 +    }
-+    if (![files setAttributes:@{NSFileModificationDate: attributes[NSFileModificationDate]}
-+                 ofItemAtPath:destination.path error:&copyError])
-+      return;
++    // Keep the timestamp copied with the file; setting it through NSDate can
++    // round away subsecond precision that copyItem preserved.
 +    stagedURL = destination;
 +  }];
 +  if (scoped)
